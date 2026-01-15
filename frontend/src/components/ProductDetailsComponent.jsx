@@ -1,0 +1,456 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import Rectangle1 from "../assets/imgs/Rectangle1.png";
+import {
+  Heart,
+  Share2,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Building2,
+  BadgeCheck,
+  Star,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { ROUTES, getSellerProductsUrl } from "../routes";
+import { offerService } from "../services/offerService";
+
+const StarRating = ({ value = 5 }) => {
+  const { t } = useTranslation();
+  const stars = Array.from({ length: 5 }, (_, i) => i + 1);
+  return (
+    <div className="flex items-center justify-start gap-1" aria-label={`${t("productDetails.rating")} ${value} ${t("common.of")} 5`}>
+      {stars.map((s) => (
+        <Star
+          key={s}
+          className={`h-4 w-4 ${s <= value ? "fill-current" : ""}`}
+        />
+      ))}
+      <span className="ms-2 text-xs text-slate-500">({value.toFixed(1)})</span>
+    </div>
+  );
+};
+
+export default function ProductDetailsComponent({ offerId }) {
+  const { t, i18n } = useTranslation();
+  const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+  const [offer, setOffer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [images, setImages] = useState([]);
+  const [activeImageId, setActiveImageId] = useState("main");
+  const [liked, setLiked] = useState(false);
+  const [tab, setTab] = useState("company");
+
+  const fetchOffer = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await offerService.getOfferById(offerId);
+      
+      // Backend returns: { success: true, data: {...}, message: "..." }
+      if (response.data && response.data.success && response.data.data) {
+        const offerData = response.data.data;
+        setOffer(offerData);
+        
+        // Parse and set images
+        let offerImages = [];
+        if (offerData.images) {
+          try {
+            offerImages = typeof offerData.images === 'string' 
+              ? JSON.parse(offerData.images) 
+              : offerData.images;
+          } catch {
+            offerImages = [];
+          }
+        }
+        
+        // Add item images
+        if (offerData.items && offerData.items.length > 0) {
+          offerData.items.forEach(item => {
+            if (item.images) {
+              try {
+                const itemImages = typeof item.images === 'string' 
+                  ? JSON.parse(item.images) 
+                  : item.images;
+                offerImages = [...offerImages, ...itemImages];
+              } catch {
+                // Skip invalid images
+              }
+            }
+          });
+        }
+        
+        // Set images with IDs
+        const imagesWithIds = offerImages.map((img, idx) => ({
+          id: idx === 0 ? "main" : `t${idx}`,
+          src: img,
+          alt: offerData.title || "صورة العرض"
+        }));
+        
+        if (imagesWithIds.length === 0) {
+          imagesWithIds.push({
+            id: "main",
+            src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1600&q=80",
+            alt: "صورة العرض"
+          });
+        }
+        
+        setImages(imagesWithIds);
+        setActiveImageId(imagesWithIds[0].id);
+      } else {
+        console.warn("Unexpected response format:", response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching offer:", error);
+      console.error("Error details:", error.response?.data || error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [offerId]);
+
+  useEffect(() => {
+    if (offerId) {
+      fetchOffer();
+    }
+  }, [offerId, fetchOffer]);
+
+  const activeImage = images.find((i) => i.id === activeImageId) ?? (images.length > 0 ? images[0] : { src: "", alt: "" });
+
+  if (loading) {
+    return (
+      <div dir={currentDir} className="min-h-screen bg-white text-slate-900">
+        <div className="w-full pt-25 sm:pt-30 md:pt-30 lg:pt-55 xl:pt-55 2xl:pt-55">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+            <div className="flex items-center justify-center py-12">
+              <div className="text-slate-500">جاري التحميل...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!offer) {
+    return (
+      <div dir={currentDir} className="min-h-screen bg-white text-slate-900">
+        <div className="w-full pt-25 sm:pt-30 md:pt-30 lg:pt-55 xl:pt-55 2xl:pt-55">
+          <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+            <div className="flex items-center justify-center py-12">
+              <div className="text-slate-500">العرض غير موجود</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div dir={currentDir} className="min-h-screen bg-white text-slate-900">
+      <div className="w-full pt-25 sm:pt-30 md:pt-30 lg:pt-55 xl:pt-55 2xl:pt-55">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
+          <div className="grid grid-cols-1 gap-8 sm:gap-12 lg:grid-cols-2 lg:gap-16">
+            {/* RIGHT: Gallery */}
+            <div className="space-y-3 sm:space-y-4">
+              {/* Breadcrumbs */}
+              <div className={`flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-500 ${currentDir === 'rtl' ? 'justify-start' : 'justify-end'}`}>
+                <span>{t("productDetails.home")}</span>
+                <ChevronLeft className={`h-3 w-3 sm:h-4 sm:w-4 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
+                <span>{t("productDetails.products")}</span>
+                <ChevronLeft className={`h-3 w-3 sm:h-4 sm:w-4 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
+                <span className="text-slate-700">{t("productDetails.productDetails")}</span>
+              </div>
+
+              {/* Main image */}
+              <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
+                <img
+                  src={activeImage.src}
+                  alt={activeImage.alt}
+                  className="h-[240px] sm:h-[320px] w-full object-cover"
+                />
+
+                {/* Floating actions (left side inside image) */}
+                <div className={`absolute top-2 sm:top-3 flex flex-col gap-1.5 sm:gap-2 ${currentDir === 'rtl' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}>
+                  <button
+                    onClick={() => setLiked((v) => !v)}
+                    className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition"
+                    aria-label={liked ? t("productDetails.removeFromFavorites") : t("productDetails.addToFavorites")}
+                  >
+                    <Heart
+                      className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${liked ? "fill-current text-red-500" : ""}`}
+                    />
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        navigator.clipboard?.writeText(window.location.href);
+                      } catch {
+                        // empty
+                      }
+                    }}
+                    className="inline-flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition"
+                    aria-label={t("productDetails.share")}
+                  >
+                    <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                  </button>
+                </div>
+
+                {/* Left arrow */}
+                <button
+                  onClick={() => {
+                    const idx = images.findIndex((i) => i.id === activeImageId);
+                    const next = (idx - 1 + images.length) % images.length;
+                    setActiveImageId(images[next].id);
+                  }}
+                  className={`absolute top-1/2 -translate-y-1/2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition ${currentDir === 'rtl' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}
+                  aria-label={t("productDetails.previousImage")}
+                >
+                  <ChevronLeft className={`h-4 w-4 sm:h-5 sm:w-5 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Right arrow */}
+                <button
+                  onClick={() => {
+                    const idx = images.findIndex((i) => i.id === activeImageId);
+                    const next = (idx + 1) % images.length;
+                    setActiveImageId(images[next].id);
+                  }}
+                  className={`absolute top-1/2 -translate-y-1/2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition ${currentDir === 'rtl' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}
+                  aria-label={t("productDetails.nextImage")}
+                >
+                  <ChevronRight className={`h-4 w-4 sm:h-5 sm:w-5 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
+                </button>
+              </div>
+
+              {/* Thumbnails */}
+              <div className="flex items-center justify-start gap-1.5 sm:gap-2 overflow-x-auto pb-2">
+                {images.slice(1).map((img) => {
+                  const active = img.id === activeImageId;
+                  return (
+                    <button
+                      key={img.id}
+                      onClick={() => setActiveImageId(img.id)}
+                      className={`relative overflow-hidden rounded-md border bg-white shadow-sm transition flex-shrink-0 ${
+                        active
+                          ? "border-slate-900 ring-2 ring-slate-900"
+                          : "border-slate-200 hover:border-slate-400"
+                      }`}
+                      aria-label={`${t("productDetails.selectImage")}: ${img.alt}`}
+                    >
+                      <img
+                        src={img.src}
+                        alt={img.alt}
+                        className="h-14 w-20 sm:h-16 sm:w-24 object-cover"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* LEFT: Info */}
+            <div className="space-y-4 sm:space-y-6">
+              <div className={currentDir === 'rtl' ? 'text-right' : 'text-left'}>
+                <div className={`flex items-center gap-2 sm:gap-3 ${currentDir === 'rtl' ? 'justify-start' : 'justify-end'}`}>
+                  <span className="text-lg sm:text-xl" aria-hidden>
+                    🇨🇳
+                  </span>
+                  <h1 className="text-base sm:text-lg font-semibold tracking-tight">
+                    {offer.title || (i18n.language === 'ar' ? 'عرض' : 'Offer')}
+                  </h1>
+                </div>
+                <div>
+                  <div className="my-3 sm:my-4 text-amber-500">
+                    <StarRating value={5} />
+                  </div>
+                  <p className="text-xs sm:text-sm leading-5 sm:leading-6 text-slate-600">
+                    {offer.description || (i18n.language === 'ar' 
+                      ? 'وصف العرض غير متوفر'
+                      : 'Offer description not available')}
+                  </p>
+                </div>
+              </div>
+
+              {offer.trader && (
+                <Link
+                  to={getSellerProductsUrl(offer.trader.id)}
+                  className="block w-full rounded-md bg-blue-900 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
+                >
+                  {t("seller.viewProducts")}
+                </Link>
+              )}
+
+              <div className="space-y-2 sm:space-y-2.5 text-xs sm:text-sm">
+                {(offer.city || offer.country) && (
+                  <div className="flex items-center gap-2 text-slate-700 justify-start">
+                    <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="break-words">
+                      {[offer.city, offer.country].filter(Boolean).join('، ') || (i18n.language === 'ar' ? 'الموقع غير محدد' : 'Location not specified')}
+                    </span>
+                  </div>
+                )}
+
+                {offer.items && offer.items.length > 0 && (
+                  <div className="text-right">
+                    <div className="text-slate-500">{t("products.price")}</div>
+                    <div className="text-sm sm:text-base font-semibold">
+                      {offer.items[0].amount ? `${parseFloat(offer.items[0].amount).toLocaleString()} ${offer.items[0].currency || 'SAR'}` : 'غير محدد'}
+                    </div>
+                  </div>
+                )}
+
+                {offer.trader && (
+                  <div className="flex items-center gap-2 text-slate-700 justify-start">
+                    <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="break-words">
+                      {t("productDetails.sellerLabel")} {offer.trader.companyName || offer.trader.name || (i18n.language === 'ar' ? 'تاجر' : 'Trader')}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 text-slate-700 justify-start">
+                  <BadgeCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 text-green-600" />
+                  <span>{offer.status === 'ACTIVE' ? t("products.available") : offer.status}</span>
+                </div>
+              </div>
+
+              {/* Company card */}
+              {offer.trader && (
+                <Link to={getSellerProductsUrl(offer.trader.id)} className="block">
+                  <div className="w-full rounded-md border border-slate-200 bg-slate-50 p-3 sm:p-4 hover:bg-slate-100 transition cursor-pointer">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-slate-200 flex-shrink-0" aria-hidden />
+
+                      <div className="text-center flex-1 min-w-0">
+                        <div className="text-xs sm:text-sm font-semibold tracking-wide text-slate-900 truncate">
+                          {offer.trader.companyName || offer.trader.name || 'COMPANY NAME'}
+                        </div>
+                        <div className="mt-1.5 sm:mt-2 flex items-center justify-center gap-1 text-amber-500">
+                          <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
+                          <span className="text-xs text-slate-700">5.0</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              )}
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="pt-2 sm:pt-4">
+            <div className={`flex items-center gap-4 sm:gap-6 border-b border-slate-200 overflow-x-auto ${currentDir === 'rtl' ? 'justify-start' : 'justify-end'}`}>
+              <button
+                onClick={() => setTab("company")}
+                className={`py-2.5 sm:py-3 text-xs sm:text-sm font-semibold border-b-2 whitespace-nowrap transition ${
+                  tab === "company"
+                    ? "text-slate-900 border-amber-400"
+                    : "text-slate-500 border-transparent hover:text-slate-700"
+                }`}
+              >
+                {t("productDetails.companyProfile")}
+              </button>
+
+              <button
+                onClick={() => setTab("desc")}
+                className={`py-2.5 sm:py-3 text-xs sm:text-sm font-semibold border-b-2 whitespace-nowrap transition ${
+                  tab === "desc"
+                    ? "text-slate-900 border-amber-400"
+                    : "text-slate-500 border-transparent hover:text-slate-700"
+                }`}
+              >
+                {t("productDetails.goodsDescription")}
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="mt-3 sm:mt-4 rounded-md border border-slate-200 bg-white overflow-hidden">
+              {tab === "company" ? (
+                <div className="flex flex-col md:flex-row">
+                  {/* Logo block */}
+                  <div className="md:w-44 flex items-center justify-center p-4 sm:p-6 border-b md:border-b-0 md:border-l border-slate-200">
+                    <div className="h-24 w-24 sm:h-35 sm:w-35">
+                      <img src={Rectangle1} alt="Rectangle1" className="w-full h-full object-contain" />
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div className="flex-1 divide-y divide-slate-200">
+                    <div className="grid grid-cols-[1fr_1.5fr] sm:grid-cols-[1fr_2fr]">
+                      <div className={`px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold bg-slate-50 border-slate-200 ${currentDir === 'rtl' ? 'border-l' : 'border-r'}`}>
+                        {t("productDetails.verificationNumber")}
+                      </div>
+                      <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700 break-words">
+                        {offer.trader?.traderCode || offer.id || 'N/A'}
+                      </div>
+                    </div>
+
+                    {offer.acceptsNegotiation && (
+                      <div className="grid grid-cols-[1fr_1.5fr] sm:grid-cols-[1fr_2fr]">
+                        <div className={`px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold bg-slate-50 border-slate-200 ${currentDir === 'rtl' ? 'border-l' : 'border-r'}`}>
+                          {t("productDetails.paymentTerms")}
+                        </div>
+                        <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700 break-words">
+                          {i18n.language === 'ar' ? 'يقبل التفاوض' : 'Accepts Negotiation'}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-[1fr_1.5fr] sm:grid-cols-[1fr_2fr]">
+                      <div className={`px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold bg-slate-50 border-slate-200 ${currentDir === 'rtl' ? 'border-l' : 'border-r'}`}>
+                        {t("productDetails.companyRating")}
+                      </div>
+                      <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700">
+                        <div className={`flex items-center gap-1.5 sm:gap-2 text-amber-500 ${currentDir === 'rtl' ? 'justify-start' : 'justify-end'}`}>
+                          <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
+                          <span className="text-slate-700 text-xs sm:text-sm">5.0</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_1.5fr] sm:grid-cols-[1fr_2fr]">
+                      <div className={`px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-semibold bg-slate-50 border-slate-200 ${currentDir === 'rtl' ? 'border-l' : 'border-r'}`}>
+                        {t("productDetails.mainGoods")}
+                      </div>
+                      <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700 break-words">
+                        {offer.categoryRelation?.nameKey || offer.category || (i18n.language === 'ar' ? 'عام' : 'General')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 sm:p-4">
+                  <div className="text-xs sm:text-sm text-slate-700 whitespace-pre-wrap">
+                    {offer.description || (i18n.language === 'ar' 
+                      ? 'لا يوجد وصف متوفر للبضائع'
+                      : 'No goods description available')}
+                  </div>
+                  {offer.items && offer.items.length > 0 && (
+                    <div className="mt-4 space-y-3">
+                      <div className="text-sm font-semibold text-slate-900">
+                        {i18n.language === 'ar' ? 'عناصر العرض:' : 'Offer Items:'}
+                      </div>
+                      {offer.items.map((item, idx) => (
+                        <div key={idx} className="border border-slate-200 rounded-md p-3">
+                          <div className="font-semibold text-slate-900">{item.productName || `Item ${idx + 1}`}</div>
+                          {item.description && (
+                            <div className="text-xs text-slate-600 mt-1">{item.description}</div>
+                          )}
+                          <div className="text-xs text-slate-500 mt-2">
+                            {item.quantity && `${i18n.language === 'ar' ? 'الكمية' : 'Quantity'}: ${item.quantity} ${item.unit || ''}`}
+                            {item.unitPrice && ` | ${i18n.language === 'ar' ? 'السعر' : 'Price'}: ${item.unitPrice} ${item.currency || ''}`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Subtle footer spacing */}
+          <div className="h-10" />
+        </div>
+      </div>
+    </div>
+  );
+}
