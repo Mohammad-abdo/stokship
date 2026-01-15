@@ -1,0 +1,67 @@
+{
+  "common": {
+    "buttons": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "edit": "Edit",
+      "add": "Add",
+      "search": "Search",
+      "filter": "Filter",
+      "clear": "Clear",
+      "submit": "Submit",
+      "back": "Back"
+    },
+    "messages": {
+      "success": "Success",
+      "error": "An error occurred",
+      "loading": "Loading...",
+      "noData": "No data available"
+    }
+  },
+  "errors": {
+    "validation": {
+      "required": "This field is required",
+      "email": "Invalid email address",
+      "minLength": "Value is too short",
+      "maxLength": "Value is too long"
+    },
+    "auth": {
+      "unauthorized": "Unauthorized",
+      "forbidden": "Forbidden",
+      "invalidCredentials": "Invalid credentials"
+    }
+  },
+  "product.name.1": "safsdfdsf",
+  "product.description.1": "asfsadfsadf",
+  "product.name.4": "asdasdasd",
+  "product.description.4": "asdsadsad",
+  "product.meta.title.4": "",
+  "product.meta.description.4": "",
+  "product.og.title.PROD-004": "",
+  "product.og.description.PROD-004": "",
+  "product.twitter.title.PROD-004": "",
+  "product.twitter.description.PROD-004": "",
+  "product.meta.title.1": "",
+  "product.meta.description.1": "",
+  "product.og.title.PROD-001": "",
+  "product.og.description.PROD-001": "",
+  "product.twitter.title.PROD-001": "",
+  "product.twitter.description.PROD-001": "",
+  "product.name.2": "qweqwe",
+  "product.description.2": "qwe",
+  "product.meta.title.2": "",
+  "product.meta.description.2": "",
+  "product.og.title.PROD-002": "",
+  "product.og.description.PROD-002": "",
+  "product.twitter.title.PROD-002": "",
+  "product.twitter.description.PROD-002": "",
+  "category.name.dsasad": "QEQEQE",
+  "category.description.dsasad": "QEQEQE",
+  "category.meta.title.dsasad": "",
+  "category.meta.description.dsasad": "",
+  "category.og.title.dsasad": "EQEEQEQEQQ",
+  "category.og.description.dsasad": "EQEQEQE",
+  "category.twitter.title.dsasad": "",
+  "category.twitter.description.dsasad": ""
+}

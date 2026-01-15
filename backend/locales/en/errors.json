@@ -1,0 +1,29 @@
+{
+  "validation": {
+    "required": "This field is required",
+    "email": "Invalid email address",
+    "minLength": "Value is too short",
+    "maxLength": "Value is too long",
+    "invalidFormat": "Invalid format"
+  },
+  "auth": {
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "invalidCredentials": "Invalid credentials",
+    "accountLocked": "Account is locked",
+    "tokenExpired": "Token has expired"
+  },
+  "product": {
+    "notFound": "Product not found",
+    "outOfStock": "Product is out of stock",
+    "alreadyInCart": "Product is already in cart"
+  },
+  "order": {
+    "notFound": "Order not found",
+    "cannotCancel": "Cannot cancel this order",
+    "paymentRequired": "Payment must be completed first"
+  }
+}
+
+
+

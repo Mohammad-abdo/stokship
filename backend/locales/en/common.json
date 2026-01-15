@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "Stockship",
+    "description": "B2B E-commerce Platform"
+  },
+  "navigation": {
+    "home": "Home",
+    "products": "Products",
+    "categories": "Categories",
+    "orders": "Orders",
+    "cart": "Cart",
+    "wishlist": "Wishlist",
+    "profile": "Profile"
+  }
+}
+
+
+

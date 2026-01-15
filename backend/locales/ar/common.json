@@ -1,0 +1,18 @@
+{
+  "app": {
+    "name": "Stockship",
+    "description": "منصة التجارة الإلكترونية B2B"
+  },
+  "navigation": {
+    "home": "الرئيسية",
+    "products": "المنتجات",
+    "categories": "الفئات",
+    "orders": "الطلبات",
+    "cart": "السلة",
+    "wishlist": "قائمة الأمنيات",
+    "profile": "الملف الشخصي"
+  }
+}
+
+
+

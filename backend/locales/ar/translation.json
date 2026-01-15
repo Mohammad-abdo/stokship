@@ -1,0 +1,67 @@
+{
+  "common": {
+    "buttons": {
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "delete": "حذف",
+      "edit": "تعديل",
+      "add": "إضافة",
+      "search": "بحث",
+      "filter": "تصفية",
+      "clear": "مسح",
+      "submit": "إرسال",
+      "back": "رجوع"
+    },
+    "messages": {
+      "success": "تم بنجاح",
+      "error": "حدث خطأ",
+      "loading": "جاري التحميل...",
+      "noData": "لا توجد بيانات"
+    }
+  },
+  "errors": {
+    "validation": {
+      "required": "هذا الحقل مطلوب",
+      "email": "البريد الإلكتروني غير صحيح",
+      "minLength": "القيمة قصيرة جداً",
+      "maxLength": "القيمة طويلة جداً"
+    },
+    "auth": {
+      "unauthorized": "غير مصرح",
+      "forbidden": "غير مسموح",
+      "invalidCredentials": "بيانات الدخول غير صحيحة"
+    }
+  },
+  "product.name.1": "esdgfdsfgds",
+  "product.description.1": "asfsadfsa",
+  "product.name.4": "dssadsad",
+  "product.description.4": "sadsadsad",
+  "product.meta.title.4": "",
+  "product.meta.description.4": "",
+  "product.og.title.PROD-004": "",
+  "product.og.description.PROD-004": "",
+  "product.twitter.title.PROD-004": "",
+  "product.twitter.description.PROD-004": "",
+  "product.meta.title.1": "",
+  "product.meta.description.1": "",
+  "product.og.title.PROD-001": "",
+  "product.og.description.PROD-001": "",
+  "product.twitter.title.PROD-001": "",
+  "product.twitter.description.PROD-001": "",
+  "product.name.2": "dqwew",
+  "product.description.2": "wewqewqe",
+  "product.meta.title.2": "",
+  "product.meta.description.2": "",
+  "product.og.title.PROD-002": "",
+  "product.og.description.PROD-002": "",
+  "product.twitter.title.PROD-002": "",
+  "product.twitter.description.PROD-002": "",
+  "category.name.dsasad": "aEQWE",
+  "category.description.dsasad": "EE",
+  "category.meta.title.dsasad": "",
+  "category.meta.description.dsasad": "",
+  "category.og.title.dsasad": "QEQE",
+  "category.og.description.dsasad": "QEEQEQEQE",
+  "category.twitter.title.dsasad": "",
+  "category.twitter.description.dsasad": ""
+}

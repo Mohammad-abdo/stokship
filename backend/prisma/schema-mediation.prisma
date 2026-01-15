@@ -1,0 +1,606 @@
+// ============================================
+// MEDIATION PLATFORM SCHEMA
+// ============================================
+// This schema represents the mediation/brokerage platform
+// where the platform acts as a financial intermediary
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  EMPLOYEE
+  TRADER
+  CLIENT
+}
+
+enum UserType {
+  ADMIN
+  EMPLOYEE
+  TRADER
+  CLIENT
+  SYSTEM
+}
+
+enum OfferStatus {
+  DRAFT
+  PENDING_VALIDATION
+  ACTIVE
+  CLOSED
+  REJECTED
+}
+
+enum DealStatus {
+  NEGOTIATION
+  APPROVED
+  PAID
+  SETTLED
+  CANCELLED
+  DISPUTED
+}
+
+enum NegotiationMessageType {
+  TEXT
+  PRICE_PROPOSAL
+  QUANTITY_PROPOSAL
+  TERMS_PROPOSAL
+  SYSTEM_NOTIFICATION
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  HELD
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  BANK_CARD
+  WALLET
+}
+
+enum TransactionType {
+  DEPOSIT          // Client pays platform
+  COMMISSION       // Platform commission
+  EMPLOYEE_COMMISSION // Employee commission
+  TRADER_PAYOUT    // Trader receives payment
+  REFUND           // Refund to client
+  ADJUSTMENT       // Manual adjustment
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  PENDING
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum AuditAction {
+  DEAL_CREATED
+  DEAL_UPDATED
+  DEAL_APPROVED
+  DEAL_PAID
+  DEAL_SETTLED
+  NEGOTIATION_MESSAGE
+  PAYMENT_RECEIVED
+  COMMISSION_CALCULATED
+  EMPLOYEE_INTERVENTION
+  DISPUTE_RAISED
+}
+
+// ============================================
+// CORE USER ENTITIES
+// ============================================
+
+model Admin {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  phone             String?
+  role              String    @default("admin")
+  isActive          Boolean   @default(true)
+  isSuperAdmin      Boolean   @default(false)
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  createdEmployees  Employee[]
+  activityLogs      ActivityLog[] @relation("ActivityLogAdmin")
+  auditTrails       AuditTrail[] @relation("AuditTrailAdmin")
+  financialTransactions FinancialTransaction[] @relation("FinancialTransactionAdmin")
+}
+
+model Employee {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  phone             String?
+  employeeCode      String    @unique // Auto-generated
+  isActive          Boolean   @default(true)
+  commissionRate    Decimal   @db.Decimal(5, 2) @default(1.0) // Percentage
+  createdBy         Int       // Admin ID
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  createdByAdmin    Admin     @relation(fields: [createdBy], references: [id])
+  traders           Trader[]  // Traders linked to this employee
+  deals             Deal[]    // Deals this employee guarantees
+  activityLogs      ActivityLog[] @relation("ActivityLogEmployee")
+  auditTrails       AuditTrail[] @relation("AuditTrailEmployee")
+  financialTransactions FinancialTransaction[] @relation("FinancialTransactionEmployee")
+  
+  @@index([createdBy])
+  @@index([employeeCode])
+}
+
+model Trader {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  companyName       String
+  phone             String?
+  countryCode       String?
+  country           String?
+  city              String?
+  traderCode        String    @unique // Auto-generated (e.g., TRD-001)
+  barcode           String    @unique // Barcode/QR code
+  qrCodeUrl         String?   // QR code image URL
+  employeeId        Int       // Permanently linked to this employee
+  isActive          Boolean   @default(true)
+  isVerified         Boolean   @default(false)
+  verifiedAt        DateTime?
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  employee          Employee  @relation(fields: [employeeId], references: [id])
+  offers            Offer[]
+  deals             Deal[]
+  dealNegotiations  DealNegotiation[] @relation("DealNegotiationTrader")
+  activityLogs      ActivityLog[] @relation("ActivityLogTrader")
+  auditTrails       AuditTrail[] @relation("AuditTrailTrader")
+  
+  @@index([employeeId])
+  @@index([traderCode])
+  @@index([barcode])
+}
+
+model Client {
+  id                Int       @id @default(autoincrement())
+  email             String    @unique
+  password          String
+  name              String
+  phone             String?
+  countryCode       String?
+  country           String?
+  city              String?
+  isActive          Boolean   @default(true)
+  isEmailVerified   Boolean   @default(false)
+  termsAccepted     Boolean   @default(false)
+  termsAcceptedAt   DateTime?
+  language          String    @default("ar")
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  deals             Deal[]
+  dealNegotiations  DealNegotiation[] @relation("DealNegotiationClient")
+  payments          Payment[]
+  activityLogs      ActivityLog[] @relation("ActivityLogClient")
+  auditTrails       AuditTrail[] @relation("AuditTrailClient")
+}
+
+// ============================================
+// OFFER MANAGEMENT
+// ============================================
+
+model Offer {
+  id                Int       @id @default(autoincrement())
+  traderId          Int
+  title             String
+  description       String?   @db.Text
+  status            OfferStatus @default(DRAFT)
+  totalCartons      Int       @default(0)
+  totalCBM          Decimal   @db.Decimal(10, 3) @default(0)
+  excelFileUrl      String?   // Original Excel upload
+  validatedBy       Int?      // Employee ID who validated
+  validatedAt       DateTime?
+  validationNotes   String?   @db.Text
+  closedAt          DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  trader            Trader    @relation(fields: [traderId], references: [id])
+  items             OfferItem[]
+  deals             Deal[]
+  activityLogs      ActivityLog[] @relation("ActivityLogOffer")
+  
+  @@index([traderId])
+  @@index([status])
+}
+
+model OfferItem {
+  id                Int       @id @default(autoincrement())
+  offerId           Int
+  productName       String    // Descriptive name only
+  description       String?   @db.Text
+  quantity          Int       // Quantity available
+  cartons           Int       // Number of cartons
+  length            Decimal?  @db.Decimal(10, 2) // cm
+  width             Decimal?  @db.Decimal(10, 2) // cm
+  height             Decimal?  @db.Decimal(10, 2) // cm
+  cbm               Decimal   @db.Decimal(10, 3) // Calculated: (L*W*H)/1,000,000
+  weight            Decimal?  @db.Decimal(10, 2) // kg
+  country           String?
+  city              String?
+  images            String?   @db.Text // JSON array of image URLs
+  notes             String?   @db.Text
+  displayOrder      Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  offer             Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  dealItems        DealItem[]
+  
+  @@index([offerId])
+}
+
+// ============================================
+// DEAL MANAGEMENT
+// ============================================
+
+model Deal {
+  id                Int       @id @default(autoincrement())
+  dealNumber        String    @unique // Auto-generated (e.g., DEAL-2024-001)
+  offerId           Int
+  traderId          Int
+  clientId          Int
+  employeeId        Int       // Guarantor employee
+  status            DealStatus @default(NEGOTIATION)
+  negotiatedAmount  Decimal?  @db.Decimal(10, 2) // Agreed amount
+  totalCartons      Int       @default(0)
+  totalCBM          Decimal   @db.Decimal(10, 3) @default(0)
+  invoiceNumber     String?   @unique
+  invoiceUrl        String?   // PDF invoice URL
+  barcode           String?   @unique
+  qrCodeUrl         String?   // QR code for deal
+  notes             String?   @db.Text
+  approvedAt        DateTime?
+  paidAt            DateTime?
+  settledAt         DateTime?
+  cancelledAt       DateTime?
+  cancellationReason String?  @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  offer             Offer     @relation(fields: [offerId], references: [id])
+  trader            Trader    @relation(fields: [traderId], references: [id])
+  client            Client    @relation(fields: [clientId], references: [id])
+  employee          Employee  @relation(fields: [employeeId], references: [id])
+  items             DealItem[]
+  negotiations      DealNegotiation[]
+  payments          Payment[]
+  invoices          Invoice[]
+  statusHistory     DealStatusHistory[]
+  activityLogs      ActivityLog[] @relation("ActivityLogDeal")
+  auditTrails       AuditTrail[] @relation("AuditTrailDeal")
+  
+  @@index([offerId])
+  @@index([traderId])
+  @@index([clientId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([dealNumber])
+}
+
+model DealItem {
+  id                Int       @id @default(autoincrement())
+  dealId            Int
+  offerItemId       Int
+  quantity          Int       // Negotiated quantity
+  cartons           Int
+  cbm               Decimal   @db.Decimal(10, 3)
+  negotiatedPrice   Decimal?  @db.Decimal(10, 2) // Per unit if applicable
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  deal              Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  offerItem         OfferItem @relation(fields: [offerItemId], references: [id])
+  
+  @@index([dealId])
+  @@index([offerItemId])
+}
+
+model DealStatusHistory {
+  id                Int         @id @default(autoincrement())
+  dealId            Int
+  status            DealStatus
+  description       String?     @db.Text
+  changedBy         Int?        // User ID who changed
+  changedByType     UserType
+  createdAt         DateTime    @default(now())
+
+  // Relations
+  deal              Deal        @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  
+  @@index([dealId])
+}
+
+// ============================================
+// NEGOTIATION SYSTEM
+// ============================================
+
+model DealNegotiation {
+  id                Int                   @id @default(autoincrement())
+  dealId            Int
+  traderId          Int
+  clientId          Int
+  messageType       NegotiationMessageType @default(TEXT)
+  message           String                @db.Text
+  proposedPrice     Decimal?              @db.Decimal(10, 2)
+  proposedQuantity  Int?
+  isRead            Boolean               @default(false)
+  readAt            DateTime?
+  createdAt         DateTime              @default(now())
+
+  // Relations
+  deal              Deal                  @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  trader            Trader                @relation("DealNegotiationTrader", fields: [traderId], references: [id])
+  client            Client                @relation("DealNegotiationClient", fields: [clientId], references: [id])
+  
+  @@index([dealId])
+  @@index([traderId])
+  @@index([clientId])
+  @@index([createdAt])
+}
+
+// ============================================
+// FINANCIAL INTERMEDIARY SYSTEM
+// ============================================
+
+model Payment {
+  id                Int           @id @default(autoincrement())
+  dealId            Int
+  clientId          Int
+  amount            Decimal       @db.Decimal(10, 2)
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  transactionId    String?       @unique
+  receiptUrl       String?       // Payment receipt
+  verifiedAt       DateTime?
+  verifiedBy       Int?          // Employee ID
+  notes             String?       @db.Text
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  deal              Deal          @relation(fields: [dealId], references: [id])
+  client            Client        @relation(fields: [clientId], references: [id])
+  financialTransaction FinancialTransaction?
+  
+  @@index([dealId])
+  @@index([clientId])
+  @@index([status])
+  @@index([transactionId])
+}
+
+model FinancialTransaction {
+  id                Int               @id @default(autoincrement())
+  dealId            Int?
+  paymentId         Int?              @unique
+  type              TransactionType
+  amount            Decimal           @db.Decimal(10, 2)
+  status            TransactionStatus @default(PENDING)
+  description       String?           @db.Text
+  
+  // Commission breakdown
+  platformCommission    Decimal?     @db.Decimal(10, 2)
+  employeeCommission    Decimal?     @db.Decimal(10, 2)
+  traderAmount          Decimal?     @db.Decimal(10, 2)
+  
+  // Related entities
+  employeeId        Int?
+  traderId          Int?
+  processedBy       Int?             // Admin/Employee ID
+  processedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // Relations
+  payment           Payment?         @relation(fields: [paymentId], references: [id])
+  employee          Employee?        @relation("FinancialTransactionEmployee", fields: [employeeId], references: [id])
+  admin             Admin?           @relation("FinancialTransactionAdmin", fields: [processedBy], references: [id])
+  
+  @@index([dealId])
+  @@index([paymentId])
+  @@index([type])
+  @@index([status])
+}
+
+model FinancialLedger {
+  id                Int               @id @default(autoincrement())
+  transactionId     Int               // FinancialTransaction ID
+  entryType         String            // DEBIT or CREDIT
+  accountType       String            // PLATFORM, EMPLOYEE, TRADER, CLIENT
+  accountId         Int?              // ID of the account holder
+  amount            Decimal           @db.Decimal(10, 2)
+  balanceBefore     Decimal           @db.Decimal(10, 2)
+  balanceAfter      Decimal           @db.Decimal(10, 2)
+  description       String?           @db.Text
+  reference         String?           // Deal number, invoice number, etc.
+  createdAt         DateTime          @default(now())
+
+  @@index([transactionId])
+  @@index([accountType, accountId])
+  @@index([createdAt])
+}
+
+model Invoice {
+  id                Int           @id @default(autoincrement())
+  dealId            Int
+  invoiceNumber     String        @unique
+  invoiceUrl        String        // PDF URL
+  status            InvoiceStatus @default(DRAFT)
+  subtotal          Decimal       @db.Decimal(10, 2)
+  platformCommission Decimal      @db.Decimal(10, 2)
+  employeeCommission Decimal      @db.Decimal(10, 2)
+  traderAmount      Decimal       @db.Decimal(10, 2)
+  total             Decimal       @db.Decimal(10, 2)
+  tax               Decimal?      @db.Decimal(10, 2)
+  issuedAt          DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Relations
+  deal              Deal          @relation(fields: [dealId], references: [id])
+  
+  @@index([dealId])
+  @@index([invoiceNumber])
+  @@index([status])
+}
+
+// ============================================
+// AUDIT & ACTIVITY LOGGING
+// ============================================
+
+model ActivityLog {
+  id                Int       @id @default(autoincrement())
+  userId            Int?
+  userType          UserType
+  action            String
+  entityType        String?   // DEAL, OFFER, NEGOTIATION, PAYMENT, etc.
+  entityId          Int?
+  description       String?   @db.Text
+  changes           String?   @db.Text // JSON
+  ipAddress         String?
+  userAgent         String?
+  location          String?
+  metadata          String?   @db.Text // JSON
+  createdAt         DateTime  @default(now())
+
+  // Relations - Polymorphic
+  admin             Admin?    @relation("ActivityLogAdmin", fields: [userId], references: [id], map: "ActivityLog_Admin_fkey")
+  employee          Employee? @relation("ActivityLogEmployee", fields: [userId], references: [id], map: "ActivityLog_Employee_fkey")
+  trader            Trader?   @relation("ActivityLogTrader", fields: [userId], references: [id], map: "ActivityLog_Trader_fkey")
+  client            Client?   @relation("ActivityLogClient", fields: [userId], references: [id], map: "ActivityLog_Client_fkey")
+  deal              Deal?     @relation("ActivityLogDeal", fields: [entityId], references: [id], map: "ActivityLog_Deal_fkey")
+  offer             Offer?    @relation("ActivityLogOffer", fields: [entityId], references: [id], map: "ActivityLog_Offer_fkey")
+  
+  @@index([userId, userType])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model AuditTrail {
+  id                Int       @id @default(autoincrement())
+  userId            Int?
+  userType          UserType
+  action            AuditAction
+  entityType        String?
+  entityId          Int?
+  oldValue          String?   @db.Text // JSON
+  newValue          String?   @db.Text // JSON
+  reason            String?   @db.Text
+  ipAddress         String?
+  userAgent         String?
+  success           Boolean   @default(true)
+  errorMessage      String?   @db.Text
+  createdAt         DateTime  @default(now())
+
+  // Relations - Polymorphic
+  admin             Admin?    @relation("AuditTrailAdmin", fields: [userId], references: [id], map: "AuditTrail_Admin_fkey")
+  employee          Employee? @relation("AuditTrailEmployee", fields: [userId], references: [id], map: "AuditTrail_Employee_fkey")
+  trader            Trader?   @relation("AuditTrailTrader", fields: [userId], references: [id], map: "AuditTrail_Trader_fkey")
+  client            Client?   @relation("AuditTrailClient", fields: [userId], references: [id], map: "AuditTrail_Client_fkey")
+  deal              Deal?     @relation("AuditTrailDeal", fields: [entityId], references: [id], map: "AuditTrail_Deal_fkey")
+  
+  @@index([userId, userType])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+// ============================================
+// NOTIFICATION SYSTEM
+// ============================================
+
+model Notification {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  userType          UserType
+  type              String    // DEAL, NEGOTIATION, PAYMENT, etc.
+  title             String
+  message           String    @db.Text
+  relatedEntityType String?
+  relatedEntityId   Int?
+  isRead            Boolean   @default(false)
+  readAt            DateTime?
+  createdAt         DateTime  @default(now())
+
+  @@index([userId, userType])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+// ============================================
+// BACKUP & EXPORT
+// ============================================
+
+model Backup {
+  id                Int       @id @default(autoincrement())
+  backupType        String    // DATABASE, EXCEL_FILES, INVOICES
+  fileUrl           String
+  fileSize          Int?      // bytes
+  recordCount       Int?
+  status            String    // PENDING, COMPLETED, FAILED
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  errorMessage      String?   @db.Text
+  createdAt         DateTime  @default(now())
+
+  @@index([backupType])
+  @@index([status])
+  @@index([createdAt])
+}
+

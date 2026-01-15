@@ -1,0 +1,29 @@
+{
+  "validation": {
+    "required": "هذا الحقل مطلوب",
+    "email": "البريد الإلكتروني غير صحيح",
+    "minLength": "القيمة قصيرة جداً",
+    "maxLength": "القيمة طويلة جداً",
+    "invalidFormat": "التنسيق غير صحيح"
+  },
+  "auth": {
+    "unauthorized": "غير مصرح",
+    "forbidden": "غير مسموح",
+    "invalidCredentials": "بيانات الدخول غير صحيحة",
+    "accountLocked": "الحساب مقفل",
+    "tokenExpired": "انتهت صلاحية الرمز"
+  },
+  "product": {
+    "notFound": "المنتج غير موجود",
+    "outOfStock": "المنتج غير متوفر",
+    "alreadyInCart": "المنتج موجود بالفعل في السلة"
+  },
+  "order": {
+    "notFound": "الطلب غير موجود",
+    "cannotCancel": "لا يمكن إلغاء هذا الطلب",
+    "paymentRequired": "يجب إتمام الدفع أولاً"
+  }
+}
+
+
+
