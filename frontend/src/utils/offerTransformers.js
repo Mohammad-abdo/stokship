@@ -54,3 +54,4 @@ export const transformOffersToProducts = (offers) => {
   return offers.map(transformOfferToProduct);
 };
 
+
