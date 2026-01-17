@@ -299,7 +299,7 @@ const TraderViewOffer = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => navigate(`/stockship/trader/offers/${offer.id}/edit`)}
-              className={`flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+              className={`flex items-center gap-2 px-6 py-2 bg-yellow-400 text-blue-900 font-bold rounded-lg hover:bg-yellow-300 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
             >
               <Edit className="w-4 h-4" />
               <span>{t('common.edit') || 'Edit'}</span>
@@ -634,7 +634,7 @@ const TraderViewOffer = () => {
                   <a
                     href={offer.excelFileUrl.startsWith('http') ? offer.excelFileUrl : `${API_URL}${offer.excelFileUrl.startsWith('/') ? '' : '/'}${offer.excelFileUrl}`}
                     download
-                    className={`flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+                    className={`flex items-center gap-2 px-6 py-2.5 bg-yellow-400 text-blue-900 font-bold rounded-lg hover:bg-yellow-300 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
                   >
                     <Download className="w-4 h-4" />
                     <span>{t('common.download') || 'Download'}</span>
