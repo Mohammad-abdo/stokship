@@ -257,7 +257,7 @@ const TraderOffers = () => {
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           onClick={() => navigate('/stockship/trader/offers/create')}
-          className={`flex items-center gap-2 px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+          className={`flex items-center gap-2 px-6 py-2.5 bg-yellow-400 text-blue-900 font-bold rounded-lg hover:bg-yellow-300 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
         >
           <Plus className="w-4 h-4" />
           <span>{t('mediation.trader.createOffer') || 'Create Offer'}</span>
