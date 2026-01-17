@@ -146,6 +146,10 @@ export const adminApi = {
   getOffers: (params) => stockshipApi.get("/admin/offers", { params }),
   getOffer: (id) => stockshipApi.get(`/offers/${id}`),
   
+  // Platform Settings
+  getPlatformSettings: () => stockshipApi.get("/admin/platform-settings"),
+  updatePlatformSettings: (data) => stockshipApi.put("/admin/platform-settings", data),
+  
   // Deals (Mediation Platform)
   getDeals: (params) => stockshipApi.get("/deals", { params }), // Works for ADMIN, EMPLOYEE, TRADER, CLIENT
   getDeal: (id) => stockshipApi.get(`/deals/${id}`),

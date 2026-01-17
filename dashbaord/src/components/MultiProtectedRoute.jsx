@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useMultiAuth } from '@/contexts/MultiAuthContext';
+import { AlertTriangle, Shield } from 'lucide-react';
 
 export const MultiProtectedRoute = ({ 
   children, 
@@ -10,6 +11,7 @@ export const MultiProtectedRoute = ({
   requireClient = false 
 }) => {
   const { loading, isAdmin, isEmployee, isTrader, isClient, activeRole } = useMultiAuth();
+  const location = useLocation();
 
   // Memoize auth checks to prevent infinite re-renders
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
@@ -17,42 +19,47 @@ export const MultiProtectedRoute = ({
     return isAdmin() || isEmployee() || isTrader() || isClient();
   }, [isAdmin, isEmployee, isTrader, isClient]);
 
-  // Check both that user has the role AND it's the active role
-  // If activeRole is not set yet (initial load), allow if user has the role
-  // If activeRole is set, require it to match the required role
+  // STRICT ROLE CHECKING: User must have the role AND it must be the active role
+  // This prevents traders/employees from accessing admin routes even if they have admin token stored
   const isAdminUser = useMemo(() => {
     if (!isAdmin()) return false;
-    return !activeRole || activeRole === 'admin';
+    // STRICT: activeRole MUST be 'admin' to access admin routes
+    return activeRole === 'admin';
   }, [isAdmin, activeRole]);
   
   const isEmployeeUser = useMemo(() => {
     if (!isEmployee()) return false;
-    // If activeRole is set, it must be 'employee'. If not set, allow if they have employee auth.
-    return !activeRole || activeRole === 'employee';
+    // STRICT: activeRole MUST be 'employee' to access employee routes
+    return activeRole === 'employee';
   }, [isEmployee, activeRole]);
   
   const isTraderUser = useMemo(() => {
     if (!isTrader()) return false;
-    return !activeRole || activeRole === 'trader';
+    // STRICT: activeRole MUST be 'trader' to access trader routes
+    return activeRole === 'trader';
   }, [isTrader, activeRole]);
   
   const isClientUser = useMemo(() => {
     if (!isClient()) return false;
-    return !activeRole || activeRole === 'client';
+    // STRICT: activeRole MUST be 'client' to access client routes
+    return activeRole === 'client';
   }, [isClient, activeRole]);
 
   // Helper to get correct dashboard route based on activeRole - memoized
   // MUST be before early returns to maintain hook order
   const getCorrectDashboard = useMemo(() => {
+    // STRICT: Only redirect to dashboard if activeRole matches
     if (activeRole === 'admin' && isAdmin()) return "/stockship/admin/dashboard";
     if (activeRole === 'employee' && isEmployee()) return "/stockship/employee/dashboard";
     if (activeRole === 'trader' && isTrader()) return "/stockship/trader/dashboard";
     if (activeRole === 'client' && isClient()) return "/";
-    // Fallback: check all roles
+    
+    // Fallback: check all roles and redirect to first available
     if (isAdmin()) return "/stockship/admin/dashboard";
-    if (isTrader()) return "/stockship/trader/dashboard";
     if (isEmployee()) return "/stockship/employee/dashboard";
+    if (isTrader()) return "/stockship/trader/dashboard";
     if (isClient()) return "/";
+    
     return "/multi-login";
   }, [activeRole, isAdmin, isEmployee, isTrader, isClient]);
 
@@ -69,28 +76,105 @@ export const MultiProtectedRoute = ({
   }
 
   if (!hasAnyAuth) {
-    return <Navigate to="/multi-login" replace />;
+    return <Navigate to="/multi-login" replace state={{ from: location.pathname }} />;
   }
 
-  // Check specific role requirements
-  if (requireAdmin && !isAdminUser) {
-    // Redirect to correct dashboard instead of showing error
-    return <Navigate to={getCorrectDashboard} replace />;
+  // STRICT ROLE ENFORCEMENT: Check specific role requirements
+  if (requireAdmin) {
+    if (!isAdminUser) {
+      // Show access denied message for unauthorized access attempts
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-center max-w-md p-8">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold text-destructive mb-2">Access Denied</h1>
+            <p className="text-muted-foreground mb-4">
+              Only administrators can access this page. You are currently logged in as {activeRole || 'unknown role'}.
+            </p>
+            <button
+              onClick={() => window.location.href = getCorrectDashboard}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Go to Your Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
-  if (requireEmployee && !isEmployeeUser) {
-    // Redirect to correct dashboard instead of showing error
-    return <Navigate to={getCorrectDashboard} replace />;
+  if (requireEmployee) {
+    if (!isEmployeeUser) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-center max-w-md p-8">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold text-destructive mb-2">Access Denied</h1>
+            <p className="text-muted-foreground mb-4">
+              Only employees can access this page. You are currently logged in as {activeRole || 'unknown role'}.
+            </p>
+            <button
+              onClick={() => window.location.href = getCorrectDashboard}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Go to Your Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
-  if (requireTrader && !isTraderUser) {
-    // Redirect to correct dashboard instead of showing error
-    return <Navigate to={getCorrectDashboard} replace />;
+  if (requireTrader) {
+    if (!isTraderUser) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-center max-w-md p-8">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold text-destructive mb-2">Access Denied</h1>
+            <p className="text-muted-foreground mb-4">
+              Only traders can access this page. You are currently logged in as {activeRole || 'unknown role'}.
+            </p>
+            <button
+              onClick={() => window.location.href = getCorrectDashboard}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Go to Your Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
-  if (requireClient && !isClientUser) {
-    // Redirect to correct dashboard instead of showing error
-    return <Navigate to={getCorrectDashboard} replace />;
+  if (requireClient) {
+    if (!isClientUser) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-center max-w-md p-8">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold text-destructive mb-2">Access Denied</h1>
+            <p className="text-muted-foreground mb-4">
+              Only clients can access this page. You are currently logged in as {activeRole || 'unknown role'}.
+            </p>
+            <button
+              onClick={() => window.location.href = getCorrectDashboard}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Go to Your Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
   }
 
   return <>{children}</>;

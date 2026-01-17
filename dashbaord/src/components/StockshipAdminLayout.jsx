@@ -5,6 +5,7 @@ import { useMultiAuth } from "@/contexts/MultiAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import RoleSwitcher from "./RoleSwitcher";
 import ProfileStatusBadge from "./ProfileStatusBadge";
+import NotificationsDropdown from "./NotificationsDropdown";
 import {
   LayoutDashboard,
   Users,
@@ -178,14 +179,7 @@ const StockshipAdminLayout = ({ children }) => {
           <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <RoleSwitcher />
             <ProfileStatusBadge />
-            <button
-              onClick={() => {}}
-              className="p-2 rounded-lg hover:bg-gray-100/60 text-gray-600 relative transition-colors"
-              title="Notifications"
-            >
-              <Bell size={18} />
-              <span className={`absolute top-1.5 ${isRTL ? 'left' : 'right'}-1.5 w-1.5 h-1.5 bg-red-500 rounded-full`}></span>
-            </button>
+            <NotificationsDropdown />
             <button
               onClick={toggleLanguage}
               className={`p-2 rounded-lg hover:bg-gray-100/60 text-gray-600 transition-colors flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}

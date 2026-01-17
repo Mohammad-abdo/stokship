@@ -582,6 +582,25 @@ const settleDeal = asyncHandler(async (req, res) => {
     }
   });
 
+  // Create status history
+  await prisma.dealStatusHistory.create({
+    data: {
+      dealId: deal.id,
+      status: 'SETTLED',
+      description: 'Deal settled and completed',
+      changedBy: req.user.id,
+      changedByType: (req.userType || 'ADMIN').toUpperCase() // Ensure uppercase and default to ADMIN
+    }
+  });
+
+  // Notify all parties about status change
+  try {
+    await notifyDealStatusChanged(settledDeal, 'SETTLED', req.userType);
+  } catch (notifyError) {
+    console.error('Error sending notifications:', notifyError);
+    // Don't fail the request if notifications fail
+  }
+
   successResponse(res, settledDeal, 'Deal settled successfully');
 });
 

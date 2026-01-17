@@ -90,7 +90,9 @@ const AdminSettings = () => {
     enablePayments: true,
     defaultPaymentMethod: 'credit_card',
     taxRate: 15,
-    commissionRate: 5,
+    platformCommissionRate: 2.5, // Percentage based commission
+    cbmRate: null, // CBM-based commission rate (SAR per cubic meter)
+    commissionMethod: 'PERCENTAGE', // PERCENTAGE, CBM, BOTH
     enableAutoSettlement: false,
     settlementPeriod: 7
   });
@@ -109,15 +111,32 @@ const AdminSettings = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call when backend is ready
-      // const response = await adminApi.getSettings();
-      // setGeneralSettings(response.data.general || generalSettings);
-      // setSecuritySettings(response.data.security || securitySettings);
-      // setNotificationSettings(response.data.notifications || notificationSettings);
-      // setEmailSettings(response.data.email || emailSettings);
-      // setPaymentSettings(response.data.payment || paymentSettings);
+      // Fetch platform settings from backend
+      const response = await adminApi.getPlatformSettings();
+      const settings = response.data.data || response.data;
+      
+      if (settings) {
+        // Update general settings
+        if (settings.platformName) setGeneralSettings(prev => ({ ...prev, platformName: settings.platformName }));
+        if (settings.platformEmail) setGeneralSettings(prev => ({ ...prev, platformEmail: settings.platformEmail }));
+        if (settings.platformPhone) setGeneralSettings(prev => ({ ...prev, platformPhone: settings.platformPhone }));
+        if (settings.platformAddress) setGeneralSettings(prev => ({ ...prev, platformAddress: settings.platformAddress }));
+        if (settings.defaultLanguage) setGeneralSettings(prev => ({ ...prev, defaultLanguage: settings.defaultLanguage }));
+        if (settings.timezone) setGeneralSettings(prev => ({ ...prev, timezone: settings.timezone }));
+        if (settings.currency) setGeneralSettings(prev => ({ ...prev, currency: settings.currency }));
+        
+        // Update payment settings
+        if (settings.taxRate !== undefined) setPaymentSettings(prev => ({ ...prev, taxRate: parseFloat(settings.taxRate) || 0 }));
+        if (settings.platformCommissionRate !== undefined) setPaymentSettings(prev => ({ ...prev, platformCommissionRate: parseFloat(settings.platformCommissionRate) || 2.5 }));
+        if (settings.cbmRate !== undefined && settings.cbmRate !== null) setPaymentSettings(prev => ({ ...prev, cbmRate: parseFloat(settings.cbmRate) }));
+        if (settings.commissionMethod) setPaymentSettings(prev => ({ ...prev, commissionMethod: settings.commissionMethod }));
+      }
     } catch (error) {
       console.error('Error fetching settings:', error);
+      showToast.error(
+        t('admin.settings.loadFailed') || 'Failed to load settings',
+        error.response?.data?.message || 'Please try again'
+      );
     } finally {
       setLoading(false);
     }
@@ -126,19 +145,37 @@ const AdminSettings = () => {
   const handleSave = async (section) => {
     try {
       setSaving(true);
-      // TODO: Replace with actual API call when backend is ready
-      // await adminApi.updateSettings(section, {
-      //   general: generalSettings,
-      //   security: securitySettings,
-      //   notifications: notificationSettings,
-      //   email: emailSettings,
-      //   payment: paymentSettings
-      // });
+      
+      if (section === 'general') {
+        // Save general settings
+        await adminApi.updatePlatformSettings({
+          platformName: generalSettings.platformName,
+          platformEmail: generalSettings.platformEmail,
+          platformPhone: generalSettings.platformPhone,
+          platformAddress: generalSettings.platformAddress,
+          defaultLanguage: generalSettings.defaultLanguage,
+          timezone: generalSettings.timezone,
+          currency: generalSettings.currency
+        });
+      } else if (section === 'payment') {
+        // Save payment settings (including CBM Rate)
+        await adminApi.updatePlatformSettings({
+          taxRate: paymentSettings.taxRate,
+          platformCommissionRate: paymentSettings.platformCommissionRate,
+          cbmRate: paymentSettings.cbmRate || null,
+          commissionMethod: paymentSettings.commissionMethod
+        });
+      }
       
       showToast.success(
         t('admin.settings.saveSuccess') || 'Settings saved successfully',
         t('admin.settings.saveSuccessDesc') || 'Your changes have been saved'
       );
+      
+      // Reload settings to get updated values
+      if (section === 'payment' || section === 'general') {
+        await fetchSettings();
+      }
     } catch (error) {
       console.error('Error saving settings:', error);
       showToast.error(
@@ -732,15 +769,47 @@ const AdminSettings = () => {
                 />
               </div>
               <div>
-                <Label>{t('admin.settings.commissionRate') || 'Commission Rate (%)'}</Label>
+                <Label>{t('admin.settings.platformCommissionRate') || 'Platform Commission Rate (%)'}</Label>
                 <Input
                   type="number"
-                  value={paymentSettings.commissionRate}
-                  onChange={(e) => setPaymentSettings({ ...paymentSettings, commissionRate: parseFloat(e.target.value) })}
+                  value={paymentSettings.platformCommissionRate}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, platformCommissionRate: parseFloat(e.target.value) })}
                   min={0}
                   max={100}
                   step={0.1}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('admin.settings.platformCommissionRateDesc') || 'Percentage commission based on deal amount'}
+                </p>
+              </div>
+              <div>
+                <Label>{t('admin.settings.cbmRate') || 'CBM Rate (per cubic meter)'}</Label>
+                <Input
+                  type="number"
+                  value={paymentSettings.cbmRate || ''}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, cbmRate: e.target.value ? parseFloat(e.target.value) : null })}
+                  min={0}
+                  step={0.01}
+                  placeholder={t('admin.settings.cbmRatePlaceholder') || 'e.g., 50 (SAR per CBM)'}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('admin.settings.cbmRateDesc') || 'Commission rate based on total cubic meters (CBM) in deal'}
+                </p>
+              </div>
+              <div>
+                <Label>{t('admin.settings.commissionMethod') || 'Commission Calculation Method'}</Label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                  value={paymentSettings.commissionMethod}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, commissionMethod: e.target.value })}
+                >
+                  <option value="PERCENTAGE">{t('admin.settings.commissionMethodPercentage') || 'Percentage (based on amount)'}</option>
+                  <option value="CBM">{t('admin.settings.commissionMethodCBM') || 'CBM (based on cubic meters)'}</option>
+                  <option value="BOTH">{t('admin.settings.commissionMethodBoth') || 'Both (take the higher value)'}</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('admin.settings.commissionMethodDesc') || 'Select how platform commission is calculated'}
+                </p>
               </div>
               <div>
                 <Label>{t('admin.settings.settlementPeriod') || 'Settlement Period (days)'}</Label>
@@ -753,6 +822,36 @@ const AdminSettings = () => {
                 />
               </div>
             </div>
+            {paymentSettings.commissionMethod === 'CBM' && !paymentSettings.cbmRate && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">
+                      {t('admin.settings.cbmRateRequired') || 'CBM Rate Required'}
+                    </p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      {t('admin.settings.cbmRateRequiredDesc') || 'Please set a CBM Rate when using CBM-based commission method.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {paymentSettings.commissionMethod === 'BOTH' && !paymentSettings.cbmRate && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">
+                      {t('admin.settings.cbmRateRequired') || 'CBM Rate Required'}
+                    </p>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      {t('admin.settings.cbmRateRequiredForBoth') || 'Please set a CBM Rate when using BOTH commission method.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div>
                 <Label className="font-semibold">{t('admin.settings.enableAutoSettlement') || 'Enable Auto Settlement'}</Label>

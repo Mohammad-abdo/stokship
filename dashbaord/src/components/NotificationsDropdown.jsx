@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import api from '@/lib/api';
-import { extractDataFromResponse } from '@/lib/apiHelper';
+import stockshipApi from '@/lib/stockshipApi';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Bell, Check, CheckCheck, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,13 +47,41 @@ export default function NotificationsDropdown() {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/notifications?per_page=10');
-      const data = extractDataFromResponse(response);
-      // Handle paginated response
-      const notificationsList = Array.isArray(data) 
-        ? data 
-        : (data?.data || (data?.data?.data || []));
-      setNotifications(Array.isArray(notificationsList) ? notificationsList : []);
+      const response = await stockshipApi.get('/notifications', { 
+        params: { page: 1, limit: 10 } 
+      });
+      
+      // Handle different response structures
+      let notificationsList = [];
+      if (response.data) {
+        if (response.data.success && response.data.data) {
+          // If paginated response
+          if (response.data.data.data && Array.isArray(response.data.data.data)) {
+            notificationsList = response.data.data.data;
+          } else if (Array.isArray(response.data.data)) {
+            notificationsList = response.data.data;
+          }
+        } else if (Array.isArray(response.data)) {
+          notificationsList = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          notificationsList = response.data.data;
+        }
+      }
+      
+      // Map notification fields to match expected structure
+      notificationsList = notificationsList.map(notif => ({
+        id: notif.id,
+        title: notif.title,
+        description: notif.message || notif.description,
+        type: notif.type?.toLowerCase() || 'default',
+        is_read: notif.isRead !== undefined ? notif.isRead : notif.is_read,
+        created_at: notif.createdAt || notif.created_at,
+        action_url: notif.relatedEntityType && notif.relatedEntityId 
+          ? `/${notif.relatedEntityType.toLowerCase()}s/${notif.relatedEntityId}`
+          : null
+      }));
+      
+      setNotifications(notificationsList);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       setNotifications([]);
@@ -65,8 +92,20 @@ export default function NotificationsDropdown() {
 
   const fetchUnreadCount = async () => {
     try {
-      const response = await api.get('/notifications/unread-count');
-      const count = response.data?.data?.unread_count || response.data?.unread_count || 0;
+      const response = await stockshipApi.get('/notifications/unread-count');
+      
+      // Handle different response structures
+      let count = 0;
+      if (response.data) {
+        if (response.data.success && response.data.data) {
+          count = response.data.data.count || 0;
+        } else if (response.data.data && response.data.data.count !== undefined) {
+          count = response.data.data.count;
+        } else if (response.data.count !== undefined) {
+          count = response.data.count;
+        }
+      }
+      
       setUnreadCount(count);
     } catch (error) {
       console.error('Error fetching unread count:', error);
@@ -75,9 +114,11 @@ export default function NotificationsDropdown() {
   };
 
   const handleMarkAsRead = async (notificationId, e) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     try {
-      await api.put(`/notifications/${notificationId}/read`);
+      await stockshipApi.put(`/notifications/${notificationId}/read`);
       setNotifications(prev =>
         prev.map(notif =>
           notif.id === notificationId ? { ...notif, is_read: true } : notif
@@ -90,9 +131,11 @@ export default function NotificationsDropdown() {
   };
 
   const handleMarkAllAsRead = async (e) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) {
+      e.stopPropagation();
+    }
     try {
-      await api.put('/notifications/read-all');
+      await stockshipApi.put('/notifications/read-all');
       setNotifications(prev =>
         prev.map(notif => ({ ...notif, is_read: true }))
       );

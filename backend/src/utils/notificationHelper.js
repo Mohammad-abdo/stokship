@@ -90,32 +90,44 @@ async function notifyDealCreated(deal, client, trader, employee) {
  * @param {String} changedByType - Who changed the status (TRADER, CLIENT, EMPLOYEE, ADMIN)
  */
 async function notifyDealStatusChanged(deal, newStatus, changedByType) {
+  if (!deal || !deal.id || !deal.dealNumber) {
+    console.error('Invalid deal object provided to notifyDealStatusChanged');
+    return;
+  }
+
   const notifications = [];
 
   // Always notify trader and client
-  notifications.push(
-    createNotification({
-      userIds: deal.traderId,
-      userType: 'TRADER',
-      type: 'DEAL',
-      title: `Deal ${deal.dealNumber} Status Updated`,
-      message: `Deal status changed to ${newStatus}`,
-      relatedEntityType: 'DEAL',
-      relatedEntityId: deal.id
-    }),
-    createNotification({
-      userIds: deal.clientId,
-      userType: 'CLIENT',
-      type: 'DEAL',
-      title: `Deal ${deal.dealNumber} Status Updated`,
-      message: `Deal status changed to ${newStatus}`,
-      relatedEntityType: 'DEAL',
-      relatedEntityId: deal.id
-    })
-  );
+  if (deal.traderId) {
+    notifications.push(
+      createNotification({
+        userIds: deal.traderId,
+        userType: 'TRADER',
+        type: 'DEAL',
+        title: `Deal ${deal.dealNumber} Status Updated`,
+        message: `Deal status changed to ${newStatus}`,
+        relatedEntityType: 'DEAL',
+        relatedEntityId: deal.id
+      })
+    );
+  }
+
+  if (deal.clientId) {
+    notifications.push(
+      createNotification({
+        userIds: deal.clientId,
+        userType: 'CLIENT',
+        type: 'DEAL',
+        title: `Deal ${deal.dealNumber} Status Updated`,
+        message: `Deal status changed to ${newStatus}`,
+        relatedEntityType: 'DEAL',
+        relatedEntityId: deal.id
+      })
+    );
+  }
 
   // Notify employee if status is approved/paid/settled
-  if (['APPROVED', 'PAID', 'SETTLED'].includes(newStatus)) {
+  if (['APPROVED', 'PAID', 'SETTLED'].includes(newStatus) && deal.employeeId) {
     notifications.push(
       createNotification({
         userIds: deal.employeeId,
@@ -129,7 +141,15 @@ async function notifyDealStatusChanged(deal, newStatus, changedByType) {
     );
   }
 
-  await Promise.all(notifications);
+  if (notifications.length > 0) {
+    // Use allSettled to continue even if some notifications fail
+    const results = await Promise.allSettled(notifications);
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Error creating notification ${index}:`, result.reason);
+      }
+    });
+  }
 }
 
 /**

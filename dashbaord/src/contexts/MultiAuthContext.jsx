@@ -66,6 +66,18 @@ export const MultiAuthProvider = ({ children }) => {
       let selectedUser = primaryUser;
       let selectedUserRole = primaryUser.userType || primaryUser.role;
 
+      // SECURITY: Validate that requested role matches user's actual role
+      if (requestedRole) {
+        const requestedRoleUpper = requestedRole.toUpperCase();
+        const availableRoles = responseData.availableRoles || [];
+        const primaryRole = (primaryUser.userType || primaryUser.role || '').toUpperCase();
+        
+        // Check if requested role is available
+        if (!availableRoles.includes(requestedRoleUpper) && primaryRole !== requestedRoleUpper) {
+          throw new Error(`You do not have access to ${requestedRole} role. Available roles: ${availableRoles.join(', ')}`);
+        }
+      }
+
       // If roleTokens exist and user requested a specific role, use that role's token
       if (requestedRole && responseData.roleTokens) {
         const requestedRoleUpper = requestedRole.toUpperCase();
@@ -92,6 +104,11 @@ export const MultiAuthProvider = ({ children }) => {
       
       if (!roleKey) {
         throw new Error('Unknown user role');
+      }
+      
+      // SECURITY: Final validation - ensure role matches
+      if (requestedRole && roleKey !== requestedRole) {
+        console.warn(`Role mismatch: requested ${requestedRole}, got ${roleKey}`);
       }
 
       // Store auth for the selected role
