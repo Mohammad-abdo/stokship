@@ -494,12 +494,93 @@ async function main() {
   // ============================================
 
   // ============================================
-  // 5. CREATE OFFERS
+  // 5. CREATE CATEGORIES
+  // ============================================
+  console.log('📁 Creating categories...');
+  const categories = await Promise.all([
+    prisma.category.upsert({
+      where: { nameKey: 'category.electronics' },
+      update: {},
+      create: {
+        nameKey: 'category.electronics',
+        descriptionKey: 'category.electronics.description',
+        slug: 'electronics',
+        isActive: true,
+        isFeatured: true,
+        displayOrder: 1,
+        level: 0,
+        productCount: 0
+      }
+    }),
+    prisma.category.upsert({
+      where: { nameKey: 'category.clothing' },
+      update: {},
+      create: {
+        nameKey: 'category.clothing',
+        descriptionKey: 'category.clothing.description',
+        slug: 'clothing',
+        isActive: true,
+        isFeatured: true,
+        displayOrder: 2,
+        level: 0,
+        productCount: 0
+      }
+    }),
+    prisma.category.upsert({
+      where: { nameKey: 'category.food' },
+      update: {},
+      create: {
+        nameKey: 'category.food',
+        descriptionKey: 'category.food.description',
+        slug: 'food',
+        isActive: true,
+        isFeatured: true,
+        displayOrder: 3,
+        level: 0,
+        productCount: 0
+      }
+    }),
+    prisma.category.upsert({
+      where: { nameKey: 'category.home' },
+      update: {},
+      create: {
+        nameKey: 'category.home',
+        descriptionKey: 'category.home.description',
+        slug: 'home',
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 4,
+        level: 0,
+        productCount: 0
+      }
+    }),
+    prisma.category.upsert({
+      where: { nameKey: 'category.automotive' },
+      update: {},
+      create: {
+        nameKey: 'category.automotive',
+        descriptionKey: 'category.automotive.description',
+        slug: 'automotive',
+        isActive: true,
+        isFeatured: false,
+        displayOrder: 5,
+        level: 0,
+        productCount: 0
+      }
+    })
+  ]);
+  console.log(`✅ Created ${categories.length} categories`);
+
+  // ============================================
+  // 6. CREATE OFFERS
   // ============================================
   console.log('📦 Creating offers...');
   // Create offers for all traders (including linked trader)
   const offers = await Promise.all(
     traders.map(async (trader, index) => {
+      // Assign category based on index (cycle through categories)
+      const category = categories[index % categories.length];
+      
       const offer = await prisma.offer.create({
         data: {
           traderId: trader.id,
@@ -508,6 +589,12 @@ async function main() {
           status: index === 0 ? 'ACTIVE' : (index === 1 ? 'ACTIVE' : 'PENDING_VALIDATION'),
           totalCartons: 100 + (index * 50),
           totalCBM: (25.5 + (index * 10)).toString(), // Convert to string for Decimal type
+          // Category relation
+          categoryId: category.id,
+          category: category.nameKey, // Legacy field for backward compatibility
+          acceptsNegotiation: index % 2 === 0, // Alternate between true and false
+          country: trader.country || 'Saudi Arabia',
+          city: trader.city || 'Riyadh',
           // Excel metadata fields
           companyName: trader.companyName,
           proformaInvoiceNo: `PI-${trader.traderCode}-${index + 1}-${new Date().getFullYear()}`,
@@ -640,7 +727,7 @@ async function main() {
   console.log(`✅ Created ${offers.length} offers with items`);
 
   // ============================================
-  // 6. CREATE DEALS
+  // 7. CREATE DEALS
   // ============================================
   console.log('🤝 Creating deals...');
   const dealCount = await prisma.deal.count();
@@ -745,7 +832,7 @@ async function main() {
   console.log(`✅ Created ${deals.length} deals (1 demonstrates dual profile - same user as Client & Trader)`);
 
   // ============================================
-  // 7. CREATE NEGOTIATION MESSAGES
+  // 8. CREATE NEGOTIATION MESSAGES
   // ============================================
   console.log('💬 Creating negotiation messages...');
   await prisma.dealNegotiation.createMany({
@@ -799,7 +886,7 @@ async function main() {
   console.log(`✅ Created negotiation messages (including messages for linked profile deal)`);
 
   // ============================================
-  // 8. CREATE PAYMENTS
+  // 9. CREATE PAYMENTS
   // ============================================
   console.log('💳 Creating payments...');
   const payments = await Promise.all([
@@ -829,7 +916,7 @@ async function main() {
   });
 
   // ============================================
-  // 9. CREATE FINANCIAL TRANSACTIONS
+  // 10. CREATE FINANCIAL TRANSACTIONS
   // ============================================
   console.log('💰 Creating financial transactions...');
   const baseAmount = 50000.00;
@@ -877,7 +964,7 @@ async function main() {
   console.log('✅ Created financial transactions');
 
   // ============================================
-  // 10. CREATE LEDGER ENTRIES
+  // 11. CREATE LEDGER ENTRIES
   // ============================================
   console.log('📊 Creating ledger entries...');
   // Get the financial transactions we just created
@@ -936,7 +1023,7 @@ async function main() {
   console.log('✅ Created ledger entries');
 
   // ============================================
-  // 11. CREATE ACTIVITY LOGS
+  // 12. CREATE ACTIVITY LOGS
   // ============================================
   console.log('📝 Creating activity logs...');
   // Temporarily disable foreign key checks due to polymorphic relations
@@ -973,7 +1060,7 @@ async function main() {
   console.log('✅ Created activity logs');
 
   // ============================================
-  // 12. CREATE AUDIT TRAILS
+  // 13. CREATE AUDIT TRAILS
   // ============================================
   console.log('🔍 Creating audit trails...');
   // Temporarily disable foreign key checks due to polymorphic relations
@@ -1016,7 +1103,8 @@ async function main() {
   console.log(`   - Clients: ${clients.length} (${linkedCount} have linked trader profiles)`);
   console.log(`   - Traders: ${traders.length} (${linkedCount} linked to clients - dual profiles)`);
   console.log(`   - Linked Profiles (Dual Profile): ${linkedCount} pairs (Client & Trader with same email)`);
-  console.log(`   - Offers: ${offers.length}`);
+  console.log(`   - Categories: ${categories.length}`);
+  console.log(`   - Offers: ${offers.length} (all linked to categories)`);
   console.log(`   - Deals: ${deals.length} (1 demonstrates dual profile feature)`);
   console.log(`   - Payments: ${payments.length}`);
   console.log(`   - Financial Transactions: 4`);

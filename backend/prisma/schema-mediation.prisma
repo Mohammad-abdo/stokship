@@ -237,7 +237,21 @@ model Offer {
   status            OfferStatus @default(DRAFT)
   totalCartons      Int       @default(0)
   totalCBM          Decimal   @db.Decimal(10, 3) @default(0)
-  excelFileUrl      String?   // Original Excel upload
+  // Ad/Offer metadata from create page
+  category          String?   // Category from create page (electronics, clothing, etc.) - Legacy field for backward compatibility
+  categoryId        Int?      // Category ID - New field for relation
+  acceptsNegotiation Boolean  @default(false) // Whether trader accepts negotiation
+  country           String?   // Country from create page (Stockship Fees section)
+  city              String?   // City from create page (Stockship Fees section)
+  images            String?   @db.Text // JSON array of main ad images (Upload Images section)
+  // Excel file storage
+  excelFileUrl      String?   // Original Excel file URL/path
+  excelFileName     String?   // Original Excel file name
+  excelFileSize     Int?      // File size in bytes
+  // Excel metadata
+  companyName       String?   // Company name from Excel header
+  proformaInvoiceNo String?   // Proforma Invoice No from Excel header
+  excelDate         DateTime? // DATE from Excel header
   validatedBy       Int?      // Employee ID who validated
   validatedAt       DateTime?
   validationNotes   String?   @db.Text
@@ -247,39 +261,60 @@ model Offer {
 
   // Relations
   trader            Trader    @relation(fields: [traderId], references: [id])
+  categoryRelation  Category? @relation("OfferCategory", fields: [categoryId], references: [id])
   items             OfferItem[]
   deals             Deal[]
   activityLogs      ActivityLog[] @relation("ActivityLogOffer")
   
   @@index([traderId])
   @@index([status])
+  @@index([categoryId])
 }
 
 model OfferItem {
-  id                Int       @id @default(autoincrement())
-  offerId           Int
-  productName       String    // Descriptive name only
-  description       String?   @db.Text
-  quantity          Int       // Quantity available
-  cartons           Int       // Number of cartons
-  length            Decimal?  @db.Decimal(10, 2) // cm
-  width             Decimal?  @db.Decimal(10, 2) // cm
-  height             Decimal?  @db.Decimal(10, 2) // cm
-  cbm               Decimal   @db.Decimal(10, 3) // Calculated: (L*W*H)/1,000,000
-  weight            Decimal?  @db.Decimal(10, 2) // kg
-  country           String?
-  city              String?
-  images            String?   @db.Text // JSON array of image URLs
-  notes             String?   @db.Text
-  displayOrder      Int       @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id              Int      @id @default(autoincrement())
+  offerId         Int
+  // Excel-based fields
+  itemNo          String? // Item number from Excel (ITEM NO.)
+  productName     String // Descriptive name only (DESCRIPTION)
+  description     String?  @db.Text
+  colour          String? // Colour from Excel
+  spec            String? // SPEC. from Excel
+  quantity        Int // QUANTITY from Excel
+  unit            String? // Unit from Excel (SET, PCS, etc.)
+  unitPrice       Decimal? @db.Decimal(10, 2) // UNIT PRICE from Excel
+  currency        String? // CURRENCY from Excel (USD, SR, etc.)
+  amount          Decimal? @db.Decimal(10, 2) // AMOUNT from Excel
+  packing         String? // PACKING from Excel
+  packageQuantity Int? // PACKAGE QUANTITY (CTN) from Excel
+  unitGW          Decimal? @db.Decimal(10, 2) // UNIT G.W. (KGS) from Excel
+  totalGW         Decimal? @db.Decimal(10, 2) // TOTAL G.W. (KGS) from Excel
+  // Carton dimensions
+  cartonLength    Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Length
+  cartonWidth     Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Width
+  cartonHeight    Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Height
+  totalCBM        Decimal  @db.Decimal(10, 4) // TOTAL CBM from Excel
+  // Legacy fields (for backward compatibility)
+  cartons         Int      @default(0) // Number of cartons
+  length          Decimal? @db.Decimal(10, 2) // cm (alias for cartonLength)
+  width           Decimal? @db.Decimal(10, 2) // cm (alias for cartonWidth)
+  height          Decimal? @db.Decimal(10, 2) // cm (alias for cartonHeight)
+  cbm             Decimal  @db.Decimal(10, 3) // Calculated: (L*W*H)/1,000,000 (alias for totalCBM)
+  weight          Decimal? @db.Decimal(10, 2) // kg (alias for totalGW)
+  country         String?
+  city            String?
+  images          String?  @db.Text // JSON array of image URLs (IMAGE from Excel)
+  notes           String?  @db.Text
+  displayOrder    Int      @default(0) // NO from Excel
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
-  offer             Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  dealItems        DealItem[]
-  
+  offer     Offer      @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  dealItems DealItem[]
+
   @@index([offerId])
+  @@index([itemNo])
 }
 
 // ============================================
@@ -559,6 +594,51 @@ model AuditTrail {
   @@index([entityType, entityId])
   @@index([action])
   @@index([createdAt])
+}
+
+// ============================================
+// CATEGORY MANAGEMENT
+// ============================================
+
+model Category {
+  id              Int       @id @default(autoincrement())
+  nameKey         String    @unique // Translation key
+  descriptionKey  String?   @db.Text
+  slug            String    @unique
+  parentId        Int?
+  isActive        Boolean   @default(true)
+  isFeatured      Boolean   @default(false)
+  displayOrder    Int       @default(0)
+  icon            String?
+  imageUrl        String?
+  level           Int       @default(0)
+  productCount    Int       @default(0)
+  breadcrumb      String?
+  metaTitleKey    String?
+  metaDescriptionKey String? @db.Text
+  metaKeywords    String?   @db.Text
+  canonicalUrl    String?
+  ogTitleKey      String?
+  ogDescriptionKey String?   @db.Text
+  ogImage         String?
+  twitterCardTitleKey String?
+  twitterCardDescriptionKey String? @db.Text
+  twitterCardImage String?
+  structuredData  String?   @db.Text
+  pageDescriptionKey String? @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  parent          Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children        Category[] @relation("CategoryTree")
+  offers          Offer[]   @relation("OfferCategory") // Offers in this category
+
+  @@index([parentId])
+  @@index([slug])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([displayOrder])
 }
 
 // ============================================
