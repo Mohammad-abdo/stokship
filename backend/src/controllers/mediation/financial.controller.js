@@ -1,6 +1,7 @@
 const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
+const { notifyPaymentVerified } = require('../../utils/notificationHelper');
 // PDFDocument is optional - install with: npm install pdfkit
 let PDFDocument;
 try {
@@ -188,31 +189,8 @@ const verifyPayment = asyncHandler(async (req, res) => {
       }
     });
 
-    // Notify client and trader
-    await Promise.all([
-      prisma.notification.create({
-        data: {
-          userId: payment.deal.clientId,
-          userType: 'CLIENT',
-          type: 'PAYMENT',
-          title: 'Payment Verified',
-          message: `Your payment for deal ${payment.deal.dealNumber} has been verified`,
-          relatedEntityType: 'PAYMENT',
-          relatedEntityId: payment.id
-        }
-      }),
-      prisma.notification.create({
-        data: {
-          userId: payment.deal.traderId,
-          userType: 'TRADER',
-          type: 'PAYMENT',
-          title: 'Payment Received',
-          message: `Payment for deal ${payment.deal.dealNumber} has been verified`,
-          relatedEntityType: 'PAYMENT',
-          relatedEntityId: payment.id
-        }
-      })
-    ]);
+    // Notify client, trader, and employee
+    await notifyPaymentVerified(payment, payment.deal);
   }
 
   successResponse(res, updatedPayment, `Payment ${verified ? 'verified' : 'rejected'} successfully`);
@@ -223,15 +201,49 @@ const verifyPayment = asyncHandler(async (req, res) => {
  * @private
  */
 async function calculateAndDistributeCommissions(deal, payment) {
-  // Get site settings for commission rates
-  // Assuming you have a SiteSettings table or configuration
-  const platformCommissionRate = 2.5; // 2.5% default
+  // Get platform settings for commission rates
+  let platformSettings = await prisma.platformSettings.findFirst({
+    orderBy: { updatedAt: 'desc' }
+  });
+
+  // Default values if no settings found
+  const platformCommissionRate = platformSettings?.platformCommissionRate 
+    ? parseFloat(platformSettings.platformCommissionRate) 
+    : 2.5; // 2.5% default
+  const cbmRate = platformSettings?.cbmRate 
+    ? parseFloat(platformSettings.cbmRate) 
+    : null; // No CBM rate by default
+  const commissionMethod = platformSettings?.commissionMethod || 'PERCENTAGE'; // PERCENTAGE, CBM, BOTH
   const employeeCommissionRate = deal.employee.commissionRate || 1.0; // Employee's rate
 
   const amount = parseFloat(payment.amount);
+  const totalCBM = parseFloat(deal.totalCBM) || 0;
 
-  // Calculate commissions
-  const platformCommission = (amount * platformCommissionRate) / 100;
+  // Calculate platform commission based on method
+  let platformCommission = 0;
+  let cbmBasedCommission = null;
+  let usedMethod = commissionMethod;
+
+  if (commissionMethod === 'PERCENTAGE') {
+    // Use percentage-based commission only
+    platformCommission = (amount * platformCommissionRate) / 100;
+  } else if (commissionMethod === 'CBM' && cbmRate) {
+    // Use CBM-based commission only
+    cbmBasedCommission = totalCBM * cbmRate;
+    platformCommission = cbmBasedCommission;
+  } else if (commissionMethod === 'BOTH' && cbmRate) {
+    // Use both methods and take the higher value
+    const percentageCommission = (amount * platformCommissionRate) / 100;
+    cbmBasedCommission = totalCBM * cbmRate;
+    platformCommission = Math.max(percentageCommission, cbmBasedCommission);
+    usedMethod = percentageCommission >= cbmBasedCommission ? 'PERCENTAGE' : 'CBM';
+  } else {
+    // Fallback to percentage if CBM rate not set
+    platformCommission = (amount * platformCommissionRate) / 100;
+    usedMethod = 'PERCENTAGE';
+  }
+
+  // Calculate employee commission (based on amount, not CBM)
   const employeeCommission = (amount * employeeCommissionRate) / 100;
   const traderAmount = amount - platformCommission - employeeCommission;
 
@@ -247,6 +259,10 @@ async function calculateAndDistributeCommissions(deal, payment) {
       platformCommission,
       employeeCommission,
       traderAmount,
+      totalCBM: totalCBM > 0 ? totalCBM : null,
+      cbmBasedCommission: cbmBasedCommission || null,
+      cbmRate: cbmRate || null,
+      commissionMethod: usedMethod,
       employeeId: deal.employeeId,
       traderId: deal.traderId,
       processedBy: deal.employeeId, // Employee who verified

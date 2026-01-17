@@ -1,6 +1,7 @@
 const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
+const { notifyNegotiationMessage } = require('../../utils/notificationHelper');
 
 /**
  * @desc    Send negotiation message
@@ -95,35 +96,7 @@ const sendNegotiationMessage = asyncHandler(async (req, res) => {
   });
 
   // Notify recipient and employee
-  const recipientId = isClient ? deal.traderId : deal.clientId;
-  const recipientType = isClient ? 'TRADER' : 'CLIENT';
-
-  await Promise.all([
-    // Notify recipient
-    prisma.notification.create({
-      data: {
-        userId: recipientId,
-        userType: recipientType,
-        type: 'NEGOTIATION',
-        title: 'New Negotiation Message',
-        message: `You have a new message in deal ${deal.dealNumber}`,
-        relatedEntityType: 'DEAL',
-        relatedEntityId: deal.id
-      }
-    }),
-    // Notify employee (guarantor)
-    prisma.notification.create({
-      data: {
-        userId: deal.employeeId,
-        userType: 'EMPLOYEE',
-        type: 'NEGOTIATION',
-        title: 'New Negotiation Message',
-        message: `New message in deal ${deal.dealNumber} between trader and client`,
-        relatedEntityType: 'DEAL',
-        relatedEntityId: deal.id
-      }
-    })
-  ]);
+  await notifyNegotiationMessage(deal, req.user.id, senderType);
 
   successResponse(res, negotiation, 'Message sent successfully', 201);
 });
