@@ -6,12 +6,18 @@ const { successResponse, errorResponse, paginatedResponse } = require('../utils/
 // @route   GET /api/notifications
 // @access  Private
 const getNotifications = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, unread } = req.query;
+  const { page = 1, limit = 20, unread, type } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  const where = { userId: req.user.id };
+  const where = { 
+    userId: req.user.id,
+    userType: req.userType // Add userType filter
+  };
   if (unread === 'true') {
     where.isRead = false;
+  }
+  if (type) {
+    where.type = type;
   }
 
   const [notifications, total] = await Promise.all([
@@ -41,7 +47,8 @@ const markAsRead = asyncHandler(async (req, res) => {
   const notification = await prisma.notification.findFirst({
     where: {
       id: parseInt(id),
-      userId: req.user.id
+      userId: req.user.id,
+      userType: req.userType // Add userType check
     }
   });
 
@@ -64,9 +71,10 @@ const markAllAsRead = asyncHandler(async (req, res) => {
   await prisma.notification.updateMany({
     where: {
       userId: req.user.id,
+      userType: req.userType, // Add userType filter
       isRead: false
     },
-    data: { isRead: true }
+    data: { isRead: true, readAt: new Date() }
   });
 
   successResponse(res, null, 'All notifications marked as read');
@@ -79,6 +87,7 @@ const getUnreadCount = asyncHandler(async (req, res) => {
   const count = await prisma.notification.count({
     where: {
       userId: req.user.id,
+      userType: req.userType, // Add userType filter
       isRead: false
     }
   });
@@ -86,11 +95,52 @@ const getUnreadCount = asyncHandler(async (req, res) => {
   successResponse(res, { count }, 'Unread count retrieved successfully');
 });
 
+// @desc    Delete notification
+// @route   DELETE /api/notifications/:id
+// @access  Private
+const deleteNotification = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const notification = await prisma.notification.findFirst({
+    where: {
+      id: parseInt(id),
+      userId: req.user.id,
+      userType: req.userType
+    }
+  });
+
+  if (!notification) {
+    return errorResponse(res, 'Notification not found', 404);
+  }
+
+  await prisma.notification.delete({
+    where: { id: parseInt(id) }
+  });
+
+  successResponse(res, null, 'Notification deleted successfully');
+});
+
+// @desc    Delete all notifications
+// @route   DELETE /api/notifications
+// @access  Private
+const deleteAllNotifications = asyncHandler(async (req, res) => {
+  const count = await prisma.notification.deleteMany({
+    where: {
+      userId: req.user.id,
+      userType: req.userType
+    }
+  });
+
+  successResponse(res, { deletedCount: count }, 'All notifications deleted successfully');
+});
+
 module.exports = {
   getNotifications,
   markAsRead,
   markAllAsRead,
-  getUnreadCount
+  getUnreadCount,
+  deleteNotification,
+  deleteAllNotifications
 };
 
 

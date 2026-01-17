@@ -148,6 +148,7 @@ model Admin {
   financialTransactions FinancialTransaction[] @relation("FinancialTransactionAdmin")
   createdContentPages   ContentPage[]          @relation("ContentPageCreator")
   updatedContentPages   ContentPage[]          @relation("ContentPageUpdater")
+  platformSettingsUpdates PlatformSettings[]   @relation("PlatformSettingsUpdater")
 }
 
 model Employee {
@@ -490,6 +491,12 @@ model FinancialTransaction {
   platformCommission Decimal? @db.Decimal(10, 2)
   employeeCommission Decimal? @db.Decimal(10, 2)
   traderAmount       Decimal? @db.Decimal(10, 2)
+  
+  // CBM-based commission (new field)
+  totalCBM           Decimal? @db.Decimal(10, 3) // Total CBM for this deal
+  cbmBasedCommission Decimal? @db.Decimal(10, 2) // Commission calculated based on CBM
+  cbmRate            Decimal? @db.Decimal(10, 2) // CBM rate used for calculation
+  commissionMethod   String? // PERCENTAGE, CBM, BOTH - method used
 
   // Related entities
   employeeId  Int?
@@ -729,22 +736,36 @@ model Category {
 }
 
 // ============================================
-// BACKUP & EXPORT
+// PLATFORM SETTINGS
 // ============================================
 
-model Backup {
-  id           Int       @id @default(autoincrement())
-  backupType   String // DATABASE, EXCEL_FILES, INVOICES
-  fileUrl      String
-  fileSize     Int? // bytes
-  recordCount  Int?
-  status       String // PENDING, COMPLETED, FAILED
-  startedAt    DateTime  @default(now())
-  completedAt  DateTime?
-  errorMessage String?   @db.Text
-  createdAt    DateTime  @default(now())
+model PlatformSettings {
+  id                    Int       @id @default(autoincrement())
+  // Commission Settings
+  platformCommissionRate Decimal? @db.Decimal(5, 2) // Percentage based on deal amount (default: 2.5%)
+  cbmRate                Decimal? @db.Decimal(10, 2) // Rate per cubic meter (CBM) for deals (e.g., 50 SAR per CBM)
+  // Financial Settings
+  taxRate                Decimal? @db.Decimal(5, 2) // Tax rate percentage
+  currency               String?  @default("SAR")
+  // General Settings
+  platformName           String?  @default("Stockship")
+  platformEmail          String?
+  platformPhone          String?
+  platformAddress        String?  @db.Text
+  defaultLanguage        String?  @default("ar")
+  timezone               String?  @default("Asia/Riyadh")
+  // Commission Calculation Method
+  // 'PERCENTAGE': Use platformCommissionRate based on deal amount
+  // 'CBM': Use cbmRate based on total CBM in deal
+  // 'BOTH': Use both methods and take the higher value
+  commissionMethod       String?  @default("PERCENTAGE") // PERCENTAGE, CBM, BOTH
+  // Last Updated
+  updatedBy              Int? // Admin ID who last updated
+  updatedAt              DateTime @updatedAt
+  createdAt              DateTime @default(now())
 
-  @@index([backupType])
-  @@index([status])
-  @@index([createdAt])
+  // Relations
+  updater Admin? @relation("PlatformSettingsUpdater", fields: [updatedBy], references: [id])
+
+  @@index([updatedBy])
 }

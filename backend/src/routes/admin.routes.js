@@ -26,6 +26,10 @@ const {
   updateSupportTicketStatus,
   addAdminMessage
 } = require('../controllers/admin.controller');
+const {
+  getPlatformSettings,
+  updatePlatformSettings
+} = require('../controllers/platformSettings.controller');
 
 // Dashboard routes
 router.get('/dashboard/stats', protect, isAdmin, getDashboardStats);
@@ -61,5 +65,9 @@ router.get('/support/tickets', protect, isAdmin, getAllSupportTickets);
 router.get('/support/tickets/:id', protect, isAdmin, getSupportTicketById);
 router.put('/support/tickets/:id/status', protect, isAdmin, updateSupportTicketStatus);
 router.post('/support/tickets/:id/messages', protect, isAdmin, addAdminMessage);
+
+// Platform settings routes
+router.get('/platform-settings', protect, isAdmin, getPlatformSettings);
+router.put('/platform-settings', protect, isAdmin, updatePlatformSettings);
 
 module.exports = router;

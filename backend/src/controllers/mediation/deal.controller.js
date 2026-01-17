@@ -1,6 +1,7 @@
 const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
+const { notifyDealCreated, notifyDealStatusChanged } = require('../../utils/notificationHelper');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 
@@ -111,18 +112,8 @@ const requestNegotiation = asyncHandler(async (req, res) => {
     }
   });
 
-  // Notify employee
-  await prisma.notification.create({
-    data: {
-      userId: employee.id,
-      userType: 'EMPLOYEE',
-      type: 'DEAL',
-      title: 'New Deal Request',
-      message: `Client ${req.user.name} requested negotiation for offer: ${offer.title}`,
-      relatedEntityType: 'DEAL',
-      relatedEntityId: deal.id
-    }
-  });
+  // Notify trader and employee
+  await notifyDealCreated(deal, req.user, deal.trader, employee);
 
   successResponse(res, deal, 'Negotiation request created successfully', 201);
 });
@@ -234,31 +225,8 @@ const approveDeal = asyncHandler(async (req, res) => {
     }
   });
 
-  // Notify client and employee
-  await Promise.all([
-    prisma.notification.create({
-      data: {
-        userId: deal.clientId,
-        userType: 'CLIENT',
-        type: 'DEAL',
-        title: 'Deal Approved',
-        message: `Your deal ${deal.dealNumber} has been approved by the trader`,
-        relatedEntityType: 'DEAL',
-        relatedEntityId: deal.id
-      }
-    }),
-    prisma.notification.create({
-      data: {
-        userId: deal.employeeId,
-        userType: 'EMPLOYEE',
-        type: 'DEAL',
-        title: 'Deal Approved',
-        message: `Deal ${deal.dealNumber} has been approved by trader`,
-        relatedEntityType: 'DEAL',
-        relatedEntityId: deal.id
-      }
-    })
-  ]);
+  // Notify client and employee about status change
+  await notifyDealStatusChanged(deal, 'APPROVED', 'TRADER');
 
   successResponse(res, updatedDeal, 'Deal approved successfully');
 });
