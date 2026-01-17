@@ -256,7 +256,8 @@ const TraderSettings = () => {
             );
           })}
         </nav>
-      </div>
+      </div> 
+      //new
 
       {/* Profile Tab */}
       {activeTab === 'profile' && (
