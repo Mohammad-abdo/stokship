@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -21,13 +21,15 @@ const AdminOffers = () => {
     total: 0,
     pages: 0
   });
+  const searchTimeoutRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
-  useEffect(() => {
-    fetchOffers();
-  }, [pagination.page, statusFilter, searchTerm]);
-
-  const fetchOffers = async () => {
+  const fetchOffers = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (isFetchingRef.current) return;
+    
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       const params = {
         page: pagination.page,
@@ -47,12 +49,48 @@ const AdminOffers = () => {
       }
     } catch (error) {
       console.error('Error fetching offers:', error);
-      showToast.error('Failed to fetch offers', error.response?.data?.message || 'Please try again');
+      // Don't show error for rate limiting
+      if (error.response?.status !== 429) {
+        showToast.error('Failed to fetch offers', error.response?.data?.message || 'Please try again');
+      }
       setOffers([]);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [pagination.page, pagination.limit, statusFilter, searchTerm]);
+
+  // Debounce search term and status filter to avoid too many requests
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Reset to page 1 when search/filter changes
+    if (pagination.page !== 1) {
+      setPagination(prev => ({ ...prev, page: 1 }));
+      return;
+    }
+
+    // Set new timeout - only fetch after 500ms of no typing
+    searchTimeoutRef.current = setTimeout(() => {
+      fetchOffers();
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, statusFilter]); // Only depend on search/filter changes
+
+  // Fetch when page changes (but not if search/filter is changing)
+  useEffect(() => {
+    if (pagination.page > 0) {
+      fetchOffers();
+    }
+  }, [pagination.page]); // Only depend on page changes
 
   const getStatusBadge = (status) => {
     const statusConfig = {

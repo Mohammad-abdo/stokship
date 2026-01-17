@@ -15,18 +15,30 @@ export default function NotificationsDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const dropdownRef = useRef(null);
+  const lastFetchRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
-    fetchNotifications();
-    fetchUnreadCount();
-
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(() => {
+    const now = Date.now();
+    // Only fetch if last fetch was more than 2 seconds ago
+    if (now - lastFetchRef.current > 2000) {
+      fetchNotifications();
       fetchUnreadCount();
-      if (isOpen) {
-        fetchNotifications();
+      lastFetchRef.current = now;
+    }
+
+    // Poll for new notifications every 60 seconds (reduced frequency)
+    const interval = setInterval(() => {
+      const now = Date.now();
+      // Throttle: only fetch if last fetch was more than 2 seconds ago
+      if (now - lastFetchRef.current > 2000 && !isFetchingRef.current) {
+        fetchUnreadCount();
+        if (isOpen) {
+          fetchNotifications();
+        }
+        lastFetchRef.current = now;
       }
-    }, 30000);
+    }, 60000); // Increased from 30s to 60s
 
     return () => clearInterval(interval);
   }, [isOpen]);
@@ -45,7 +57,11 @@ export default function NotificationsDropdown() {
   }, [isOpen]);
 
   const fetchNotifications = async () => {
+    // Prevent multiple simultaneous requests
+    if (isFetchingRef.current) return;
+    
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       const response = await stockshipApi.get('/notifications', { 
         params: { page: 1, limit: 10 } 
@@ -82,16 +98,26 @@ export default function NotificationsDropdown() {
       }));
       
       setNotifications(notificationsList);
+      lastFetchRef.current = Date.now();
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      setNotifications([]);
+      // Don't show error for rate limiting - just silently fail
+      if (error.response?.status !== 429) {
+        console.error('Error details:', error);
+      }
+      // Keep existing notifications on error (don't clear them)
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
   const fetchUnreadCount = async () => {
+    // Prevent multiple simultaneous requests
+    if (isFetchingRef.current) return;
+    
     try {
+      isFetchingRef.current = true;
       const response = await stockshipApi.get('/notifications/unread-count');
       
       // Handle different response structures
@@ -107,9 +133,15 @@ export default function NotificationsDropdown() {
       }
       
       setUnreadCount(count);
+      lastFetchRef.current = Date.now();
     } catch (error) {
-      console.error('Error fetching unread count:', error);
-      setUnreadCount(0); // Set to 0 on error
+      // Don't show error for rate limiting - just silently fail
+      if (error.response?.status !== 429) {
+        console.error('Error fetching unread count:', error);
+      }
+      // Don't reset count on error - keep last known value
+    } finally {
+      isFetchingRef.current = false;
     }
   };
 
