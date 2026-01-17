@@ -107,7 +107,12 @@ const TraderViewOffer = () => {
             try {
               item.images = JSON.parse(item.images);
             } catch (e) {
-              item.images = [];
+              // If parse fails, check if it might be a single image URL
+              if (item.images.trim().length > 0) {
+                item.images = [item.images];
+              } else {
+                item.images = [];
+              }
             }
           }
           
@@ -123,7 +128,7 @@ const TraderViewOffer = () => {
               const invalidTexts = ['الصورة', '图片', 'NO IMAGE', 'IMAGE', 'NO', 'N/A', 'null', 'undefined'];
               const lowerImgUrl = trimmedUrl.toLowerCase();
               
-              if (invalidTexts.some(text => lowerImgUrl === text.toLowerCase() || lowerImgUrl.includes(text.toLowerCase()))) {
+              if (invalidTexts.some(text => lowerImgUrl === text.toLowerCase())) {
                 return false;
               }
               
@@ -453,10 +458,10 @@ const TraderViewOffer = () => {
               <CardContent className="pt-6">
                 <div className="space-y-4">
                   {offer.items.map((item, index) => {
-                    // Get item images and filter invalid ones
+                    // Get item images
                     let itemImages = Array.isArray(item.images) ? item.images : (item.image ? [item.image] : []);
                     
-                    // Filter out invalid image URLs (already filtered during fetch, but double-check)
+                    // Filter out invalid image URLs
                     itemImages = itemImages.filter(imgUrl => {
                       if (!imgUrl || typeof imgUrl !== 'string') return false;
                       const trimmedUrl = imgUrl.trim();
