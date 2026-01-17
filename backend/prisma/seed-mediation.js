@@ -1029,13 +1029,13 @@ async function main() {
   console.log(`   ├─────────────────────────────────────────────────────────────────┤`);
   console.log(`   │ • dualprofile@stokship.com / client123                         │`);
   console.log(`   │   → Can login as both CLIENT and TRADER                       │`);
-  console.log(`   │   → Client ID: ${linkedClient1.id}, Trader ID: ${traders[0].id}                    │`);
-  console.log(`   │   → Linked via clientId: ${traders[0].clientId}                               │`);
+  console.log(`   │   → Client ID: ${linkedClient1.id}, Trader ID: ${traders[0].id} │`);
+  console.log(`   │   → Linked via clientId: ${traders[0].clientId}               │`);
   console.log(`   │                                                               │`);
   console.log(`   │ • merchant@stokship.com / client123                           │`);
   console.log(`   │   → Can login as both CLIENT and TRADER                       │`);
-  console.log(`   │   → Client ID: ${linkedClient2.id}, Trader ID: ${traders[1].id}                    │`);
-  console.log(`   │   → Linked via clientId: ${traders[1].clientId}                               │`);
+  console.log(`   │   → Client ID: ${linkedClient2.id}, Trader ID: ${traders[1].id} │`);
+  console.log(`   │   → Linked via clientId: ${traders[1].clientId}               │`);
   console.log(`   └─────────────────────────────────────────────────────────────────┘`);
   console.log(`\n   Standalone Accounts (Single Profile):`);
   console.log(`   • Client: client1@stokship.com / client123`);

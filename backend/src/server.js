@@ -42,8 +42,8 @@ app.use(mongoSanitize());
 app.use(hpp());
 
 // CORS configuration - Allow all origins by default
-const corsAllowedOrigins = process.env.CORS_ORIGIN 
-  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+const corsAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS 
+  ? process.env.CORS_ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : ['*']; // Default to allow all origins
 
 const allowAllOrigins = corsAllowedOrigins.includes('*');

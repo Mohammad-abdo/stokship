@@ -92,6 +92,10 @@ import EmployeeOffers from "./pages/stockship/employee/EmployeeOffers";
 import EmployeeViewOffer from "./pages/stockship/employee/EmployeeViewOffer";
 import EmployeePayments from "./pages/stockship/employee/EmployeePayments";
 import EmployeeSettings from "./pages/stockship/employee/EmployeeSettings";
+import EmployeeCategories from "./pages/stockship/employee/EmployeeCategories";
+import EmployeeCreateCategory from "./pages/stockship/employee/CreateCategory";
+import EmployeeEditCategory from "./pages/stockship/employee/EditCategory";
+import EmployeeViewCategory from "./pages/stockship/employee/ViewCategory";
 import TraderDashboard from "./pages/stockship/trader/TraderDashboard";
 import TraderOffers from "./pages/stockship/trader/TraderOffers";
 import CreateOffer from "./pages/stockship/trader/CreateOffer";
@@ -741,6 +745,46 @@ function AppRoutes() {
           <MultiProtectedRoute requireEmployee>
             <StockshipEmployeeLayout>
               <EmployeeSettings />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/categories"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeCategories />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/categories/create"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeCreateCategory />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/categories/:id/edit"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeEditCategory />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/categories/:id/view"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeViewCategory />
             </StockshipEmployeeLayout>
           </MultiProtectedRoute>
         }

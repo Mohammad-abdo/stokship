@@ -19,6 +19,7 @@ import {
   Bell,
   ShoppingCart,
   Package,
+  FolderTree,
 } from "lucide-react";
 
 export default function StockshipEmployeeLayout({ children }) {
@@ -47,6 +48,7 @@ export default function StockshipEmployeeLayout({ children }) {
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/employee/deals" },
     { icon: Package, label: t('mediation.employee.offersValidation') || 'Offers Validation', path: "/stockship/employee/offers" },
     { icon: DollarSign, label: t('mediation.employee.payments') || 'Payments', path: "/stockship/employee/payments" },
+    { icon: FolderTree, label: t('sidebar.categories') || 'Categories', path: "/stockship/employee/categories" },
     { icon: Settings, label: t('common.settings'), path: "/stockship/employee/settings" },
   ];
 

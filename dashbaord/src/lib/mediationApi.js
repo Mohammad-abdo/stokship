@@ -25,7 +25,7 @@ const getTokenForRole = (role) => {
 
 // Create axios instance for mediation API
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:5000') + '/api',
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -348,6 +348,38 @@ export const financialApi = {
   }
 };
 
+
+// ============================================
+// CATEGORY API
+// ============================================
+
+export const categoriesApi = {
+  // Get all categories (Public)
+  getAll: (params = {}) => {
+    return api.get(`${BASE_URL}/categories`, { params });
+  },
+
+  // Get category by ID (Public)
+  getById: (id) => {
+    return api.get(`${BASE_URL}/categories/${id}`);
+  },
+
+  // Create category (Admin/Employee)
+  create: (data) => {
+    return api.post(`${BASE_URL}/categories`, data);
+  },
+
+  // Update category (Admin/Employee)
+  update: (id, data) => {
+    return api.put(`${BASE_URL}/categories/${id}`, data);
+  },
+
+  // Delete category (Admin/Employee)
+  delete: (id) => {
+    return api.delete(`${BASE_URL}/categories/${id}`);
+  }
+};
+
 // ============================================
 // EXPORT ALL
 // ============================================
@@ -358,6 +390,9 @@ export default {
   offer: offerApi,
   deal: dealApi,
   negotiation: negotiationApi,
-  financial: financialApi
+  financial: financialApi,
+  categories: categoriesApi,
+  // Alias for easier access
+  category: categoriesApi
 };
 

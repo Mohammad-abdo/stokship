@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isAdmin } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 const {
   getCategories,
   getCategoryTree,
@@ -18,10 +18,10 @@ router.get('/tree', getCategoryTree);
 router.get('/:id', getCategoryById);
 router.get('/:id/subcategories', getSubCategories);
 router.get('/:id/products', getCategoryProducts);
-
-// Admin routes
-router.post('/', protect, isAdmin, createCategory);
-router.put('/:id', protect, isAdmin, updateCategory);
-router.delete('/:id', protect, isAdmin, deleteCategory);
+  
+// Admin & Employee routes
+router.post('/', protect, authorize('ADMIN', 'EMPLOYEE'), createCategory);
+router.put('/:id', protect, authorize('ADMIN', 'EMPLOYEE'), updateCategory);
+router.delete('/:id', protect, authorize('ADMIN', 'EMPLOYEE'), deleteCategory);
 
 module.exports = router;

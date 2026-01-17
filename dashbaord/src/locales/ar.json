@@ -661,6 +661,7 @@
     "trader": {
       "portal": "بوابة التاجر",
       "trader": "تاجر",
+      "traderInfo": "معلومات التاجر",
       "myOffers": "إدارة إعلاناتي كتاجر",
       "myOffersDesc": "إدارة ومتابعة إعلاناتك",
       "createOffer": "إنشاء اعلان",

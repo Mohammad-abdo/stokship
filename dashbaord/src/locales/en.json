@@ -660,6 +660,7 @@
     "trader": {
       "portal": "Trader Portal",
       "trader": "Trader",
+      "traderInfo": "Trader Information",
       "myOffers": "Manage My Ads as a Trader",
       "myOffersDesc": "Manage and track your advertisements",
       "createOffer": "Create Ad",

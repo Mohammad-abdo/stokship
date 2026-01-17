@@ -26,6 +26,7 @@ import {
   Gift,
   ShoppingCart,
   FileText,
+  FolderTree,
 } from "lucide-react";
 
 const StockshipAdminLayout = ({ children }) => {
@@ -54,6 +55,7 @@ const StockshipAdminLayout = ({ children }) => {
     { icon: LayoutDashboard, label: t('sidebar.dashboard'), path: "/stockship/admin/dashboard" },
     { icon: Briefcase, label: t('mediation.employees.title'), path: "/stockship/admin/employees" },
     { icon: Store, label: t('mediation.traders.title'), path: "/stockship/admin/traders" },
+    { icon: FolderTree, label: t('sidebar.categories') || 'Categories', path: "/stockship/admin/categories" },
     { icon: Users, label: t('admin.users'), path: "/stockship/admin/users" },
     { icon: Gift, label: t('mediation.offers.title'), path: "/stockship/admin/offers" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/admin/deals" },

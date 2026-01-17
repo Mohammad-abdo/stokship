@@ -123,7 +123,7 @@ const getCategories = asyncHandler(async (req, res) => {
       },
       _count: {
         select: {
-          products: true
+          offers: true
         }
       },
       children: {
@@ -131,7 +131,7 @@ const getCategories = asyncHandler(async (req, res) => {
         include: {
           _count: {
             select: {
-              products: true
+              offers: true
             }
           }
         }
