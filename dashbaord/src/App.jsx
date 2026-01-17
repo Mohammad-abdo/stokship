@@ -98,6 +98,8 @@ import CreateOffer from "./pages/stockship/trader/CreateOffer";
 import TraderViewOffer from "./pages/stockship/trader/TraderViewOffer";
 import TraderDeals from "./pages/stockship/trader/TraderDeals";
 import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
+import TraderPayments from "./pages/stockship/trader/TraderPayments";
+import TraderSettings from "./pages/stockship/trader/TraderSettings";
 
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
@@ -810,10 +812,7 @@ function AppRoutes() {
         element={
           <MultiProtectedRoute requireTrader>
             <StockshipTraderLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-4">Payments</h1>
-                <p className="text-muted-foreground">Payment management page coming soon...</p>
-              </div>
+              <TraderPayments />
             </StockshipTraderLayout>
           </MultiProtectedRoute>
         }
@@ -823,10 +822,7 @@ function AppRoutes() {
         element={
           <MultiProtectedRoute requireTrader>
             <StockshipTraderLayout>
-              <div className="p-6">
-                <h1 className="text-2xl font-bold mb-4">Settings</h1>
-                <p className="text-muted-foreground">Settings page coming soon...</p>
-              </div>
+              <TraderSettings />
             </StockshipTraderLayout>
           </MultiProtectedRoute>
         }
