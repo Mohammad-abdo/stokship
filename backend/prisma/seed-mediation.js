@@ -4,6 +4,7 @@
  */
 
 const { PrismaClient } = require('@prisma/client');
+require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const QRCode = require('qrcode');
 

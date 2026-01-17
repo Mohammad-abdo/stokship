@@ -16,6 +16,7 @@ const createOffer = asyncHandler(async (req, res) => {
     description, 
     items = [],
     metadata = {},
+    images, // Add images to destructuring
     excelFileUrl,
     excelFileName,
     excelFileSize
@@ -93,11 +94,12 @@ const createOffer = asyncHandler(async (req, res) => {
       category: metadata.category || null, // Legacy field for backward compatibility
       categoryId: categoryId, // New field with relation
       acceptsNegotiation: metadata.acceptsNegotiation || false,
-      country: metadata.country || null,
       city: metadata.city || null,
-      images: (metadata.adImages && Array.isArray(metadata.adImages) && metadata.adImages.length > 0) 
-        ? JSON.stringify(metadata.adImages) 
-        : null,
+      images: (images && Array.isArray(images) && images.length > 0)
+        ? JSON.stringify(images)
+        : (metadata.adImages && Array.isArray(metadata.adImages) && metadata.adImages.length > 0) 
+          ? JSON.stringify(metadata.adImages) 
+          : null,
       // Excel file info
       excelFileUrl: excelFileUrl || null,
       excelFileName: excelFileName || null,

@@ -27,7 +27,29 @@ import {
 import { offerApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
 
+// LightGallery functionality
+import LightGallery from 'lightgallery/react';
+import 'lightgallery/css/lightgallery.css';
+import 'lightgallery/css/lg-zoom.css';
+import 'lightgallery/css/lg-thumbnail.css';
+import 'lightgallery/css/lg-fullscreen.css';
+import 'lightgallery/css/lg-rotate.css';
+import lgThumbnail from 'lightgallery/plugins/thumbnail';
+import lgZoom from 'lightgallery/plugins/zoom';
+import lgFullscreen from 'lightgallery/plugins/fullscreen';
+import lgRotate from 'lightgallery/plugins/rotate';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+// Image Helper to build full URL
+const getImageUrl = (imgUrl) => {
+  if (!imgUrl) return '';
+  if (imgUrl.startsWith('http') || imgUrl.startsWith('data:image')) return imgUrl;
+  
+  if (imgUrl.startsWith('/uploads/')) return `${API_URL}${imgUrl}`;
+  if (imgUrl.startsWith('uploads/')) return `${API_URL}/${imgUrl}`;
+  return `${API_URL}/uploads/${imgUrl}`;
+};
 
 const TraderViewOffer = () => {
   const { id } = useParams();
@@ -39,8 +61,29 @@ const TraderViewOffer = () => {
   const traderAuth = getAuth('trader');
   const user = traderAuth?.user || null;
   
+  // Force LightGallery to be on top of everything and reset image styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .lg-outer { z-index: 10000 !important; }
+      .lg-backdrop { z-index: 9999 !important; }
+      .lg-content { z-index: 10001 !important; }
+      .lg-toolbar { z-index: 10002 !important; }
+      .lg-components { z-index: 10002 !important; }
+      /* Ensure images are visible */
+      .lg-img-wrap img {
+          object-fit: contain !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [offer, setOffer] = useState(null);
+
 
   const fetchOffer = useCallback(async () => {
     try {
@@ -208,26 +251,13 @@ const TraderViewOffer = () => {
   // Ensure images is an array and filter invalid URLs
   const adImages = (Array.isArray(offer.images) ? offer.images : []).filter(imgUrl => {
     if (!imgUrl || typeof imgUrl !== 'string') return false;
-    
-    // Remove common text values
+    const validPatterns = [/^https?:\/\//i, /^\/uploads\//i, /^uploads\//i, /^data:image/i];
+    if (validPatterns.some(pattern => pattern.test(imgUrl.trim()))) return true;
     const invalidTexts = ['الصورة', '图片', 'NO IMAGE', 'IMAGE', 'NO', 'N/A', 'null', 'undefined', ''];
-    const lowerImgUrl = imgUrl.trim().toLowerCase();
-    
-    if (invalidTexts.some(text => lowerImgUrl === text.toLowerCase() || lowerImgUrl.includes(text.toLowerCase()))) {
-      return false;
-    }
-    
-    // Check if it's a valid URL or file path
-    const validPatterns = [
-      /^https?:\/\//i,
-      /^\/uploads\//i,
-      /^uploads\//i,
-      /^data:image/i,
-      /\.(jpg|jpeg|png|gif|webp|svg)$/i
-    ];
-    
-    return validPatterns.some(pattern => pattern.test(imgUrl));
+    if (invalidTexts.some(text => imgUrl.trim().toLowerCase() === text.toLowerCase())) return false;
+    return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(imgUrl.trim());
   });
+
 
   return (
     <motion.div
@@ -237,6 +267,8 @@ const TraderViewOffer = () => {
       className="space-y-6 p-6"
       dir={isRTL ? 'rtl' : 'ltr'}
     >
+
+
       {/* Header */}
       <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 ${isRTL ? 'sm:flex-row-reverse' : ''}`}>
         <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -250,7 +282,7 @@ const TraderViewOffer = () => {
           </motion.button>
           <div className={isRTL ? 'text-right' : 'text-left'}>
             <h1 className="text-3xl font-bold text-gray-900">
-              {t('mediation.trader.offerDetails') || 'Offer Details'}
+              {t('mediation.trader.offerDetails') || 'Offer Details'} <span className="text-xs text-gray-400 font-normal">(v3)</span>
             </h1>
             <p className="text-muted-foreground mt-2">{offer.title || 'N/A'}</p>
           </div>
@@ -274,7 +306,7 @@ const TraderViewOffer = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Information */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Basic Information */}
+          {/* Basic Info Card */}
           <Card className="border-gray-200 shadow-sm">
             <CardHeader className="border-b border-gray-200 bg-gray-50">
               <CardTitle className={`flex items-center gap-2 text-lg font-semibold ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -373,36 +405,38 @@ const TraderViewOffer = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <LightGallery
+                  key={`ad-images-${adImages.length}`}
+                  speed={500}
+                  plugins={[lgThumbnail, lgZoom, lgFullscreen, lgRotate]}
+                  licenseKey="0000-0000-000-0000"
+                  elementClassNames="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                  selector="a"
+                >
+                
                   {adImages.map((imgUrl, index) => {
-                    // Build proper image URL
-                    let imageSrc = imgUrl;
-                    if (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:image')) {
-                      // If it starts with /uploads/, add API_URL prefix
-                      if (imgUrl.startsWith('/uploads/')) {
-                        imageSrc = `${API_URL}${imgUrl}`;
-                      } else if (imgUrl.startsWith('uploads/')) {
-                        imageSrc = `${API_URL}/${imgUrl}`;
-                      } else {
-                        // Assume it's a relative path from uploads
-                        imageSrc = `${API_URL}/uploads/${imgUrl}`;
-                      }
-                    }
-                    
+                    const src = getImageUrl(imgUrl);
                     return (
-                      <div key={index} className="relative group">
+                      <a 
+                        key={index}
+                        data-src={src}
+                        href={src}
+                        onClick={(e) => e.preventDefault()}
+                        className="block rounded-lg overflow-hidden border border-gray-200 hover:shadow-lg transition-all"
+                      >
                         <img
-                          src={imageSrc}
+                          src={src}
                           alt={`Ad image ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                          className="w-full h-32 object-cover block"
                           onError={(e) => {
-                            e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZTwvdGV4dD48L3N2Zz4=';
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="h-32 flex items-center justify-center bg-gray-100 text-xs text-red-500">Error</div>';
                           }}
                         />
-                      </div>
+                      </a>
                     );
                   })}
-                </div>
+                </LightGallery>
               </CardContent>
             </Card>
           )}
@@ -425,23 +459,29 @@ const TraderViewOffer = () => {
                     // Filter out invalid image URLs (already filtered during fetch, but double-check)
                     itemImages = itemImages.filter(imgUrl => {
                       if (!imgUrl || typeof imgUrl !== 'string') return false;
+                      const trimmedUrl = imgUrl.trim();
                       
-                      const invalidTexts = ['الصورة', '图片', 'NO IMAGE', 'IMAGE', 'NO', 'N/A', 'null', 'undefined', ''];
-                      const lowerImgUrl = imgUrl.trim().toLowerCase();
-                      
-                      if (invalidTexts.some(text => lowerImgUrl === text.toLowerCase() || lowerImgUrl.includes(text.toLowerCase()))) {
-                        return false;
-                      }
-                      
+                      // 1. If it looks like a valid URL/Path, accept it immediately (PRIORITY)
                       const validPatterns = [
                         /^https?:\/\//i,
                         /^\/uploads\//i,
                         /^uploads\//i,
-                        /^data:image/i,
-                        /\.(jpg|jpeg|png|gif|webp|svg)$/i
+                        /^data:image/i
                       ];
+                      if (validPatterns.some(pattern => pattern.test(trimmedUrl))) {
+                        return true;
+                      }
                       
-                      return validPatterns.some(pattern => pattern.test(imgUrl));
+                      // 2. Remove specific invalid text values (Exact match only)
+                      const invalidTexts = ['الصورة', '图片', 'NO IMAGE', 'IMAGE', 'NO', 'N/A', 'null', 'undefined', ''];
+                      const lowerImgUrl = trimmedUrl.toLowerCase();
+                      
+                      if (invalidTexts.some(text => lowerImgUrl === text.toLowerCase())) {
+                        return false;
+                      }
+                      
+                      // 3. Fallback: Check for file extension
+                      return /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(trimmedUrl);
                     });
                     
                     return (
@@ -456,6 +496,7 @@ const TraderViewOffer = () => {
                               <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                             )}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                              {/* Item details */}
                               {item.itemNo && (
                                 <div>
                                   <span className="text-gray-500">{t('mediation.items.itemNo') || 'Item No'}:</span>
@@ -495,40 +536,66 @@ const TraderViewOffer = () => {
                             )}
                           </div>
                           {itemImages.length > 0 && (
-                            <div className="flex gap-2">
-                              {itemImages.slice(0, 3).map((imgUrl, imgIndex) => {
-                                // Build proper image URL
-                                let imageSrc = imgUrl;
-                                if (!imgUrl.startsWith('http') && !imgUrl.startsWith('data:image')) {
-                                  // If it starts with /uploads/, add API_URL prefix
-                                  if (imgUrl.startsWith('/uploads/')) {
-                                    imageSrc = `${API_URL}${imgUrl}`;
-                                  } else if (imgUrl.startsWith('uploads/')) {
-                                    imageSrc = `${API_URL}/${imgUrl}`;
-                                  } else {
-                                    // Assume it's a relative path from uploads
-                                    imageSrc = `${API_URL}/uploads/${imgUrl}`;
-                                  }
+                            <LightGallery
+                              key={`item-images-${index}-${itemImages.length}`}
+                              speed={500}
+                              plugins={[lgThumbnail, lgZoom, lgFullscreen, lgRotate]}
+                              licenseKey="0000-0000-000-0000"
+                              elementClassNames="flex gap-2"
+                              selector="a"
+                            >
+                              {itemImages.map((imgUrl, imgIndex) => {
+                                const src = getImageUrl(imgUrl);
+                                const isVisible = imgIndex < 4;
+                                const isPlusButton = imgIndex === 3 && itemImages.length > 4;
+                                
+                                if (!isVisible) {
+                                  return (
+                                    <a key={imgIndex} data-src={src} href={src} className="hidden" onClick={(e) => e.preventDefault()}>
+                                      <img src={src} alt={`Hidden item image ${imgIndex + 1}`} />
+                                    </a>
+                                  );
                                 }
                                 
+                                if (isPlusButton) {
+                                  return (
+                                    <a 
+                                      key={imgIndex} 
+                                      data-src={src}
+                                      href={src}
+                                      onClick={(e) => e.preventDefault()}
+                                      className="w-20 h-20 rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center text-xs text-gray-500 cursor-pointer hover:bg-gray-200 transition-colors relative"
+                                      style={{ textDecoration: 'none' }}
+                                    >
+                                      <span className="z-10 font-bold">+{itemImages.length - 3}</span>
+                                      <img src={src} alt="" className="hidden" /> 
+                                    </a>
+                                  );
+                                }
+
                                 return (
-                                  <img
+                                  <a
                                     key={imgIndex}
-                                    src={imageSrc}
-                                    alt={`Item ${index + 1} image ${imgIndex + 1}`}
-                                    className="w-16 h-16 object-cover rounded-lg border border-gray-200"
-                                    onError={(e) => {
-                                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTUwIiBoZWlnaHQ9IjE1MCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5JbWFnZTwvdGV4dD48L3N2Zz4=';
-                                    }}
-                                  />
+                                    data-src={src}
+                                    href={src}
+                                    onClick={(e) => e.preventDefault()}
+                                    className="w-20 h-20 rounded-lg border border-gray-200 overflow-hidden cursor-pointer block"
+                                  >
+                                    <img
+                                      src={src}
+                                      alt={`Item ${index + 1} image ${imgIndex + 1}`}
+                                      className="w-full h-full object-cover hover:scale-110 transition-transform"
+                                      onError={(e) => { e.target.src = 'https://placehold.co/100x100?text=Error'; }}
+                                    />
+                                  </a>
                                 );
                               })}
-                              {itemImages.length > 3 && (
-                                <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center text-xs text-gray-500">
-                                  +{itemImages.length - 3}
-                                </div>
-                              )}
-                            </div>
+                            </LightGallery>
+                          )}
+                          {itemImages.length === 0 && (
+                             <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                               <ImageIcon className="w-6 h-6 text-gray-300" />
+                             </div>
                           )}
                         </div>
                       </div>
@@ -702,6 +769,7 @@ const TraderViewOffer = () => {
           )}
         </div>
       </div>
+
     </motion.div>
   );
 };

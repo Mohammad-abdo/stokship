@@ -87,7 +87,7 @@ const CreateOffer = () => {
   
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState({});
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [excelImagesMap, setExcelImagesMap] = useState(new Map()); // Map: Excel row number -> image URLs
   
   // Form data
@@ -308,7 +308,6 @@ const CreateOffer = () => {
       //   array index i = dataStartRow, dataStartRow + 1, ...
       //   Excel row = i + 1
       const excelRowNumber = i + 1; // Excel row number (1-based) - array index i = Excel row (i + 1)
-      const excelImages = imagesMap ? (imagesMap.get(excelRowNumber) || []) : [];
       
       // Also check cell value for image URL (column B, index 1)
       const imageCellValue = row[1] || '';
@@ -321,6 +320,12 @@ const CreateOffer = () => {
       }
 
       // Combine Excel extracted images with cell URL images (prioritize extracted images)
+      // Check current row and previous row (for images anchored slightly above)
+      let excelImages = imagesMap ? (imagesMap.get(excelRowNumber) || []) : [];
+      if (excelImages.length === 0 && imagesMap) {
+         excelImages = imagesMap.get(excelRowNumber - 1) || [];
+      }
+      
       const allImages = excelImages.length > 0 ? excelImages : cellImageUrls;
 
       const item = {
@@ -345,7 +350,8 @@ const CreateOffer = () => {
           width: parseFloat(row[16]) || 0,
           height: parseFloat(row[17]) || 0
         },
-        totalCBM: parseFloat(row[18]) || 0
+        totalCBM: parseFloat(row[18]) || 0,
+        excelRowNumber: excelRowNumber // Persist Excel row number for image mapping in submit
       };
 
       if (!item.amount && item.quantity && item.unitPrice) {
@@ -361,8 +367,16 @@ const CreateOffer = () => {
         item.totalCBM = cbmPerUnit * (item.packageQuantity || 1);
       }
 
-      if (item.itemNo || item.description) {
-        parsedItems.push(item);
+      // Filter out invalid items (must have quantity or price, and not be a header row)
+      // Checks for common header terms in description or itemNo if quantity/price are 0
+      const isHeaderRow = (item.description && (item.description.includes('DESCRIPTION') || item.description.includes('الوصف') || item.description.includes('描述'))) ||
+                          (item.itemNo && (item.itemNo.includes('ITEM') || item.itemNo.includes('رقم') || item.itemNo.includes('货号')));
+
+      if ((item.itemNo || item.description) && !isHeaderRow) {
+         // Also require either valid quantity or price to filter empty/garbage rows
+         if (item.quantity > 0 || item.unitPrice > 0 || item.images.length > 0) {
+            parsedItems.push(item);
+         }
       }
     }
 
@@ -467,10 +481,21 @@ const CreateOffer = () => {
           // So: Excel row number = frontend index + 2 (header=1, first data=2, so index 0 = row 2)
           // Use the stored excelImagesMap from state which was built during parseExcelData
           // Note: excelImagesMap uses Excel row numbers as keys
-          const excelRowNumber = index + 2; // Excel row number: index 0 = row 2 (after header row 1)
-          const excelImages = (excelImagesMap && excelImagesMap.size > 0) 
-            ? (excelImagesMap.get(excelRowNumber) || [])
-            : [];
+          // Use the persisted excelRowNumber if available, otherwise fallback to calculation (assumes header at row 1)
+          // Use the persisted excelRowNumber if available, otherwise fallback to calculation (assumes header at row 1)
+          const excelRowNumber = item.excelRowNumber || (index + 2);
+          
+          // Fuzzy matching: Check current row, then previous row, then next row
+          let excelImages = [];
+          if (excelImagesMap && excelImagesMap.size > 0) {
+            if (excelImagesMap.has(excelRowNumber)) {
+              excelImages = excelImagesMap.get(excelRowNumber) || [];
+            } else if (excelImagesMap.has(excelRowNumber - 1)) {
+              excelImages = excelImagesMap.get(excelRowNumber - 1) || [];
+            } else if (excelImagesMap.has(excelRowNumber + 1)) {
+              excelImages = excelImagesMap.get(excelRowNumber + 1) || [];
+            }
+          }
           
           // Combine Excel extracted images with item images (prioritize Excel extracted images)
           // Item images may come from cell values or manual upload, but Excel extracted images take priority
@@ -527,7 +552,8 @@ const CreateOffer = () => {
         },
         excelFileUrl: finalExcelFileUrl || null, // Use from state (already uploaded in handleExcelFileUpload)
         excelFileName: excelFileName,
-        excelFileSize: excelFileSize
+        excelFileSize: excelFileSize,
+        images: adImages // Send ad images at top level to match schema
       };
 
       const response = await offerApi.createOffer(offerData);
