@@ -194,33 +194,88 @@ async function notifyPaymentVerified(payment, deal) {
 
 /**
  * Notify when offer is created/updated
- * @param {Object} offer - Offer object
- * @param {String} action - Action type (CREATED, UPDATED, APPROVED, REJECTED)
+ * @param {Object} offer - Offer object (must include traderId and optionally trader.employeeId)
+ * @param {String} action - Action type (CREATED, UPDATED, APPROVED, REJECTED, EXCEL_UPLOADED, DELETED)
+ * @param {String} changedByType - Who made the change (TRADER, EMPLOYEE, ADMIN) - defaults to TRADER for CREATED
  */
-async function notifyOfferAction(offer, action) {
+async function notifyOfferAction(offer, action, changedByType = null) {
   const actionMessages = {
     CREATED: 'New offer created',
     UPDATED: 'Offer updated',
     APPROVED: 'Offer approved',
-    REJECTED: 'Offer rejected'
+    REJECTED: 'Offer rejected',
+    EXCEL_UPLOADED: 'Excel file uploaded',
+    DELETED: 'Offer deleted'
   };
 
-  // Notify admin for moderation (if needed)
-  if (action === 'CREATED' || action === 'UPDATED') {
-    // You might want to notify admin for moderation
-    // For now, we'll just notify the trader
+  const messages = {
+    CREATED: `Your offer "${offer.title}" has been created successfully`,
+    UPDATED: `Your offer "${offer.title}" has been updated`,
+    APPROVED: `Your offer "${offer.title}" has been approved and is now active`,
+    REJECTED: `Your offer "${offer.title}" has been rejected. Please review and update.`,
+    EXCEL_UPLOADED: `Excel file has been uploaded for offer "${offer.title}"`,
+    DELETED: `Your offer "${offer.title}" has been deleted`
+  };
+
+  // Determine who changed it - default to TRADER for CREATED
+  const changedBy = changedByType || (action === 'CREATED' ? 'TRADER' : 'EMPLOYEE');
+
+  // Always notify trader for all actions
+  try {
+    await createNotification({
+      userIds: offer.traderId,
+      userType: 'TRADER',
+      type: 'OFFER',
+      title: `Offer ${action}`,
+      message: messages[action] || `Your offer "${offer.title}" has been ${action.toLowerCase()}`,
+      relatedEntityType: 'OFFER',
+      relatedEntityId: offer.id
+    });
+  } catch (error) {
+    console.error('Error notifying trader:', error);
   }
 
-  // Notify trader
-  await createNotification({
-    userIds: offer.traderId,
-    userType: 'TRADER',
-    type: 'OFFER',
-    title: `Offer ${action}`,
-    message: `Your offer "${offer.title}" has been ${action.toLowerCase()}`,
-    relatedEntityType: 'OFFER',
-    relatedEntityId: offer.id
-  });
+  // Notify employee (guarantor) if action is CREATED or EXCEL_UPLOADED by trader
+  if ((action === 'CREATED' || action === 'EXCEL_UPLOADED') && changedBy === 'TRADER') {
+    // Get trader with employeeId
+    const trader = await prisma.trader.findUnique({
+      where: { id: offer.traderId },
+      select: { employeeId: true, name: true }
+    });
+
+    if (trader && trader.employeeId) {
+      try {
+        await createNotification({
+          userIds: trader.employeeId,
+          userType: 'EMPLOYEE',
+          type: 'OFFER',
+          title: `New Offer ${action}`,
+          message: action === 'CREATED' 
+            ? `Trader ${trader.name} created a new offer "${offer.title}" that needs validation`
+            : `Trader ${trader.name} uploaded an Excel file for offer "${offer.title}" that needs validation`,
+          relatedEntityType: 'OFFER',
+          relatedEntityId: offer.id
+        });
+      } catch (error) {
+        console.error('Error notifying employee:', error);
+      }
+    }
+  }
+
+  // Notify admins for important offer actions
+  if (['CREATED', 'UPDATED', 'APPROVED', 'REJECTED', 'DELETED'].includes(action)) {
+    try {
+      await notifyAdmin(
+        'OFFER',
+        `Offer ${action}`,
+        `Offer "${offer.title}" has been ${action.toLowerCase()} by ${changedBy}`,
+        'OFFER',
+        offer.id
+      );
+    } catch (error) {
+      console.error('Error notifying admins:', error);
+    }
+  }
 }
 
 /**

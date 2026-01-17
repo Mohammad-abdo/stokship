@@ -58,6 +58,15 @@ router.get('/admin/employees/:id', protect, authorize('ADMIN'), employeeControll
 router.put('/admin/employees/:id', protect, authorize('ADMIN'), employeeController.updateEmployee);
 
 // Employee routes (self-access)
+// IMPORTANT: Specific routes must come BEFORE parameterized routes to avoid route conflicts
+// Employee offers route (specific) - must come before /employees/:id
+router.get('/employees/offers', protect, authorize('EMPLOYEE'), offerController.getEmployeeOffers);
+router.put('/employees/offers/:id/validate', protect, authorize('EMPLOYEE'), checkEmployeeTraderRelation, offerController.validateOffer);
+router.put('/employees/offers/:id', protect, authorize('EMPLOYEE'), checkEmployeeTraderRelation, offerController.updateOffer);
+router.delete('/employees/offers/:id', protect, authorize('EMPLOYEE'), checkEmployeeTraderRelation, offerController.deleteOffer);
+router.post('/employees/offers/:id/upload-excel', protect, authorize('EMPLOYEE'), checkEmployeeTraderRelation, upload.single('excelFile'), offerController.uploadOfferExcelEmployee);
+
+// Employee general routes (parameterized) - must come AFTER specific routes
 router.get('/employees/:id', protect, authorize('ADMIN', 'EMPLOYEE'), employeeController.getEmployeeById);
 router.get('/employees/:id/traders', protect, authorize('ADMIN', 'EMPLOYEE'), employeeController.getEmployeeTraders);
 router.get('/employees/:id/deals', protect, authorize('ADMIN', 'EMPLOYEE'), employeeController.getEmployeeDeals);
@@ -102,8 +111,7 @@ router.get('/admin/offers', protect, authorize('ADMIN'), offerController.getAllO
 router.post('/traders/offers', protect, authorize('TRADER'), offerController.createOffer);
 router.post('/traders/offers/:id/upload-excel', protect, authorize('TRADER'), upload.single('excelFile'), offerController.uploadOfferExcel);
 
-// Employee validation routes
-router.put('/employees/offers/:id/validate', protect, authorize('EMPLOYEE'), checkEmployeeTraderRelation, offerController.validateOffer);
+// Employee offer management routes moved above to prevent route conflicts
 
 // ============================================
 // DEAL ROUTES

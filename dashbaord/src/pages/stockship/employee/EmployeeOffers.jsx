@@ -15,7 +15,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  FileText
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { offerApi, employeeApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
@@ -28,7 +29,7 @@ const EmployeeOffers = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('PENDING_VALIDATION');
+  const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -55,41 +56,26 @@ const EmployeeOffers = () => {
   const fetchOffers = async () => {
     try {
       setLoading(true);
-      // Get offers from employee's traders
-      const tradersResponse = await employeeApi.getEmployeeTraders(user.id);
-      const traders = tradersResponse.data.data || tradersResponse.data || [];
-      const traderIds = traders.map(t => t.id);
-
-      if (traderIds.length === 0) {
-        setOffers([]);
-        setPagination(prev => ({ ...prev, total: 0, pages: 0 }));
-        setLoading(false);
-        return;
-      }
-
-      // Fetch all offers and filter by employee's traders
+      // Use employee-specific endpoint
       const params = {
+        page: pagination.page,
+        limit: pagination.limit,
         ...(statusFilter && { status: statusFilter }),
         ...(searchTerm && { search: searchTerm })
       };
       
-      const response = await offerApi.getActiveOffers(params);
-      const allOffers = response.data?.data || response.data || [];
-      const filteredOffers = Array.isArray(allOffers) 
-        ? allOffers.filter(offer => traderIds.includes(offer.traderId || offer.trader?.id))
-        : [];
+      const response = await offerApi.getEmployeeOffers(params);
+      const data = response.data?.data || response.data || [];
+      const paginationData = response.data?.pagination;
       
-      // Apply pagination client-side
-      const startIndex = (pagination.page - 1) * pagination.limit;
-      const endIndex = startIndex + pagination.limit;
-      const paginatedOffers = filteredOffers.slice(startIndex, endIndex);
-      
-      setOffers(paginatedOffers);
-      setPagination(prev => ({
-        ...prev,
-        total: filteredOffers.length,
-        pages: Math.ceil(filteredOffers.length / pagination.limit) || 1
-      }));
+      setOffers(Array.isArray(data) ? data : []);
+      if (paginationData) {
+        setPagination(prev => ({
+          ...prev,
+          total: paginationData.total || 0,
+          pages: paginationData.pages || 1
+        }));
+      }
     } catch (error) {
       console.error('Error fetching offers:', error);
       showToast.error(
@@ -99,6 +85,27 @@ const EmployeeOffers = () => {
       setOffers([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteOffer = async (id) => {
+    if (!confirm(t('mediation.employee.confirmDeleteOffer') || 'Are you sure you want to delete this offer?')) {
+      return;
+    }
+
+    try {
+      await offerApi.deleteOfferEmployee(id);
+      showToast.success(
+        t('mediation.employee.offerDeleted') || 'Offer Deleted',
+        t('mediation.employee.offerDeletedSuccess') || 'The offer has been deleted successfully'
+      );
+      fetchOffers();
+    } catch (error) {
+      console.error('Error deleting offer:', error);
+      showToast.error(
+        t('mediation.employee.deleteOfferFailed') || 'Failed to delete offer',
+        error.response?.data?.message || 'Please try again'
+      );
     }
   };
 
@@ -187,6 +194,18 @@ const EmployeeOffers = () => {
       >
         <Eye className="w-4 h-4 text-gray-600" />
       </button>
+      {row.status === 'DRAFT' || row.status === 'PENDING_VALIDATION' ? (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDeleteOffer(row.id);
+          }}
+          className="p-1.5 hover:bg-red-100 rounded transition-colors"
+          title={t('mediation.offers.delete') || 'Delete Offer'}
+        >
+          <Trash2 className="w-4 h-4 text-red-600" />
+        </button>
+      ) : null}
     </div>
   );
 
@@ -201,10 +220,10 @@ const EmployeeOffers = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            {t('mediation.employee.offersValidation') || 'Offers Validation'}
+            {language === 'ar' ? 'إدارة الإعلانات التجارية' : 'Commercial Advertisements Management'}
           </h1>
           <p className="text-muted-foreground mt-2">
-            {t('mediation.employee.offersValidationDesc') || 'Review and validate offers from your traders'}
+            {language === 'ar' ? 'إدارة ومراجعة الإعلانات التجارية للتجار' : 'Manage and review commercial advertisements from traders'}
           </p>
         </div>
       </div>

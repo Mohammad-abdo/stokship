@@ -296,18 +296,31 @@ const getDealById = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Deal not found', 404);
   }
 
-  // Check authorization
-  if (req.userType === 'CLIENT' && req.user.id !== deal.clientId) {
-    return errorResponse(res, 'Not authorized', 403);
-  }
-  if (req.userType === 'TRADER' && req.user.id !== deal.traderId) {
-    return errorResponse(res, 'Not authorized', 403);
-  }
-  if (req.userType === 'EMPLOYEE' && req.user.id !== deal.employeeId) {
-    return errorResponse(res, 'Not authorized', 403);
+  // Check authorization (ADMIN has access to all deals)
+  if (req.userType !== 'ADMIN') {
+    if (req.userType === 'CLIENT' && req.user?.id !== deal.clientId) {
+      return errorResponse(res, 'Not authorized', 403);
+    }
+    if (req.userType === 'TRADER' && req.user?.id !== deal.traderId) {
+      return errorResponse(res, 'Not authorized', 403);
+    }
+    if (req.userType === 'EMPLOYEE' && req.user?.id !== deal.employeeId) {
+      return errorResponse(res, 'Not authorized', 403);
+    }
   }
 
-  successResponse(res, deal, 'Deal retrieved successfully');
+  // Fetch platform settings for commission display (wrap in try-catch to prevent errors)
+  let platformSettings = null;
+  try {
+    platformSettings = await prisma.platformSettings.findFirst({
+      orderBy: { updatedAt: 'desc' }
+    });
+  } catch (settingsError) {
+    // Log error but don't block the response
+    console.error('Failed to fetch platform settings:', settingsError);
+  }
+
+  successResponse(res, { deal, platformSettings }, 'Deal retrieved successfully');
 });
 
 /**

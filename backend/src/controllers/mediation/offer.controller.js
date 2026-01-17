@@ -1,6 +1,7 @@
 const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
+const { notifyOfferAction } = require('../../utils/notificationHelper');
 const ExcelJS = require('exceljs');
 const fs = require('fs');
 const path = require('path');
@@ -30,7 +31,14 @@ const createOffer = asyncHandler(async (req, res) => {
   }
 
   const trader = await prisma.trader.findUnique({
-    where: { id: req.user.id }
+    where: { id: req.user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      companyName: true,
+      employeeId: true
+    }
   });
 
   if (!trader) {
@@ -178,6 +186,14 @@ const createOffer = asyncHandler(async (req, res) => {
     console.error('Failed to create activity log:', activityError);
   }
 
+  // Notify trader, employee, and admins about the new offer (wrap in try-catch to prevent blocking)
+  try {
+    await notifyOfferAction(offer, 'CREATED');
+  } catch (notificationError) {
+    // Log error but don't block the response
+    console.error('Failed to create notifications:', notificationError);
+  }
+
   successResponse(res, offer, 'Offer created successfully', 201);
 });
 
@@ -310,41 +326,65 @@ const uploadOfferExcel = asyncHandler(async (req, res) => {
       // Use totalCBM from Excel if available, otherwise use calculated CBM
       const finalCBM = excelTotalCBM || calculatedCBM;
 
-      items.push({
-        offerId: offer.id,
+      // Prepare notes as JSON string with extra metadata
+      const notesData = {
         itemNo: itemNo || null,
-        productName: productName || itemNo || `Item ${items.length + 1}`, // Use description or itemNo as productName
-        description: description || null,
         colour: colour || null,
         spec: spec || null,
-        quantity,
         unit: unit || 'SET',
         unitPrice: unitPrice || 0,
         currency: currency || 'USD',
         amount: amount || (quantity * unitPrice) || 0,
-        packing: packing || null,
-        packageQuantity: packageQuantity || 0, // cartons
+        packing: typeof packing === 'string' ? packing : null,
+        packageQuantity: packageQuantity || 0,
         unitGW: unitGW || null,
         totalGW: totalGW || null,
         cartonLength: length || null,
         cartonWidth: width || null,
-        cartonHeight: height || null,
-        length: length || null, // Legacy field
-        width: width || null, // Legacy field
-        height: height || null, // Legacy field
+        cartonHeight: height || null
+      };
+      
+      items.push({
+        offerId: offer.id,
+        productName: productName || itemNo || `Item ${items.length + 1}`, // Use description or itemNo as productName
+        description: description || null,
+        quantity,
+        cartons: packageQuantity || 0, // Use cartons field instead of packageQuantity
+        length: length || null,
+        width: width || null,
+        height: height || null,
         cbm: finalCBM.toFixed(4), // Convert to string with 4 decimal places for Prisma Decimal
-        weight: totalGW || null, // Legacy field
+        weight: totalGW || null,
         displayOrder: items.length + 1,
-        images: allImages.length > 0 ? JSON.stringify(allImages) : null // Store images as JSON array
+        images: allImages.length > 0 ? JSON.stringify(allImages) : null, // Store images as JSON array
+        notes: JSON.stringify(notesData) // Store extra metadata in notes
       });
 
       totalCartons += packageQuantity;
       totalCBM += finalCBM; // Add to total CBM
     });
 
-    // Delete existing items
+    // Get existing items that are linked to deals (cannot be deleted)
+    const existingItemsWithDeals = await prisma.offerItem.findMany({
+      where: {
+        offerId: offer.id,
+        dealItems: {
+          some: {}
+        }
+      },
+      select: { id: true }
+    });
+
+    const itemIdsWithDeals = existingItemsWithDeals.map(item => item.id);
+
+    // Delete only items that are NOT linked to any deals
     await prisma.offerItem.deleteMany({
-      where: { offerId: offer.id }
+      where: {
+        offerId: offer.id,
+        id: {
+          notIn: itemIdsWithDeals
+        }
+      }
     });
 
     // Create new items
@@ -389,6 +429,13 @@ const uploadOfferExcel = asyncHandler(async (req, res) => {
         userAgent: req.get('user-agent')
       }
     });
+
+    // Notify trader and employee about Excel upload
+    try {
+      await notifyOfferAction(updatedOffer, 'EXCEL_UPLOADED', 'TRADER');
+    } catch (notificationError) {
+      console.error('Failed to create notifications:', notificationError);
+    }
 
     successResponse(res, updatedOffer, 'Excel file uploaded and processed successfully');
   } catch (error) {
@@ -472,7 +519,345 @@ const validateOffer = asyncHandler(async (req, res) => {
     }
   });
 
+  // Notify trader about validation result (wrap in try-catch to prevent blocking)
+  try {
+    await notifyOfferAction(updatedOffer, approved ? 'APPROVED' : 'REJECTED');
+  } catch (notificationError) {
+    // Log error but don't block the response
+    console.error('Failed to create notifications:', notificationError);
+  }
+
   successResponse(res, updatedOffer, `Offer ${approved ? 'approved' : 'rejected'} successfully`);
+});
+
+/**
+ * @desc    Update Offer (Employee only)
+ * @route   PUT /api/employees/offers/:id
+ * @access  Private (Employee)
+ */
+const updateOffer = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { 
+    title, 
+    description, 
+    images,
+    country,
+    city,
+    categoryId,
+    acceptsNegotiation
+  } = req.body;
+
+  const offer = await prisma.offer.findUnique({
+    where: { id: parseInt(id) },
+    include: { trader: true }
+  });
+
+  if (!offer) {
+    return errorResponse(res, 'Offer not found', 404);
+  }
+
+  // Verify employee is linked to this trader
+  if (offer.trader.employeeId !== req.user.id) {
+    return errorResponse(res, 'Not authorized to update this offer', 403);
+  }
+
+  const updateData = {};
+  if (title) updateData.title = title;
+  if (description !== undefined) updateData.description = description;
+  if (images !== undefined) {
+    updateData.images = Array.isArray(images) ? JSON.stringify(images) : images;
+  }
+  if (country) updateData.country = country;
+  if (city) updateData.city = city;
+  if (categoryId) {
+    const category = await prisma.category.findUnique({ where: { id: parseInt(categoryId) } });
+    if (!category) {
+      return errorResponse(res, 'Category not found', 404);
+    }
+    updateData.categoryId = parseInt(categoryId);
+  }
+  if (acceptsNegotiation !== undefined) {
+    updateData.acceptsNegotiation = acceptsNegotiation === true || acceptsNegotiation === 'true';
+  }
+
+  // If status is REJECTED and we're updating, change to PENDING_VALIDATION
+  if (offer.status === 'REJECTED') {
+    updateData.status = 'PENDING_VALIDATION';
+  }
+
+  const updatedOffer = await prisma.offer.update({
+    where: { id: parseInt(id) },
+    data: updateData,
+    include: {
+      trader: {
+        select: {
+          id: true,
+          name: true,
+          companyName: true
+        }
+      },
+      items: {
+        take: 10
+      },
+      _count: {
+        select: {
+          items: true
+        }
+      }
+    }
+  });
+
+  // Log activity
+  await prisma.activityLog.create({
+    data: {
+      userId: req.user.id,
+      userType: 'EMPLOYEE',
+      action: 'OFFER_UPDATED',
+      entityType: 'OFFER',
+      entityId: offer.id,
+      description: `Employee updated offer: ${offer.title}`,
+      metadata: JSON.stringify(updateData),
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    }
+  });
+
+  // Notify trader about the update
+  try {
+    await notifyOfferAction(updatedOffer, 'UPDATED', 'EMPLOYEE');
+  } catch (notificationError) {
+    console.error('Failed to create notifications:', notificationError);
+  }
+
+  successResponse(res, updatedOffer, 'Offer updated successfully');
+});
+
+/**
+ * @desc    Upload Excel file to Offer (Employee)
+ * @route   POST /api/employees/offers/:id/upload-excel
+ * @access  Private (Employee)
+ */
+const uploadOfferExcelEmployee = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!req.file) {
+    return errorResponse(res, 'Please upload an Excel file', 400);
+  }
+
+  const offer = await prisma.offer.findUnique({
+    where: { id: parseInt(id) },
+    include: { trader: true }
+  });
+
+  if (!offer) {
+    return errorResponse(res, 'Offer not found', 404);
+  }
+
+  // Verify employee is linked to this trader
+  if (offer.trader.employeeId !== req.user.id) {
+    return errorResponse(res, 'Not authorized to upload Excel for this offer', 403);
+  }
+
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(req.file.path);
+
+    const worksheet = workbook.getWorksheet(1);
+    if (!worksheet) {
+      return errorResponse(res, 'Excel file is empty', 400);
+    }
+
+    // Extract images from Excel file
+    const imagesDir = path.join(__dirname, '../../uploads/images');
+    if (!fs.existsSync(imagesDir)) {
+      fs.mkdirSync(imagesDir, { recursive: true });
+    }
+
+    const excelImages = worksheet.getImages();
+    const imageMap = new Map();
+
+    for (const image of excelImages) {
+      const imageId = image.imageId;
+      const imageFile = workbook.model.media[imageId - 1];
+      
+      if (imageFile && imageFile.buffer) {
+        const rowNumber = image.range.tl.nativeRow + 1;
+        const extension = imageFile.extension || 'png';
+        const imageFilename = `offer-${offer.id}-item-${rowNumber}-${Date.now()}-${Math.round(Math.random() * 1E9)}.${extension}`;
+        const imagePath = path.join(imagesDir, imageFilename);
+        
+        fs.writeFileSync(imagePath, imageFile.buffer);
+        const imageUrl = `/uploads/images/${imageFilename}`;
+        
+        if (!imageMap.has(rowNumber)) {
+          imageMap.set(rowNumber, []);
+        }
+        imageMap.get(rowNumber).push(imageUrl);
+      }
+    }
+
+    const items = [];
+    let totalCartons = 0;
+    let totalCBM = 0;
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const rowImages = imageMap.get(rowNumber) || [];
+      const imageCellValue = row.getCell(2)?.value?.toString() || '';
+      let cellImageUrls = [];
+      
+      if (imageCellValue && (imageCellValue.startsWith('http') || imageCellValue.startsWith('/uploads') || imageCellValue.startsWith('uploads'))) {
+        cellImageUrls = imageCellValue.split(',').map(url => url.trim()).filter(url => url);
+      }
+
+      const allImages = [...rowImages, ...cellImageUrls];
+
+      const itemNo = row.getCell(3)?.value?.toString() || '';
+      const productName = row.getCell(4)?.value?.toString() || itemNo || '';
+      const description = row.getCell(4)?.value?.toString() || null;
+      const colour = row.getCell(5)?.value?.toString() || null;
+      const spec = row.getCell(6)?.value?.toString() || null;
+      const quantity = parseInt(row.getCell(7)?.value) || 0;
+      const unit = row.getCell(8)?.value?.toString() || 'SET';
+      const unitPrice = parseFloat(row.getCell(9)?.value) || 0;
+      const currency = row.getCell(10)?.value?.toString() || 'USD';
+      const amount = parseFloat(row.getCell(11)?.value) || 0;
+      const packing = row.getCell(12)?.value?.toString() || null;
+      const packageQuantity = parseInt(row.getCell(13)?.value) || 0;
+      const unitGW = parseFloat(row.getCell(14)?.value) || 0;
+      const totalGW = parseFloat(row.getCell(15)?.value) || 0;
+      const length = parseFloat(row.getCell(16)?.value) || null;
+      const width = parseFloat(row.getCell(17)?.value) || null;
+      const height = parseFloat(row.getCell(18)?.value) || null;
+      const excelTotalCBM = parseFloat(row.getCell(19)?.value) || null;
+
+      if ((!productName && !itemNo) || quantity === 0) return;
+
+      let calculatedCBM = 0;
+      if (length && width && height && packageQuantity) {
+        const cbmPerUnit = (length * width * height) / 1000000;
+        calculatedCBM = cbmPerUnit * packageQuantity;
+      }
+      
+      const finalCBM = excelTotalCBM || calculatedCBM;
+
+      // Prepare notes as JSON string with extra metadata
+      const notesData = {
+        itemNo: itemNo || null,
+        colour: colour || null,
+        spec: spec || null,
+        unit: unit || 'SET',
+        unitPrice: unitPrice || 0,
+        currency: currency || 'USD',
+        amount: amount || (quantity * unitPrice) || 0,
+        packing: typeof packing === 'string' ? packing : null,
+        packageQuantity: packageQuantity || 0,
+        unitGW: unitGW || null,
+        totalGW: totalGW || null,
+        cartonLength: length || null,
+        cartonWidth: width || null,
+        cartonHeight: height || null
+      };
+      
+      items.push({
+        offerId: offer.id,
+        productName: productName || itemNo || `Item ${items.length + 1}`,
+        description: description || null,
+        quantity,
+        cartons: packageQuantity || 0, // Use cartons field instead of packageQuantity
+        length: length || null,
+        width: width || null,
+        height: height || null,
+        cbm: finalCBM.toFixed(4),
+        weight: totalGW || null,
+        displayOrder: items.length + 1,
+        images: allImages.length > 0 ? JSON.stringify(allImages) : null,
+        notes: JSON.stringify(notesData) // Store extra metadata in notes
+      });
+
+      totalCartons += packageQuantity;
+      totalCBM += finalCBM;
+    });
+
+    // Get existing items that are linked to deals (cannot be deleted)
+    const existingItemsWithDeals = await prisma.offerItem.findMany({
+      where: {
+        offerId: offer.id,
+        dealItems: {
+          some: {}
+        }
+      },
+      select: { id: true }
+    });
+
+    const itemIdsWithDeals = existingItemsWithDeals.map(item => item.id);
+
+    // Delete only items that are NOT linked to any deals
+    await prisma.offerItem.deleteMany({
+      where: {
+        offerId: offer.id,
+        id: {
+          notIn: itemIdsWithDeals
+        }
+      }
+    });
+
+    // Create new items
+    await prisma.offerItem.createMany({
+      data: items
+    });
+
+    // Update offer totals
+    const updatedOffer = await prisma.offer.update({
+      where: { id: offer.id },
+      data: {
+        totalCartons,
+        totalCBM,
+        excelFileUrl: req.file.path,
+        status: 'PENDING_VALIDATION'
+      },
+      include: {
+        items: true,
+        _count: {
+          select: {
+            items: true
+          }
+        }
+      }
+    });
+
+    // Log activity
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user.id,
+        userType: 'EMPLOYEE',
+        action: 'OFFER_EXCEL_UPLOADED',
+        entityType: 'OFFER',
+        entityId: offer.id,
+        description: `Employee uploaded Excel file with ${items.length} items`,
+        metadata: JSON.stringify({
+          itemCount: items.length,
+          totalCartons,
+          totalCBM
+        }),
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent')
+      }
+    });
+
+    // Notify trader about Excel upload by employee
+    try {
+      await notifyOfferAction(updatedOffer, 'EXCEL_UPLOADED', 'EMPLOYEE');
+    } catch (notificationError) {
+      console.error('Failed to create notifications:', notificationError);
+    }
+
+    successResponse(res, updatedOffer, 'Excel file uploaded and processed successfully');
+  } catch (error) {
+    console.error('Excel processing error:', error);
+    return errorResponse(res, `Error processing Excel file: ${error.message}`, 500);
+  }
 });
 
 /**
@@ -575,7 +960,12 @@ const getOfferById = asyncHandler(async (req, res) => {
     });
   }
 
-  successResponse(res, offer, 'Offer retrieved successfully');
+  // Fetch platform settings for commission display
+  const platformSettings = await prisma.platformSettings.findFirst({
+    orderBy: { updatedAt: 'desc' }
+  });
+
+  successResponse(res, { offer, platformSettings }, 'Offer retrieved successfully');
 });
 
 /**
@@ -617,14 +1007,15 @@ const getActiveOffers = asyncHandler(async (req, res) => {
             city: true
           }
         },
-        categoryRelation: {
-          select: {
-            id: true,
-            nameKey: true,
-            slug: true,
-            isFeatured: true
-          }
-        },
+        // Note: categoryRelation may not exist in schema-mediation.prisma
+        // categoryRelation: {
+        //   select: {
+        //     id: true,
+        //     nameKey: true,
+        //     slug: true,
+        //     isFeatured: true
+        //   }
+        // },
         _count: {
           select: {
             items: true,
@@ -696,6 +1087,140 @@ const getAllOffers = asyncHandler(async (req, res) => {
     total,
     pages: Math.ceil(total / parseInt(limit))
   }, 'Offers retrieved successfully');
+});
+
+/**
+ * @desc    Get Employee's Offers (from their traders)
+ * @route   GET /api/employees/offers
+ * @access  Private (Employee)
+ */
+const getEmployeeOffers = asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, search, status, categoryId } = req.query;
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  // Get all traders linked to this employee
+  const traders = await prisma.trader.findMany({
+    where: { employeeId: req.user.id },
+    select: { id: true }
+  });
+
+  const traderIds = traders.map(t => t.id);
+
+  if (traderIds.length === 0) {
+    return paginatedResponse(res, [], {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: 0,
+      pages: 0
+    }, 'No traders assigned to this employee');
+  }
+
+  const where = {
+    traderId: { in: traderIds }
+  };
+
+  if (search) {
+    where.OR = [
+      { title: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } }
+    ];
+  }
+  if (status) where.status = status;
+  if (categoryId) where.categoryId = parseInt(categoryId);
+
+  const [offers, total] = await Promise.all([
+    prisma.offer.findMany({
+      where,
+      skip,
+      take: parseInt(limit),
+      include: {
+        trader: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            traderCode: true
+          }
+        },
+        // Note: categoryRelation may not exist in schema-mediation.prisma
+        // categoryRelation: {
+        //   select: {
+        //     id: true,
+        //     nameKey: true,
+        //     slug: true,
+        //     isFeatured: true
+        //   }
+        // },
+        _count: {
+          select: {
+            items: true,
+            deals: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.offer.count({ where })
+  ]);
+
+  paginatedResponse(res, offers, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    total,
+    pages: Math.ceil(total / parseInt(limit))
+  }, 'Employee offers retrieved successfully');
+});
+
+/**
+ * @desc    Delete Offer (Employee/Admin)
+ * @route   DELETE /api/employees/offers/:id
+ * @access  Private (Employee/Admin)
+ */
+const deleteOffer = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const offer = await prisma.offer.findUnique({
+    where: { id: parseInt(id) },
+    include: {
+      trader: true,
+      _count: {
+        select: {
+          deals: true,
+          items: true
+        }
+      }
+    }
+  });
+
+  if (!offer) {
+    return errorResponse(res, 'Offer not found', 404);
+  }
+
+  // Check authorization
+  // Admin can delete any offer
+  // Employee can only delete offers from their traders
+  if (req.userType === 'EMPLOYEE' && offer.trader.employeeId !== req.user.id) {
+    return errorResponse(res, 'Not authorized to delete this offer', 403);
+  }
+
+  // Check if offer has deals
+  if (offer._count.deals > 0) {
+    return errorResponse(res, 'Cannot delete offer with existing deals', 400);
+  }
+
+  // Notify trader before deleting (we need to do this before deletion)
+  try {
+    await notifyOfferAction(offer, 'DELETED', req.userType === 'EMPLOYEE' ? 'EMPLOYEE' : 'ADMIN');
+  } catch (notificationError) {
+    console.error('Failed to create notifications:', notificationError);
+  }
+
+  // Delete offer (items will be cascade deleted)
+  await prisma.offer.delete({
+    where: { id: parseInt(id) }
+  });
+
+  successResponse(res, null, 'Offer deleted successfully');
 });
 
 /**
@@ -848,10 +1373,14 @@ const getOffersByCategory = asyncHandler(async (req, res) => {
 module.exports = {
   createOffer,
   uploadOfferExcel,
+  uploadOfferExcelEmployee,
   validateOffer,
+  updateOffer,
   getOfferById,
   getActiveOffers,
   getAllOffers,
+  getEmployeeOffers,
+  deleteOffer,
   getRecommendedOffers,
   getOffersByCategory
 };

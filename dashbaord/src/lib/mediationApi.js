@@ -202,6 +202,32 @@ export const offerApi = {
   // Validate offer (Employee)
   validateOffer: (id, data) => {
     return api.put(`${BASE_URL}/employees/offers/${id}/validate`, data);
+  },
+
+  // Update offer (Employee)
+  updateOffer: (id, data) => {
+    return api.put(`${BASE_URL}/employees/offers/${id}`, data);
+  },
+
+  // Upload Excel file (Employee)
+  uploadOfferExcelEmployee: (offerId, file) => {
+    const formData = new FormData();
+    formData.append('excelFile', file);
+    return api.post(`${BASE_URL}/employees/offers/${offerId}/upload-excel`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+  },
+
+  // Get Employee's Offers
+  getEmployeeOffers: (params = {}) => {
+    return api.get(`${BASE_URL}/employees/offers`, { params });
+  },
+
+  // Delete Offer (Employee)
+  deleteOfferEmployee: (id) => {
+    return api.delete(`${BASE_URL}/employees/offers/${id}`);
   }
 };
 

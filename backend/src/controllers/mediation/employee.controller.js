@@ -125,6 +125,12 @@ const getAllEmployees = asyncHandler(async (req, res) => {
 const getEmployeeById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  // Validate that id is a valid integer (not "offers", "traders", etc.)
+  const employeeId = parseInt(id);
+  if (isNaN(employeeId)) {
+    return errorResponse(res, 'Invalid employee ID', 400);
+  }
+
   const employee = await prisma.employee.findUnique({
     where: { id: parseInt(id) },
     include: {

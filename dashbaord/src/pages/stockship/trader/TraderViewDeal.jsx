@@ -17,6 +17,7 @@ const TraderViewDeal = () => {
   const { user } = getAuth('trader');
   const [loading, setLoading] = useState(true);
   const [deal, setDeal] = useState(null);
+  const [platformSettings, setPlatformSettings] = useState(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -28,7 +29,11 @@ const TraderViewDeal = () => {
     try {
       setLoading(true);
       const response = await dealApi.getDealById(id);
-      const dealData = response.data.data || response.data;
+      const responseData = response.data?.data || response.data;
+      
+      // Extract deal and platformSettings from response
+      const dealData = responseData.deal || responseData;
+      const settings = responseData.platformSettings || null;
       
       // Verify this deal belongs to the current trader
       if (dealData.traderId !== user.id) {
@@ -41,6 +46,7 @@ const TraderViewDeal = () => {
       }
       
       setDeal(dealData);
+      setPlatformSettings(settings);
     } catch (error) {
       console.error('Error fetching deal:', error);
       showToast.error(
@@ -58,11 +64,27 @@ const TraderViewDeal = () => {
       return;
     }
 
+    // Ensure we have a negotiatedAmount - use totalAmount as fallback
+    let negotiatedAmount = deal.negotiatedAmount || deal.totalAmount;
+    
+    // Convert to number if it's a string
+    if (typeof negotiatedAmount === 'string') {
+      negotiatedAmount = parseFloat(negotiatedAmount);
+    }
+    
+    // Validate the amount is a valid number and greater than 0
+    if (!negotiatedAmount || isNaN(negotiatedAmount) || negotiatedAmount <= 0) {
+      console.error('Invalid negotiatedAmount:', deal.negotiatedAmount, deal.totalAmount, negotiatedAmount);
+      showToast.error(
+        t('mediation.deals.approveFailed') || 'Failed to approve deal',
+        t('mediation.deals.negotiatedAmountRequired') || 'Negotiated amount is required to approve the deal'
+      );
+      return;
+    }
+
     try {
       await dealApi.approveDeal(deal.id, {
-        negotiatedAmount: deal.negotiatedAmount,
-        totalCartons: deal.totalCartons,
-        totalCBM: deal.totalCBM
+        negotiatedAmount: negotiatedAmount
       });
       showToast.success(
         t('mediation.deals.dealApproved') || 'Deal Approved',
@@ -280,6 +302,33 @@ const TraderViewDeal = () => {
                   <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.totalCartons') || 'Total Cartons'}</p>
                   <p className="font-medium text-gray-900">{(deal.totalCartons || deal.cartons || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}</p>
                 </div>
+                {deal.financialTransactions && deal.financialTransactions.length > 0 && (() => {
+                  const transaction = deal.financialTransactions[0];
+                  const platformCommission = parseFloat(transaction.platformCommission || 0);
+                  const employeeCommission = parseFloat(transaction.employeeCommission || 0);
+                  const traderAmount = parseFloat(transaction.traderAmount || 0);
+                  const totalAmount = parseFloat(transaction.amount || 0);
+                  const platformCommissionRate = totalAmount > 0 ? ((platformCommission / totalAmount) * 100).toFixed(2) : 0;
+                  
+                  return (
+                    <>
+                      <div className={isRTL ? 'text-right' : 'text-left'}>
+                        <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.platformCommission') || 'Platform Commission'}</p>
+                        <p className="font-medium text-gray-900">
+                          ${formatCurrency(platformCommission)} ({platformCommissionRate}%)
+                        </p>
+                      </div>
+                      <div className={isRTL ? 'text-right' : 'text-left'}>
+                        <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.employeeCommission') || 'Employee Commission'}</p>
+                        <p className="font-medium text-gray-900">${formatCurrency(employeeCommission)}</p>
+                      </div>
+                      <div className={isRTL ? 'text-right' : 'text-left'}>
+                        <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.traderAmount') || 'Your Amount'}</p>
+                        <p className="font-semibold text-lg text-green-600">${formatCurrency(traderAmount)}</p>
+                      </div>
+                    </>
+                  );
+                })()}
                 <div className={isRTL ? 'text-right' : 'text-left'}>
                   <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.createdAt') || 'Created At'}</p>
                   <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>

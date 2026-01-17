@@ -25,6 +25,7 @@ import {
   X
 } from 'lucide-react';
 import { offerApi } from '@/lib/mediationApi';
+import stockshipApi from '@/lib/stockshipApi';
 import showToast from '@/lib/toast';
 
 // LightGallery functionality
@@ -83,13 +84,32 @@ const TraderViewOffer = () => {
 
   const [loading, setLoading] = useState(true);
   const [offer, setOffer] = useState(null);
+  const [platformSettings, setPlatformSettings] = useState(null);
 
 
   const fetchOffer = useCallback(async () => {
     try {
       setLoading(true);
       const response = await offerApi.getOfferById(id);
-      const data = response.data?.data || response.data;
+      const responseData = response.data?.data || response.data;
+      
+      // Extract offer and platformSettings from response
+      const data = responseData.offer || responseData;
+      const settings = responseData.platformSettings || null;
+      
+      // Set platform settings (from backend response)
+      if (settings) {
+        setPlatformSettings(settings);
+      } else {
+        // Fallback: Fetch platform settings separately if not included in response
+        try {
+          const settingsRes = await stockshipApi.get("/admin/platform-settings");
+          const fallbackSettings = settingsRes.data?.data || settingsRes.data;
+          setPlatformSettings(fallbackSettings);
+        } catch (settingsError) {
+          console.warn('Failed to fetch platform settings:', settingsError);
+        }
+      }
       
       // Parse images if they're strings
       if (data.images && typeof data.images === 'string') {
@@ -761,7 +781,7 @@ const TraderViewOffer = () => {
                     <p className="text-sm text-gray-900">{offer.trader.companyName}</p>
                   </div>
                 )}
-                {offer.trader.traderCode && (
+                  {offer.trader.traderCode && (
                   <div>
                     <label className="text-sm font-medium text-gray-500 mb-1 block">
                       {t('mediation.traders.traderCode') || 'Trader Code'}
@@ -769,6 +789,55 @@ const TraderViewOffer = () => {
                     <p className="text-sm text-gray-900 font-mono">{offer.trader.traderCode}</p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Platform Commission Rate Card */}
+          {platformSettings && (
+            <Card className="border-gray-200 shadow-sm">
+              <CardHeader className="border-b border-gray-200 bg-gray-50">
+                <CardTitle className={`flex items-center gap-2 text-lg font-semibold ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <DollarSign className="w-5 h-5 text-gray-600" />
+                  {t('mediation.trader.platformCommission') || 'Platform Commission Rate'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-500 mb-1 block">
+                    {t('mediation.trader.commissionRate') || 'Commission Rate'}
+                  </label>
+                  <p className="text-base font-semibold text-gray-900">
+                    {platformSettings.platformCommissionRate || 0}%
+                  </p>
+                </div>
+                {platformSettings.commissionMethod && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-1 block">
+                      {t('mediation.trader.commissionMethod') || 'Commission Method'}
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      {platformSettings.commissionMethod === 'PERCENTAGE' && (t('mediation.trader.percentage') || 'Percentage')}
+                      {platformSettings.commissionMethod === 'CBM' && (t('mediation.trader.cbm') || 'CBM')}
+                      {platformSettings.commissionMethod === 'BOTH' && (t('mediation.trader.both') || 'Both (Percentage or CBM)')}
+                    </p>
+                  </div>
+                )}
+                {platformSettings.cbmRate && (platformSettings.commissionMethod === 'CBM' || platformSettings.commissionMethod === 'BOTH') && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 mb-1 block">
+                      {t('mediation.trader.cbmRate') || 'CBM Rate'}
+                    </label>
+                    <p className="text-sm text-gray-900">
+                      ${formatCurrency(platformSettings.cbmRate)} / CBM
+                    </p>
+                  </div>
+                )}
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-xs text-blue-800">
+                    {t('mediation.trader.commissionNote') || 'Note: This commission will be deducted from completed deals. The platform will take the higher value if "Both" method is selected.'}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}

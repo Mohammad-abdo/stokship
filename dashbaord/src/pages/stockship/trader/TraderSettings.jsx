@@ -15,7 +15,11 @@ import {
   CheckCircle,
   XCircle,
   MapPin,
-  Hash
+  Hash,
+  QrCode,
+  Download,
+  UserCheck,
+  ScanLine
 } from 'lucide-react';
 import { traderApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
@@ -27,6 +31,7 @@ const TraderSettings = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [qrCodeError, setQrCodeError] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -35,6 +40,7 @@ const TraderSettings = () => {
     country: '',
     city: ''
   });
+  const [traderDetails, setTraderDetails] = useState(null);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -52,6 +58,7 @@ const TraderSettings = () => {
       setLoading(true);
       const response = await traderApi.getTraderById(user.id);
       const trader = response.data.data || response.data;
+      setTraderDetails(trader);
       setProfileData({
         name: trader.name || '',
         email: trader.email || '',
@@ -100,24 +107,15 @@ const TraderSettings = () => {
 
     try {
       setSaving(true);
-      // Use auth updateProfile endpoint which supports traders
+      // Use auth updateProfile endpoint which supports traders and companyName
       const { authApi } = await import('@/lib/stockshipApi');
       await authApi.updateProfile({
         name: profileData.name,
         phone: profileData.phone,
         country: profileData.country,
-        city: profileData.city
+        city: profileData.city,
+        companyName: profileData.companyName
       });
-      
-      // Update company name using traderApi if available
-      try {
-        await traderApi.updateTrader(user.id, {
-          companyName: profileData.companyName
-        });
-      } catch (err) {
-        console.warn('Could not update company name:', err);
-        // Continue even if company name update fails
-      }
       
       showToast.success(
         t('mediation.trader.profileUpdated') || 'Profile Updated',
@@ -216,6 +214,7 @@ const TraderSettings = () => {
 
   const tabs = [
     { id: 'profile', label: t('mediation.trader.profile') || 'Profile', icon: User },
+    { id: 'barcode', label: language === 'ar' ? 'الباركود' : 'Barcode', icon: QrCode },
     { id: 'password', label: t('mediation.trader.password') || 'Password', icon: Lock }
   ];
 
@@ -404,6 +403,29 @@ const TraderSettings = () => {
                 </div>
               </div>
 
+              {/* Employee Information (Read-only) */}
+              {traderDetails?.employee && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {language === 'ar' ? 'الموظف المسؤول' : 'Assigned Employee'}
+                  </label>
+                  <div className="relative">
+                    <UserCheck className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={`${traderDetails.employee.name} (${traderDetails.employee.employeeCode})`}
+                      disabled
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                  {traderDetails.employee.email && (
+                    <p className="text-xs text-gray-500 mt-1 ml-10">
+                      {traderDetails.employee.email}
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Created At (Read-only) */}
               {user?.createdAt && (
                 <div>
@@ -433,7 +455,7 @@ const TraderSettings = () => {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-primary-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <>
@@ -449,6 +471,139 @@ const TraderSettings = () => {
                 </motion.button>
               </div>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Barcode & QR Code Tab */}
+      {activeTab === 'barcode' && (
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-gray-600" />
+              {language === 'ar' ? 'الباركود ورمز QR' : 'Barcode & QR Code'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {/* Barcode */}
+              {traderDetails?.barcode && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {language === 'ar' ? 'الباركود' : 'Barcode'}
+                  </label>
+                  <div className="relative">
+                    <ScanLine className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      value={traderDetails.barcode}
+                      disabled
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed font-mono text-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {language === 'ar' ? 'استخدم هذا الباركود للتعريف بالتاجر' : 'Use this barcode to identify the trader'}
+                  </p>
+                </div>
+              )}
+
+              {/* QR Code */}
+              {traderDetails?.qrCodeUrl && (() => {
+                // Validate QR Code URL - more strict validation
+                const qrCodeUrl = traderDetails.qrCodeUrl;
+                
+                // Check if it's a valid data URL (must be complete, not truncated)
+                // More lenient validation - just check for basic structure and reasonable length
+                const isValidDataUrl = qrCodeUrl && 
+                  typeof qrCodeUrl === 'string' && 
+                  qrCodeUrl.startsWith('data:image') && 
+                  qrCodeUrl.includes('base64,') && 
+                  qrCodeUrl.length > 200 && // Minimum reasonable length for a QR code
+                  !qrCodeUrl.endsWith('...'); // Not truncated (ends with ...)
+                
+                // Check if it's a valid HTTP URL
+                const isValidHttpUrl = qrCodeUrl && 
+                  typeof qrCodeUrl === 'string' && 
+                  (qrCodeUrl.startsWith('http://') || qrCodeUrl.startsWith('https://')) &&
+                  qrCodeUrl.length > 10;
+                
+                const isValidUrl = !qrCodeError && (isValidDataUrl || isValidHttpUrl);
+
+                return (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {language === 'ar' ? 'رمز QR' : 'QR Code'}
+                    </label>
+                    <div className="flex flex-col items-center gap-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                      {isValidUrl ? (
+                        <>
+                          <div className="bg-white p-4 rounded-lg shadow-sm">
+                            <img
+                              src={qrCodeUrl}
+                              alt="QR Code"
+                              className="w-48 h-48 object-contain"
+                              onError={() => {
+                                setQrCodeError(true);
+                              }}
+                              onLoad={() => {
+                                setQrCodeError(false);
+                              }}
+                            />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600 mb-2">
+                              {language === 'ar' ? 'يمكنك مسح هذا الرمز للوصول السريع' : 'Scan this code for quick access'}
+                            </p>
+                            {isValidDataUrl && (
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => {
+                                  try {
+                                    const link = document.createElement('a');
+                                    link.href = qrCodeUrl;
+                                    link.download = `trader-${traderDetails.traderCode}-qr-code.png`;
+                                    link.click();
+                                  } catch (error) {
+                                    console.error('Error downloading QR code:', error);
+                                    showToast.error(
+                                      language === 'ar' ? 'خطأ في تحميل QR Code' : 'Failed to download QR Code',
+                                      error.message || 'Please try again'
+                                    );
+                                  }
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-primary-900 text-white rounded-lg hover:bg-gray-800 transition-colors mx-auto"
+                              >
+                                <Download className="w-4 h-4" />
+                                {language === 'ar' ? 'تحميل QR Code' : 'Download QR Code'}
+                              </motion.button>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-48 h-48 flex items-center justify-center bg-gray-100 rounded">
+                          <div className="text-center p-4">
+                            <QrCode className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                            <p className="text-xs text-red-500 mb-2">
+                              {language === 'ar' ? 'QR Code غير صالح أو غير متوفر' : 'QR Code invalid or not available'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {language === 'ar' ? 'يرجى الاتصال بالدعم لإعادة توليد QR Code' : 'Please contact support to regenerate QR Code'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {!traderDetails?.barcode && !traderDetails?.qrCodeUrl && (
+                <div className="text-center py-8 text-gray-500">
+                  {language === 'ar' ? 'لا يوجد باركود أو رمز QR متاح' : 'No barcode or QR code available'}
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -550,7 +705,7 @@ const TraderSettings = () => {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={saving || passwordData.newPassword !== passwordData.confirmPassword}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-primary-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {saving ? (
                     <>

@@ -170,11 +170,11 @@ export default function StockshipEmployeeLayout({ children }) {
             <NotificationsDropdown />
             <button
               onClick={toggleLanguage}
-              className="p-2 rounded-lg hover:bg-gray-100/60 text-gray-600 transition-colors"
+              className={`p-2 rounded-lg hover:bg-gray-100/60 text-gray-600 transition-colors flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}
               title={t('common.language') || 'Language'}
             >
               <Globe size={18} />
-              <span className="ml-1 text-xs">{language === 'ar' ? 'EN' : 'AR'}</span>
+              <span className="text-xs">{language === 'ar' ? 'EN' : 'AR'}</span>
             </button>
           </div>
         </header>

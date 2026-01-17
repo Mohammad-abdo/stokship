@@ -593,7 +593,7 @@ const getMe = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
-    const { name, phone, countryCode, country, city } = req.body;
+    const { name, phone, countryCode, country, city, companyName } = req.body;
 
     let updatedUser;
 
@@ -623,7 +623,8 @@ const updateProfile = async (req, res) => {
           ...(name && { name }),
           ...(phone && { phone }),
           ...(country && { country }),
-          ...(city && { city })
+          ...(city && { city }),
+          ...(req.body.companyName && { companyName: req.body.companyName })
         },
         select: {
           id: true,
@@ -631,7 +632,8 @@ const updateProfile = async (req, res) => {
           name: true,
           phone: true,
           country: true,
-          city: true
+          city: true,
+          companyName: true
         }
       });
     } else if (req.userType === 'EMPLOYEE') {
