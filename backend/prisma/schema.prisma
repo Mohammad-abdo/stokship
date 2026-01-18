@@ -142,13 +142,13 @@ model Admin {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  createdEmployees      Employee[]
-  activityLogs          ActivityLog[]          @relation("ActivityLogAdmin")
-  auditTrails           AuditTrail[]           @relation("AuditTrailAdmin")
-  financialTransactions FinancialTransaction[] @relation("FinancialTransactionAdmin")
-  createdContentPages   ContentPage[]          @relation("ContentPageCreator")
-  updatedContentPages   ContentPage[]          @relation("ContentPageUpdater")
-  platformSettingsUpdates PlatformSettings[]   @relation("PlatformSettingsUpdater")
+  createdEmployees        Employee[]
+  activityLogs            ActivityLog[]          @relation("ActivityLogAdmin")
+  auditTrails             AuditTrail[]           @relation("AuditTrailAdmin")
+  financialTransactions   FinancialTransaction[] @relation("FinancialTransactionAdmin")
+  createdContentPages     ContentPage[]          @relation("ContentPageCreator")
+  updatedContentPages     ContentPage[]          @relation("ContentPageUpdater")
+  platformSettingsUpdates PlatformSettings[]     @relation("PlatformSettingsUpdater")
 }
 
 model Employee {
@@ -179,27 +179,36 @@ model Employee {
 }
 
 model Trader {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  password      String
-  name          String
-  companyName   String
-  phone         String?
-  countryCode   String?
-  country       String?
-  city          String?
-  traderCode    String    @unique // Auto-generated (e.g., TRD-001)
-  barcode       String    @unique // Barcode/QR code
-  qrCodeUrl     String? // QR code image URL
-  employeeId    Int // Permanently linked to this employee
-  clientId      Int?      @unique // Link to Client profile if same user (one-to-one)
-  isActive      Boolean   @default(true)
-  isVerified    Boolean   @default(false)
-  verifiedAt    DateTime?
-  lastLoginAt   DateTime?
-  rememberToken String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             Int     @id @default(autoincrement())
+  email          String  @unique
+  password       String
+  name           String
+  companyName    String
+  companyAddress String?
+  phone          String?
+  countryCode    String?
+  country        String?
+  city           String?
+  traderCode     String  @unique // Auto-generated (e.g., TRD-001)
+  barcode        String  @unique // Barcode/QR code
+  qrCodeUrl      String? // QR code image URL
+
+  // Bank Details
+  bankAccountName   String
+  bankAccountNumber String
+  bankName          String
+  bankAddress       String
+  bankCode          String
+  swiftCode         String
+  employeeId        Int // Permanently linked to this employee
+  clientId          Int?      @unique // Link to Client profile if same user (one-to-one)
+  isActive          Boolean   @default(true)
+  isVerified        Boolean   @default(false)
+  verifiedAt        DateTime?
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
   employee         Employee          @relation(fields: [employeeId], references: [id])
@@ -279,11 +288,11 @@ model Offer {
   updatedAt          DateTime    @updatedAt
 
   // Relations
-  trader       Trader        @relation(fields: [traderId], references: [id])
-  categoryRelation Category? @relation("OfferCategory", fields: [categoryId], references: [id])
-  items        OfferItem[]
-  deals        Deal[]
-  activityLogs ActivityLog[] @relation("ActivityLogOffer")
+  trader           Trader        @relation(fields: [traderId], references: [id])
+  categoryRelation Category?     @relation("OfferCategory", fields: [categoryId], references: [id])
+  items            OfferItem[]
+  deals            Deal[]
+  activityLogs     ActivityLog[] @relation("ActivityLogOffer")
 
   @@index([traderId])
   @@index([status])
@@ -491,7 +500,7 @@ model FinancialTransaction {
   platformCommission Decimal? @db.Decimal(10, 2)
   employeeCommission Decimal? @db.Decimal(10, 2)
   traderAmount       Decimal? @db.Decimal(10, 2)
-  
+
   // CBM-based commission (new field)
   totalCBM           Decimal? @db.Decimal(10, 3) // Total CBM for this deal
   cbmBasedCommission Decimal? @db.Decimal(10, 2) // Commission calculated based on CBM
@@ -695,38 +704,38 @@ model ContentPage {
 // ============================================
 
 model Category {
-  id              Int       @id @default(autoincrement())
-  nameKey         String    @unique // Translation key
-  descriptionKey  String?   @db.Text
-  slug            String    @unique
-  parentId        Int?
-  isActive        Boolean   @default(true)
-  isFeatured      Boolean   @default(false)
-  displayOrder    Int       @default(0)
-  icon            String?
-  imageUrl        String?
-  level           Int       @default(0)
-  productCount    Int       @default(0)
-  breadcrumb      String?
-  metaTitleKey    String?
-  metaDescriptionKey String? @db.Text
-  metaKeywords    String?   @db.Text
-  canonicalUrl    String?
-  ogTitleKey      String?
-  ogDescriptionKey String?   @db.Text
-  ogImage         String?
-  twitterCardTitleKey String?
-  twitterCardDescriptionKey String? @db.Text
-  twitterCardImage String?
-  structuredData  String?   @db.Text
-  pageDescriptionKey String? @db.Text
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                        Int      @id @default(autoincrement())
+  nameKey                   String   @unique // Translation key
+  descriptionKey            String?  @db.Text
+  slug                      String   @unique
+  parentId                  Int?
+  isActive                  Boolean  @default(true)
+  isFeatured                Boolean  @default(false)
+  displayOrder              Int      @default(0)
+  icon                      String?
+  imageUrl                  String?
+  level                     Int      @default(0)
+  productCount              Int      @default(0)
+  breadcrumb                String?
+  metaTitleKey              String?
+  metaDescriptionKey        String?  @db.Text
+  metaKeywords              String?  @db.Text
+  canonicalUrl              String?
+  ogTitleKey                String?
+  ogDescriptionKey          String?  @db.Text
+  ogImage                   String?
+  twitterCardTitleKey       String?
+  twitterCardDescriptionKey String?  @db.Text
+  twitterCardImage          String?
+  structuredData            String?  @db.Text
+  pageDescriptionKey        String?  @db.Text
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
 
   // Relations
-  parent          Category? @relation("CategoryTree", fields: [parentId], references: [id])
-  children        Category[] @relation("CategoryTree")
-  offers          Offer[]   @relation("OfferCategory") // Offers in this category
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  offers   Offer[]    @relation("OfferCategory") // Offers in this category
 
   @@index([parentId])
   @@index([slug])
@@ -740,7 +749,7 @@ model Category {
 // ============================================
 
 model PlatformSettings {
-  id                    Int       @id @default(autoincrement())
+  id                     Int      @id @default(autoincrement())
   // Commission Settings
   platformCommissionRate Decimal? @db.Decimal(5, 2) // Percentage based on deal amount (default: 2.5%)
   cbmRate                Decimal? @db.Decimal(10, 2) // Rate per cubic meter (CBM) for deals (e.g., 50 SAR per CBM)

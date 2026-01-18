@@ -5,14 +5,20 @@ import { profileService } from '../services/profileService';
 import Header from '../components/Header';
 import FooterArabic from '../components/FooterArabic';
 import ProtectedRoute from '../components/ProtectedRoute';
+import { Link, useNavigate } from 'react-router-dom';
+import { ROUTES } from '../routes';
 
 function ProfileContent() {
   const { t } = useTranslation();
   const { user, userType, updateProfile } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  
+  // Check if user is already a trader
+  const isTrader = userType === 'TRADER' || (user?.linkedProfiles && user.linkedProfiles.some(p => p.userType === 'TRADER'));
   
   // Form fields
   const [name, setName] = useState('');
@@ -68,11 +74,20 @@ function ProfileContent() {
           <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
             <h1 className="text-2xl font-bold text-slate-900 mb-6">الملف الشخصي</h1>
 
-            {/* User Type Badge */}
-            <div className="mb-6">
+            {/* User Type Badge & Become Seller Button */}
+            <div className="mb-6 flex items-center justify-between">
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                 {userType === 'CLIENT' ? 'عميل' : userType === 'TRADER' ? 'تاجر' : userType}
               </span>
+
+              {!isTrader && (
+                <button
+                  onClick={() => navigate(ROUTES.SIGNUP_BANK_INFO)}
+                  className="px-4 py-2 bg-amber-500 text-white text-sm font-bold rounded-md hover:bg-amber-600 transition-colors"
+                >
+                  كن بائع
+                </button>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">

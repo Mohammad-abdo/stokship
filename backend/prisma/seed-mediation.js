@@ -281,6 +281,14 @@ async function main() {
       countryCode: '+966',
       country: 'Saudi Arabia',
       city: 'Riyadh',
+      // Bank Details
+      bankAccountName: 'Dual Profile Trader',
+      bankAccountNumber: 'SA0000000000000000000001',
+      bankName: 'Al Rajhi Bank',
+      bankAddress: 'Riyadh, Saudi Arabia',
+      bankCode: 'RAJHI',
+      swiftCode: 'RAJHI001',
+      companyAddress: 'King Fahd Road, Riyadh',
       traderCode: traderCode1, // Use available trader code
       barcode: barcode1,
       qrCodeUrl: qrCodeUrl1,
@@ -347,6 +355,14 @@ async function main() {
       countryCode: '+966',
       country: 'Saudi Arabia',
       city: 'Jeddah',
+      // Bank Details
+      bankAccountName: 'Merchant Trader',
+      bankAccountNumber: 'SA0000000000000000000002',
+      bankName: 'NCB Bank',
+      bankAddress: 'Jeddah, Saudi Arabia',
+      bankCode: 'NCB',
+      swiftCode: 'NCB002',
+      companyAddress: 'Tahlia Street, Jeddah',
       traderCode: traderCode2, // Use available trader code
       barcode: barcode2,
       qrCodeUrl: qrCodeUrl2,
@@ -435,6 +451,14 @@ async function main() {
             countryCode: '+966',
             country: 'Saudi Arabia',
             city: index === 0 ? 'Riyadh' : 'Jeddah',
+            // Bank Details
+            bankAccountName: `Trader ${index + 1} Account`,
+            bankAccountNumber: `SA000000000000000000000${index + 3}`,
+            bankName: index === 0 ? 'Al Rajhi Bank' : 'NCB Bank',
+            bankAddress: index === 0 ? 'Riyadh, Saudi Arabia' : 'Jeddah, Saudi Arabia',
+            bankCode: index === 0 ? 'RAJHI' : 'NCB',
+            swiftCode: index === 0 ? 'RAJHI001' : 'NCB002',
+            companyAddress: index === 0 ? 'Olaya Street, Riyadh' : 'Corniche Road, Jeddah',
             traderCode: finalTraderCode, // Use final trader code (existing or new)
             barcode: currentBarcode,
             qrCodeUrl: currentQrCodeUrl,

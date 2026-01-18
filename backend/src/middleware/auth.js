@@ -242,6 +242,26 @@ const protectOptional = async (req, res, next) => {
             isActive: true
           }
         });
+      } else if (decoded.userType === 'MODERATOR') {
+        user = await prisma.moderator.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            isActive: true
+          }
+        });
+      } else if (decoded.userType === 'MODERATOR') {
+        user = await prisma.moderator.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            isActive: true
+          }
+        });
       }
 
       if (user && user.isActive) {

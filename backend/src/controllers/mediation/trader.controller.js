@@ -488,23 +488,48 @@ const updateTrader = asyncHandler(async (req, res) => {
   }
 
   // Check authorization
+  // Check authorization - Admin can update any, Employee only their own, Moderator can update specific fields
   if (req.userType === 'EMPLOYEE' && req.user.id !== trader.employeeId) {
     return errorResponse(res, 'Not authorized', 403);
   }
 
   const updateData = {};
-  if (name) updateData.name = name;
-  if (companyName) updateData.companyName = companyName;
-  if (phone !== undefined) updateData.phone = phone;
-  if (countryCode !== undefined) updateData.countryCode = countryCode;
-  if (country !== undefined) updateData.country = country;
-  if (city !== undefined) updateData.city = city;
-  if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
-  if (isVerified !== undefined) {
-    updateData.isVerified = isVerified === 'true' || isVerified === true;
-    if (isVerified && !trader.isVerified) {
-      updateData.verifiedAt = new Date();
+  
+  // Specific permissions for MODERATOR
+  if (req.userType === 'MODERATOR') {
+    if (isVerified !== undefined) {
+      updateData.isVerified = isVerified === 'true' || isVerified === true;
+      if (updateData.isVerified && !trader.isVerified) {
+        updateData.verifiedAt = new Date();
+      }
     }
+    // Moderators can strictly only verify/unverify and assign (handled in separate route/logic)
+    // If they send other fields, we can ignore or allow small edits. user asked for 'verify'.
+  } else {
+    // Admin and Employee can update profile details
+    if (name) updateData.name = name;
+    if (companyName) updateData.companyName = companyName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (countryCode !== undefined) updateData.countryCode = countryCode;
+    if (country !== undefined) updateData.country = country;
+    if (city !== undefined) updateData.city = city;
+    if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
+    
+    // Only Admin can verify directly? Or Employee? Usually verification is higher level.
+    // Let's assume Admin can do everything.
+    if (req.userType === 'ADMIN') {
+        if (isVerified !== undefined) {
+            updateData.isVerified = isVerified === 'true' || isVerified === true;
+            if (updateData.isVerified && !trader.isVerified) {
+              updateData.verifiedAt = new Date();
+            }
+        }
+    }
+  }
+
+  // If no data to update return
+  if (Object.keys(updateData).length === 0) {
+      return successResponse(res, trader, 'No changes made');
   }
 
   const updated = await prisma.trader.update({
@@ -541,15 +566,75 @@ const updateTrader = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get All Traders (Admin only)
+ * @desc    Assign Trader to Employee (Moderator/Admin)
+ * @route   PUT /api/traders/:id/assign
+ * @access  Private (Admin/Moderator)
+ */
+const assignTrader = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { employeeId } = req.body;
+
+  if (!employeeId) {
+    return errorResponse(res, 'Employee ID is required', 400);
+  }
+
+  const trader = await prisma.trader.findUnique({
+    where: { id: parseInt(id) }
+  });
+
+  if (!trader) {
+    return errorResponse(res, 'Trader not found', 404);
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: parseInt(employeeId) }
+  });
+
+  if (!employee) {
+    return errorResponse(res, 'Employee not found', 404);
+  }
+
+  const updated = await prisma.trader.update({
+    where: { id: parseInt(id) },
+    data: { employeeId: parseInt(employeeId) },
+    select: {
+      id: true,
+      name: true,
+      employee: {
+        select: { id: true, name: true }
+      }
+    }
+  });
+
+  // Log activity
+  await prisma.activityLog.create({
+    data: {
+      userId: req.user.id,
+      userType: req.userType,
+      action: 'TRADER_ASSIGNED',
+      entityType: 'TRADER',
+      entityId: updated.id,
+      description: `${req.userType} assigned trader ${updated.name} to employee ${employee.name}`,
+      changes: JSON.stringify({ employeeId }),
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    }
+  });
+
+  successResponse(res, updated, 'Trader assigned to employee successfully');
+});
+
+/**
+ * @desc    Get All Traders (Admin/Moderator)
  * @route   GET /api/admin/traders
- * @access  Private (Admin)
+ * @access  Private (Admin/Moderator)
  */
 const getAllTraders = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, search, status, employeeId } = req.query;
+  const { page = 1, limit = 20, search, status, employeeId, isVerified } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const where = {};
+  if (isVerified !== undefined) where.isVerified = isVerified === 'true';
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -822,6 +907,6 @@ module.exports = {
   updateTrader,
   getAllTraders,
   deleteTrader,
-  checkLinkedTrader
+  checkLinkedTrader,
+  assignTrader
 };
-

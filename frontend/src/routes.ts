@@ -16,6 +16,7 @@ export const ROUTES = {
   
   // Auth pages
   LOGIN: "/login",
+  MULTI_LOGIN: "/multi-login",
   SIGNUP: "/signup",
   SIGNUP_BANK_INFO: "/SignupBankInfoFormPage",
   
@@ -40,6 +41,9 @@ export const ROUTES = {
   
   // Profile page
   PROFILE: "/profile",
+
+  // Moderator page
+  MODERATOR_DASHBOARD: "/moderator-dashboard",
   
   // 404 page
   NOT_FOUND: "/404",

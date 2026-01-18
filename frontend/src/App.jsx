@@ -24,6 +24,7 @@ import RequestSent from "./pages/RequestSent";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ModeratorDashboard from "./pages/ModeratorDashboard";
 
 function AppContent() {
   const location = useLocation();
@@ -39,6 +40,7 @@ function AppContent() {
       <Route path={`${ROUTES.PRODUCT_DETAILS}/:id`} element={<ProductDetails />} />
       <Route path={`${ROUTES.OFFER_DETAILS}/:id`} element={<ProductDetails />} />
       <Route path={ROUTES.LOGIN} element={<LogIn />} />
+      <Route path={ROUTES.MULTI_LOGIN} element={<LogIn />} />
       <Route path={ROUTES.SIGNUP} element={<SignUp />} />
       <Route path={ROUTES.TERMS_AND_POLICIES} element={<TermsPoliciesPage />} />
       <Route path={ROUTES.NOTIFICATION} element={<Notification />} />
@@ -53,6 +55,7 @@ function AppContent() {
       <Route path={ROUTES.SELLER} element={<Seller />} />
       <Route path={`${ROUTES.SELLER_PRODUCTS}/:sellerId`} element={<SellerProductsPage />} />
       <Route path={ROUTES.PUBLISH_AD} element={<ProtectedRoute allowedRoles={['TRADER']}><PublishAdPage /></ProtectedRoute>} />
+      <Route path={ROUTES.MODERATOR_DASHBOARD} element={<ProtectedRoute allowedRoles={['MODERATOR']}><ModeratorDashboard /></ProtectedRoute>} />
       <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
       <Route path={ROUTES.REQUEST_SENT} element={<RequestSent />} />
       <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
