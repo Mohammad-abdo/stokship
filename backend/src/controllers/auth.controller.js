@@ -325,6 +325,14 @@ const login = async (req, res) => {
         commissionRate: employee.commissionRate,
         isActive: employee.isActive
       };
+    } else if (userType === 'MODERATOR') {
+      userData = {
+        id: moderator.id,
+        email: moderator.email,
+        name: moderator.name,
+        role: moderator.role,
+        isActive: moderator.isActive
+      };
     } else if (userType === 'TRADER') {
       userData = {
         id: trader.id,
@@ -382,6 +390,11 @@ const login = async (req, res) => {
       });
     } else if (userType === 'EMPLOYEE') {
       await prisma.employee.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      });
+    } else if (userType === 'MODERATOR') {
+      await prisma.moderator.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() }
       });

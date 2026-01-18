@@ -11,6 +11,7 @@ const MultiAuthContext = createContext(undefined);
 export const MultiAuthProvider = ({ children }) => {
   const [auths, setAuths] = useState({
     admin: { user: null, token: null },
+    moderator: { user: null, token: null },
     employee: { user: null, token: null },
     trader: { user: null, token: null },
     client: { user: null, token: null }
@@ -25,6 +26,10 @@ export const MultiAuthProvider = ({ children }) => {
         admin: {
           token: localStorage.getItem('admin_token'),
           user: localStorage.getItem('admin_user') ? JSON.parse(localStorage.getItem('admin_user')) : null
+        },
+        moderator: {
+          token: localStorage.getItem('moderator_token'),
+          user: localStorage.getItem('moderator_user') ? JSON.parse(localStorage.getItem('moderator_user')) : null
         },
         employee: {
           token: localStorage.getItem('employee_token'),
@@ -211,12 +216,13 @@ export const MultiAuthProvider = ({ children }) => {
       }
     } else {
       // Logout all
-      ['admin', 'employee', 'trader', 'client'].forEach(roleKey => {
+      ['admin', 'moderator', 'employee', 'trader', 'client'].forEach(roleKey => {
         localStorage.removeItem(`${roleKey}_token`);
         localStorage.removeItem(`${roleKey}_user`);
       });
       setAuths({
         admin: { user: null, token: null },
+        moderator: { user: null, token: null },
         employee: { user: null, token: null },
         trader: { user: null, token: null },
         client: { user: null, token: null }
@@ -231,6 +237,7 @@ export const MultiAuthProvider = ({ children }) => {
     if (!role) return null;
     const roleUpper = role.toUpperCase();
     if (roleUpper === 'ADMIN') return 'admin';
+    if (roleUpper === 'MODERATOR') return 'moderator';
     if (roleUpper === 'EMPLOYEE') return 'employee';
     if (roleUpper === 'TRADER') return 'trader';
     if (roleUpper === 'CLIENT' || roleUpper === 'USER') return 'client';
@@ -257,6 +264,7 @@ export const MultiAuthProvider = ({ children }) => {
     }
     // Return first available token
     return auths.admin?.token || 
+           auths.moderator?.token ||
            auths.employee?.token || 
            auths.trader?.token || 
            auths.client?.token;
@@ -264,6 +272,7 @@ export const MultiAuthProvider = ({ children }) => {
 
   // Role checkers - memoized to prevent infinite re-renders
   const isAdmin = useCallback(() => isLoggedIn('admin'), [isLoggedIn]);
+  const isModerator = useCallback(() => isLoggedIn('moderator'), [isLoggedIn]);
   const isEmployee = useCallback(() => isLoggedIn('employee'), [isLoggedIn]);
   const isTrader = useCallback(() => isLoggedIn('trader'), [isLoggedIn]);
   const isClient = useCallback(() => isLoggedIn('client'), [isLoggedIn]);
@@ -272,6 +281,7 @@ export const MultiAuthProvider = ({ children }) => {
   const getActiveRoles = useCallback(() => {
     const roles = [];
     if (isLoggedIn('admin')) roles.push('admin');
+    if (isLoggedIn('moderator')) roles.push('moderator');
     if (isLoggedIn('employee')) roles.push('employee');
     if (isLoggedIn('trader')) roles.push('trader');
     if (isLoggedIn('client')) roles.push('client');
@@ -290,11 +300,12 @@ export const MultiAuthProvider = ({ children }) => {
     getActiveToken,
     isLoggedIn,
     isAdmin,
+    isModerator,
     isEmployee,
     isTrader,
     isClient,
     getActiveRoles
-  }), [auths, loading, activeRole, isAdmin, isEmployee, isTrader, isClient, getActiveRoles, getAuth, getActiveToken, isLoggedIn, login, logout, setActiveRole]);
+  }), [auths, loading, activeRole, isAdmin, isModerator, isEmployee, isTrader, isClient, getActiveRoles, getAuth, getActiveToken, isLoggedIn, login, logout, setActiveRole]);
 
   return (
     <MultiAuthContext.Provider value={contextValue}>

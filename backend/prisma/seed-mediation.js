@@ -33,6 +33,37 @@ async function main() {
   console.log('✅ Created admin:', admin.email);
 
   // ============================================
+  // 1.5. CREATE MODERATORS
+  // ============================================
+  console.log('🛡️ Creating moderators...');
+  const moderatorPassword = await bcrypt.hash('moderator123', 10);
+  const moderators = await Promise.all([
+    prisma.moderator.upsert({
+      where: { email: 'moderator1@stokship.com' },
+      update: {},
+      create: {
+        email: 'moderator1@stokship.com',
+        password: moderatorPassword,
+        name: 'Senior Moderator',
+        role: 'moderator',
+        isActive: true
+      }
+    }),
+    prisma.moderator.upsert({
+      where: { email: 'moderator2@stokship.com' },
+      update: {},
+      create: {
+        email: 'moderator2@stokship.com',
+        password: moderatorPassword,
+        name: 'Junior Moderator',
+        role: 'moderator',
+        isActive: true
+      }
+    })
+  ]);
+  console.log(`✅ Created ${moderators.length} moderators`);
+
+  // ============================================
   // 2. CREATE EMPLOYEES
   // ============================================
   console.log('👔 Creating employees...');
@@ -250,13 +281,12 @@ async function main() {
       const qrCodeData = JSON.stringify({
         type: 'TRADER',
         traderCode: traderCode1,
-        barcode: barcode1,
-        clientId: linkedClient1.id
+        barcode: barcode1
       });
       const qrCodeDataUrl1 = await QRCode.toDataURL(qrCodeData);
       qrCodeUrl1 = qrCodeDataUrl1;
     } catch (error) {
-      console.warn(`Failed to generate QR code for ${traderCode1}:`, error.message);
+      console.warn(`Failed to generate QR code for ${}:`, error.message);
     }
   }
 
@@ -264,9 +294,7 @@ async function main() {
   const linkedTrader1 = await prisma.trader.upsert({
     where: { email: 'dualprofile@stokship.com' },
     update: {
-      // Update clientId to ensure it's linked (even if already exists)
-      clientId: linkedClient1.id,
-      // Update other fields to match latest schema
+      // Update fields to match latest schema
       password: clientPassword, // Ensure same password as client
       qrCodeUrl: qrCodeUrl1 || existingLinkedTrader1?.qrCodeUrl,
       barcode: barcode1 || existingLinkedTrader1?.barcode
@@ -281,25 +309,16 @@ async function main() {
       countryCode: '+966',
       country: 'Saudi Arabia',
       city: 'Riyadh',
-      // Bank Details
-      bankAccountName: 'Dual Profile Trader',
-      bankAccountNumber: 'SA0000000000000000000001',
-      bankName: 'Al Rajhi Bank',
-      bankAddress: 'Riyadh, Saudi Arabia',
-      bankCode: 'RAJHI',
-      swiftCode: 'RAJHI001',
-      companyAddress: 'King Fahd Road, Riyadh',
       traderCode: traderCode1, // Use available trader code
       barcode: barcode1,
       qrCodeUrl: qrCodeUrl1,
       employeeId: employees[0].id,
-      clientId: linkedClient1.id, // Link to client - REQUIRED for dual profile
       isActive: true,
       isVerified: true,
       verifiedAt: new Date()
     }
   });
-  console.log(`✅ Created/Updated linked trader 1 (email: ${linkedTrader1.email}, clientId: ${linkedTrader1.clientId}, traderCode: ${linkedTrader1.traderCode})`);
+  console.log(`✅ Created/Updated linked trader 1 (email: ${linkedTrader1.email}, traderCode: ${linkedTrader1.traderCode})`);
 
   // Example 2: Merchant User (another dual profile example)
   const linkedClient2 = clients.find(c => c.email === 'merchant@stokship.com');
@@ -339,8 +358,7 @@ async function main() {
   const linkedTrader2 = await prisma.trader.upsert({
     where: { email: 'merchant@stokship.com' },
     update: {
-      // Update clientId to ensure it's linked (even if already exists)
-      clientId: linkedClient2.id,
+      // Update fields to match latest schema
       password: clientPassword, // Ensure same password as client
       qrCodeUrl: qrCodeUrl2 || existingLinkedTrader2?.qrCodeUrl,
       barcode: barcode2 || existingLinkedTrader2?.barcode
@@ -355,25 +373,16 @@ async function main() {
       countryCode: '+966',
       country: 'Saudi Arabia',
       city: 'Jeddah',
-      // Bank Details
-      bankAccountName: 'Merchant Trader',
-      bankAccountNumber: 'SA0000000000000000000002',
-      bankName: 'NCB Bank',
-      bankAddress: 'Jeddah, Saudi Arabia',
-      bankCode: 'NCB',
-      swiftCode: 'NCB002',
-      companyAddress: 'Tahlia Street, Jeddah',
       traderCode: traderCode2, // Use available trader code
       barcode: barcode2,
       qrCodeUrl: qrCodeUrl2,
       employeeId: employees.length > 1 ? employees[1].id : employees[0].id, // Link to second employee or first
-      clientId: linkedClient2.id, // Link to client - dual profile
       isActive: true,
       isVerified: true,
       verifiedAt: new Date()
     }
   });
-  console.log(`✅ Created/Updated linked trader 2 (email: ${linkedTrader2.email}, clientId: ${linkedTrader2.clientId}, traderCode: ${linkedTrader2.traderCode})`);
+  console.log(`✅ Created/Updated linked trader 2 (email: ${linkedTrader2.email}, traderCode: ${linkedTrader2.traderCode})`);
 
   // Store all linked traders
   const linkedTraders = [linkedTrader1, linkedTrader2];
@@ -435,8 +444,6 @@ async function main() {
         standaloneTrader = await prisma.trader.upsert({
           where: { email: `trader${index + 1}@stokship.com` },
           update: {
-            // Ensure clientId is null for standalone traders (not linked)
-            clientId: null,
             password: traderPassword,
             qrCodeUrl: currentQrCodeUrl || freshCheck?.qrCodeUrl,
             barcode: currentBarcode || freshCheck?.barcode
@@ -451,19 +458,10 @@ async function main() {
             countryCode: '+966',
             country: 'Saudi Arabia',
             city: index === 0 ? 'Riyadh' : 'Jeddah',
-            // Bank Details
-            bankAccountName: `Trader ${index + 1} Account`,
-            bankAccountNumber: `SA000000000000000000000${index + 3}`,
-            bankName: index === 0 ? 'Al Rajhi Bank' : 'NCB Bank',
-            bankAddress: index === 0 ? 'Riyadh, Saudi Arabia' : 'Jeddah, Saudi Arabia',
-            bankCode: index === 0 ? 'RAJHI' : 'NCB',
-            swiftCode: index === 0 ? 'RAJHI001' : 'NCB002',
-            companyAddress: index === 0 ? 'Olaya Street, Riyadh' : 'Corniche Road, Jeddah',
             traderCode: finalTraderCode, // Use final trader code (existing or new)
             barcode: currentBarcode,
             qrCodeUrl: currentQrCodeUrl,
             employeeId: employee.id,
-            clientId: null, // No linked client - standalone trader
             isActive: true,
             isVerified: index === 0, // First trader is verified
             verifiedAt: index === 0 ? new Date() : null

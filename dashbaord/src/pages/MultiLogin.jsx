@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Mail, Lock, Loader2, AlertCircle, User, Building2, Briefcase } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle, User, Building2, Briefcase, UserCog } from "lucide-react";
 
 export default function MultiLogin() {
   const [email, setEmail] = useState("");
@@ -46,6 +46,8 @@ export default function MultiLogin() {
         navigate("/stockship/admin/dashboard", { replace: true });
       } else if (roleToUse === "employee") {
         navigate("/stockship/employee/dashboard", { replace: true });
+      } else if (roleToUse === "moderator") {
+        navigate("/moderator-dashboard", { replace: true });
       } else if (roleToUse === "trader") {
         navigate("/stockship/trader/dashboard", { replace: true });
       } else if (roleToUse === "client") {
@@ -82,6 +84,7 @@ export default function MultiLogin() {
 
   const roleOptions = [
     { value: "admin", label: "Admin", icon: User, color: "from-blue-500 to-blue-600" },
+    { value: "moderator", label: "Moderator", icon: UserCog, color: "from-orange-500 to-orange-600" },
     { value: "employee", label: "Employee", icon: Briefcase, color: "from-green-500 to-green-600" },
     { value: "trader", label: "Trader", icon: Building2, color: "from-purple-500 to-purple-600" },
   ];
@@ -161,7 +164,7 @@ export default function MultiLogin() {
                 className="space-y-2"
               >
                 <label className="text-sm font-medium">Select Role</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {roleOptions.map((option) => {
                     const Icon = option.icon;
                     const isSelected = selectedRole === option.value;
@@ -204,6 +207,7 @@ export default function MultiLogin() {
                     className="w-full pl-10 pr-4 py-3 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
                     placeholder={
                       selectedRole === 'admin' ? 'admin@stokship.com' :
+                      selectedRole === 'moderator' ? 'moderator1@stokship.com' :
                       selectedRole === 'employee' ? 'employee@stokship.com' :
                       'trader@stokship.com'
                     }
@@ -264,6 +268,7 @@ export default function MultiLogin() {
               <p className="font-semibold">Quick Login:</p>
               <div className="text-xs space-y-1">
                 <p>Admin: admin@stokship.com / password</p>
+                <p>Moderator: moderator1@stokship.com / moderator123</p>
                 <p>Employee: employee@stokship.com / password</p>
                 <p>Trader: trader@stokship.com / password</p>
               </div>

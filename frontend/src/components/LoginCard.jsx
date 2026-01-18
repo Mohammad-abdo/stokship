@@ -29,7 +29,7 @@ export default function LoginCard() {
   const quickLogins = {
     Admin: { email: 'admin@stokship.com', pass: 'admin123', label: 'Admin' },
     Employee: { email: 'employee@stokship.com', pass: 'employee123', label: 'Employee' },
-    Moderator: { email: 'moderator@stokship.com', pass: 'moderator123', label: 'Moderator' },
+    Moderator: { email: 'moderator1@stokship.com', pass: 'moderator123', label: 'Moderator' },
     Trader: { email: 'trader@stokship.com', pass: 'trader123', label: 'Trader' }
   };
 
