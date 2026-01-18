@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMultiAuth } from '@/contexts/MultiAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -47,11 +47,12 @@ const EmployeePayments = () => {
     total: 0,
     pages: 0
   });
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !fetchingRef.current) {
       fetchPayments();
-    } else {
+    } else if (!user?.id) {
       console.warn('No user found, cannot fetch payments');
       setLoading(false);
     }
@@ -59,7 +60,7 @@ const EmployeePayments = () => {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm !== undefined) {
+      if (searchTerm !== undefined && !fetchingRef.current) {
         setPagination(prev => ({ ...prev, page: 1 }));
         fetchPayments();
       }
@@ -68,7 +69,10 @@ const EmployeePayments = () => {
   }, [searchTerm]);
 
   const fetchPayments = async () => {
+    if (fetchingRef.current) return;
+    
     try {
+      fetchingRef.current = true;
       setLoading(true);
       // Get employee's deals first (don't filter by deal status, get all deals)
       const dealsResponse = await employeeApi.getEmployeeDeals(user.id, {
@@ -143,8 +147,12 @@ const EmployeePayments = () => {
         total: 0,
         pages: 0
       }));
+      if (error.response?.status !== 429) {
+        // Only show error if not rate limited
+      }
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMultiAuth } from '@/contexts/MultiAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -36,16 +36,17 @@ const EmployeeOffers = () => {
     total: 0,
     pages: 0
   });
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !fetchingRef.current) {
       fetchOffers();
     }
   }, [user, pagination.page, statusFilter]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm !== undefined) {
+      if (searchTerm !== undefined && !fetchingRef.current) {
         setPagination(prev => ({ ...prev, page: 1 }));
         fetchOffers();
       }
@@ -54,7 +55,10 @@ const EmployeeOffers = () => {
   }, [searchTerm]);
 
   const fetchOffers = async () => {
+    if (fetchingRef.current) return; // Prevent concurrent requests
+    
     try {
+      fetchingRef.current = true;
       setLoading(true);
       // Use employee-specific endpoint
       const params = {
@@ -78,13 +82,17 @@ const EmployeeOffers = () => {
       }
     } catch (error) {
       console.error('Error fetching offers:', error);
-      showToast.error(
-        t('mediation.employee.loadOffersFailed') || 'Failed to load offers',
-        error.response?.data?.message || 'Please try again'
-      );
+      // Only show error if not rate limited (to avoid spam)
+      if (error.response?.status !== 429) {
+        showToast.error(
+          t('mediation.employee.loadOffersFailed') || 'Failed to load offers',
+          error.response?.data?.message || 'Please try again'
+        );
+      }
       setOffers([]);
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
 

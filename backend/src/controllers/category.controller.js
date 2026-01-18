@@ -163,7 +163,7 @@ const getCategoryTree = asyncHandler(async (req, res) => {
       },
       _count: {
         select: {
-          products: true
+          offers: true
         }
       }
     },
@@ -188,7 +188,7 @@ const getCategoryById = asyncHandler(async (req, res) => {
       },
       _count: {
         select: {
-          products: true
+          offers: true
         }
       }
     }
@@ -242,7 +242,7 @@ const getSubCategories = asyncHandler(async (req, res) => {
     include: {
       _count: {
         select: {
-          products: true
+          offers: true
         }
       }
     },
@@ -691,7 +691,7 @@ const deleteCategory = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Category not found', 404);
   }
 
-  if (category._count.products > 0) {
+  if (category._count.offers > 0) {
     return errorResponse(res, 'Cannot delete category with products', 400);
   }
 

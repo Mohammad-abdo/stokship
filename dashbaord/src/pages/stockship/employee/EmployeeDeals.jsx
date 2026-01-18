@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMultiAuth } from "@/contexts/MultiAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -24,15 +24,19 @@ export default function EmployeeDeals() {
     total: 0,
     pages: 0
   });
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !fetchingRef.current) {
       loadDeals();
     }
   }, [user, pagination.page, statusFilter]);
 
   const loadDeals = async () => {
+    if (fetchingRef.current) return;
+    
     try {
+      fetchingRef.current = true;
       setLoading(true);
       const response = await employeeApi.getEmployeeDeals(user.id, {
         page: pagination.page,
@@ -56,14 +60,18 @@ export default function EmployeeDeals() {
         error.response?.data?.message || 'Please try again'
       );
       setDeals([]);
+      if (error.response?.status !== 429) {
+        // Only show error if not rate limited
+      }
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm !== undefined) {
+      if (searchTerm !== undefined && !fetchingRef.current) {
         setPagination(prev => ({ ...prev, page: 1 }));
         loadDeals();
       }

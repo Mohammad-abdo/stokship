@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMultiAuth } from "@/contexts/MultiAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -37,21 +37,29 @@ export default function EmployeeDashboard() {
   const { user } = getAuth('employee');
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const fetchingRef = useRef(false);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !fetchingRef.current) {
       loadDashboard();
     }
   }, [user]);
 
   const loadDashboard = async () => {
+    if (fetchingRef.current) return;
+    
     try {
+      fetchingRef.current = true;
       const response = await employeeApi.getEmployeeDashboard(user.id);
       setDashboard(response.data.data || response.data);
     } catch (error) {
       console.error('Error loading dashboard:', error);
+      if (error.response?.status !== 429) {
+        // Only log non-rate-limit errors
+      }
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   };
 

@@ -537,3 +537,5 @@ model Offer {
 **هل تريد البدء بتطبيق الحل 1 (Relation بين Category و Offer)؟**
 
 
+
+
