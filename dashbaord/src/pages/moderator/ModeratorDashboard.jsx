@@ -21,7 +21,9 @@ import {
   XCircle,
   Clock,
   ChevronRight,
-  Shield
+  Shield,
+  Building2,
+  User
 } from "lucide-react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -127,41 +129,41 @@ export default function ModeratorDashboard() {
     <div className="p-8 space-y-8">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
+        <Card className="bg-linear-to-br from-amber-500 to-orange-600 border-none shadow-lg">
            <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                  <div>
-                    <p className="text-sm font-medium text-gray-500">Pending Approvals</p>
-                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.pending}</h3>
+                    <p className="text-sm font-medium text-amber-100">{t('moderator.dashboard.pendingApprovals') || 'Pending Approvals'}</p>
+                    <h3 className="text-3xl font-bold text-white mt-2">{stats.pending}</h3>
                  </div>
-                 <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                    <Clock className="w-5 h-5 text-amber-600" />
+                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-white" />
                  </div>
               </div>
            </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-linear-to-br from-emerald-500 to-teal-600 border-none shadow-lg">
            <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                  <div>
-                    <p className="text-sm font-medium text-gray-500">Active Traders</p>
-                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.active}</h3>
+                    <p className="text-sm font-medium text-emerald-100">{t('moderator.dashboard.activeTraders') || 'Active Traders'}</p>
+                    <h3 className="text-3xl font-bold text-white mt-2">{stats.active}</h3>
                  </div>
-                 <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-green-600" />
+                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
                  </div>
               </div>
            </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-linear-to-br from-blue-500 to-indigo-600 border-none shadow-lg">
            <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                  <div>
-                    <p className="text-sm font-medium text-gray-500">Reports Today</p>
-                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.reports}</h3>
+                    <p className="text-sm font-medium text-blue-100">{t('moderator.dashboard.reportsToday') || 'Reports Today'}</p>
+                    <h3 className="text-3xl font-bold text-white mt-2">{stats.reports}</h3>
                  </div>
-                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-blue-600" />
+                 <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <FileText className="w-6 h-6 text-white" />
                  </div>
               </div>
            </CardContent>
@@ -169,63 +171,93 @@ export default function ModeratorDashboard() {
       </div>
 
       {/* Recent Registrations Table */}
-      <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle>Recent Trader Registrations</CardTitle>
-          <CardDescription>Review and approve new trader accounts.</CardDescription>
+      <Card className="border-gray-200/60 shadow-md overflow-hidden backdrop-blur-sm bg-white/90">
+        <CardHeader className="border-b border-gray-100 bg-gray-50/50">
+          <CardTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-indigo-500" />
+            {t('moderator.dashboard.recentRegistrations') || 'Recent Trader Registrations'}
+          </CardTitle>
+          <CardDescription className="text-gray-500">
+            {t('moderator.dashboard.reviewTraders') || 'Review and approve new trader accounts.'}
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
             </div>
           ) : traders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No pending trader registrations.
+            <div className="text-center py-12 bg-gray-50/50">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                 <Users className="w-8 h-8 text-gray-400" />
+              </div>
+              <p className="text-gray-500 font-medium">{t('moderator.dashboard.noPendingRegistrations') || 'No pending trader registrations.'}</p>
             </div>
           ) : (
             <div className="relative overflow-x-auto">
-              <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs uppercase bg-gray-50 text-gray-600 border-b border-gray-100">
                   <tr>
-                    <th scope="col" className="px-6 py-3">Trader Name</th>
-                    <th scope="col" className="px-6 py-3">Email</th>
-                    <th scope="col" className="px-6 py-3">Phone</th>
-                    <th scope="col" className="px-6 py-3">Status</th>
-                    <th scope="col" className="px-6 py-3">Assigned To</th>
-                    <th scope="col" className="px-6 py-3">Action</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">{t('moderator.traders.traderName') || 'Trader Name'}</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">{t('moderator.common.email') || 'Email'}</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">{t('moderator.common.phone') || 'Phone'}</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">{t('moderator.common.status') || 'Status'}</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">{t('moderator.traders.assignedTo') || 'Assigned To'}</th>
+                    <th scope="col" className="px-6 py-4 text-right font-semibold">{t('moderator.common.action') || 'Action'}</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {traders.map((trader) => (
-                    <tr key={trader.id} className="bg-white border-b hover:bg-gray-50">
-                      <th scope="row" className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                        {trader.name}
-                        <div className="text-xs text-gray-400 font-normal">{trader.companyName}</div>
+                    <tr key={trader.id} className="bg-white hover:bg-indigo-50/30 transition-colors duration-150">
+                      <th scope="row" className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{trader.name}</div>
+                        <div className="text-xs text-indigo-500 font-medium flex items-center gap-1 mt-0.5">
+                           <Building2 className="w-3 h-3" />
+                           {trader.companyName}
+                        </div>
                       </th>
-                      <td className="px-6 py-4">{trader.email}</td>
-                      <td className="px-6 py-4">{trader.phone}</td>
+                      <td className="px-6 py-4 text-gray-600">{trader.email}</td>
+                      <td className="px-6 py-4 text-gray-600">{trader.phone}</td>
                       <td className="px-6 py-4">
-                        <span className="bg-amber-100 text-amber-800 text-xs font-medium px-2.5 py-0.5 rounded border border-amber-400">
-                          Pending
+                        <span className="bg-amber-100 text-amber-700 text-xs font-medium px-2.5 py-1 rounded-full border border-amber-200 inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {t('moderator.status.pending') || 'Pending'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         {trader.employee ? (
-                          <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2 py-1 rounded">
-                            {trader.employee.name}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700">
+                              {trader.employee.name.charAt(0)}
+                            </div>
+                            <span className="text-sm font-medium text-gray-700">
+                              {trader.employee.name}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs text-gray-400 italic">Unassigned</span>
+                          <span className="text-xs text-gray-400 italic flex items-center gap-1">
+                             <User className="w-3 h-3" />
+                             {t('moderator.common.unassigned') || 'Unassigned'}
+                          </span>
                         )}
                       </td>
-                      <td className="px-6 py-4">
-                         <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleAssignClick(trader)} className="h-8 text-xs">
-                              {trader.employee ? 'Reassign' : 'Assign'}
+                      <td className="px-6 py-4 text-right">
+                         <div className="flex gap-2 justify-end">
+                            <Button 
+                               size="sm" 
+                               variant="outline" 
+                               onClick={() => handleAssignClick(trader)} 
+                               className="h-8 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+                            >
+                              {trader.employee ? (t('common.reassign') || 'Reassign') : (t('common.assign') || 'Assign')}
                             </Button>
-                            <Button size="sm" onClick={() => handleApprove(trader.id)} className="h-8 text-xs bg-green-600 hover:bg-green-700">
-                              Approve
+                            <Button 
+                               size="sm" 
+                               onClick={() => handleApprove(trader.id)} 
+                               className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {t('common.approve') || 'Approve'}
                             </Button>
                          </div>
                       </td>

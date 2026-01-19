@@ -1,4 +1,5 @@
 import React from "react";
+import LanguageToggle from "@/components/LanguageToggle";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { useMultiAuth } from "@/contexts/MultiAuthContext";
@@ -84,6 +85,11 @@ export default function ModeratorLayout({ children }) {
             </div>
             
             <div className="flex items-center gap-4">
+               {/* Language Toggle */}
+               <div className="flex items-center">
+                  <LanguageToggle />
+               </div>
+               
                <div className="relative">
                   <Bell className="w-5 h-5 text-gray-400 hover:text-gray-600 cursor-pointer" />
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>

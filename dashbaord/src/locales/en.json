@@ -45,7 +45,20 @@
     "name": "Name",
     "email": "Email",
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "id": "ID",
+    "action": "Action",
+    "create": "Create",
+    "update": "Update",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "totalShops": "Total Shops",
+    "approve": "Approve",
+    "assign": "Assign",
+    "reassign": "Reassign",
+    "saveChanges": "Save Changes"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -307,24 +320,18 @@
     "invalidCredentials": "Invalid email or password",
     "loginFailed": "Login failed. Please try again"
   },
-  "common_labels": {
-    "id": "ID",
-    "name": "Name",
-    "email": "Email",
-    "phone": "Phone",
-    "status": "Status",
-    "action": "Action",
-    "edit": "Edit",
-    "delete": "Delete",
-    "create": "Create",
-    "update": "Update",
-    "save": "Save",
-    "cancel": "Cancel",
-    "search": "Search",
-    "filter": "Filter",
-    "export": "Export",
-    "import": "Import",
-    "totalShops": "Total Shops"
+
+  "settings": {
+    "language": "Language",
+    "languageDesc": "Select your preferred language for the dashboard.",
+    "profile": "Profile Information",
+    "profileDesc": "Update your personal details.",
+    "security": "Security",
+    "securityDesc": "Update your password.",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "updatePassword": "Update Password"
   },
   "errors": {
     "notFound": "Not Found",
@@ -399,9 +406,7 @@
       "allStatus": "All Status",
       "active": "Active",
       "inactive": "Inactive",
-      "name": "Name",
-      "companyName": "Company Name",
-      "traderCode": "Trader Code"
+      "name": "Name"
     },
     "offers": {
       "title": "Advertising management",
@@ -455,7 +460,7 @@
       "amount": "Amount",
       "cbm": "CBM",
       "cartons": "Cartons",
-      "status": "Status",
+      "statusLabel": "Status",
       "created": "Created",
       "actions": "Actions",
       "viewDetails": "View Details",
@@ -504,7 +509,7 @@
       "unit": "Unit",
       "unitPrice": "Unit Price",
       "currency": "Currency",
-      "amount": "Amount",
+
       "packing": "Packing",
       "cartonSize": "Carton Size",
       "colour": "Colour",
@@ -524,8 +529,7 @@
       "notes": "Notes",
       "offer": "Offer",
       "accessDenied": "Access Denied",
-      "notYourDeal": "This deal does not belong to you",
-      "created": "Created"
+      "notYourDeal": "This deal does not belong to you"
     },
     "employee": {
       "dashboard": "Employee Dashboard",
@@ -562,7 +566,7 @@
       "noTraders": "No traders found",
       "searchTraders": "Search traders by name, company, or code...",
       "requests": "Requests",
-      "myTraders": "My Traders",
+
       "viewTrader": "View Trader",
       "viewQR": "View QR Code",
       "loadTradersFailed": "Failed to load traders",
@@ -581,7 +585,7 @@
       "searchDeals": "Search deals by number, trader, or client...",
       "clearFilter": "Clear Filter",
       "noDeals": "No deals found",
-      "offersValidation": "Commercial Ads",
+
       "offersValidationDesc": "Review and validate offers from your traders",
       "searchOffers": "Search offers by title or trader...",
       "loadOffersFailed": "Failed to load offers",
@@ -611,7 +615,7 @@
       "category": "Category",
       "acceptsNegotiation": "Accepts Negotiation",
       "description": "Description",
-      "payments": "Payments",
+
       "paymentsDesc": "Verify and manage payments from your deals",
       "searchPayments": "Search payments by deal number, client, or trader...",
       "loadPaymentsFailed": "Failed to load payments",
@@ -1236,6 +1240,74 @@
       "lastUpdated": "Last Updated",
       "processedAt": "Processed At",
       "summary": "Payment Summary"
+    }
+  },
+  "moderator": {
+    "dashboard": {
+      "pendingApprovals": "Pending Approvals",
+      "activeTraders": "Active Traders",
+      "reportsToday": "Reports Today",
+      "recentRegistrations": "Recent Trader Registrations",
+      "reviewTraders": "Review and approve new trader accounts.",
+      "noPendingRegistrations": "No pending trader registrations."
+    },
+    "traders": {
+      "title": "Traders Management",
+      "subtitle": "Manage and assign traders to employees",
+      "traderName": "Trader Name",
+      "assignedTo": "Assigned To",
+      "loadFailed": "Failed to load traders",
+      "verifiedSuccess": "Trader verified successfully",
+      "verifyFailed": "Failed to verify trader",
+      "assignSuccess": "Employee assigned successfully",
+      "assignFailed": "Failed to assign employee",
+      "noTradersFound": "No traders found",
+      "tryAdjustingFilters": "Try adjusting your search or filters"
+    },
+    "reports": {
+      "title": "Platform Reports",
+      "subtitle": "Analytics and performance metrics",
+      "dealStatus": "Deal Status Distribution",
+      "traderGrowth": "New Trader Registrations (7 Days)",
+      "topEmployees": "Top Employees by Trader Assignment",
+      "topEmployeesDesc": "Employees managing the highest number of traders.",
+      "loadFailed": "Failed to load reports"
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Manage your account preferences",
+      "updateSuccess": "Profile updated successfully",
+      "updateFailed": "Failed to update profile",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "updatePassword": "Update Password"
+    },
+    "assignment": {
+      "title": "Assign Employee",
+      "description": "Assign a dedicated employee to manage this trader.",
+      "selectEmployee": "Select Employee",
+      "placeholder": "Select an employee",
+      "confirm": "Assign Employee"
+    },
+    "common": {
+      "email": "Email",
+      "phone": "Phone",
+      "status": "Status",
+      "action": "Action",
+      "contact": "Contact",
+      "unassigned": "Unassigned",
+      "traders": "Traders",
+      "searchPlaceholder": "Search by name, email, or code..."
+    },
+    "status": {
+      "pending": "Pending",
+      "verified": "Verified"
+    },
+    "filter": {
+      "all": "All Status",
+      "verified": "Verified",
+      "pending": "Pending"
     }
   }
 }

@@ -6,6 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import RoleSwitcher from "./RoleSwitcher";
 import ProfileStatusBadge from "./ProfileStatusBadge";
 import NotificationsDropdown from "./NotificationsDropdown";
+import LanguageToggle from "./LanguageToggle";
 import {
   LayoutDashboard,
   Users,
@@ -121,7 +122,7 @@ const StockshipAdminLayout = ({ children }) => {
                 }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                <Icon size={18} className={`flex-shrink-0 ${isRTL ? 'order-2' : ''}`} />
+                <Icon size={18} className={`shrink-0 ${isRTL ? 'order-2' : ''}`} />
                 {sidebarOpen && <span className={`text-sm truncate ${isRTL ? 'text-right order-1' : 'text-left'}`}>{item.label}</span>}
               </Link>
             );
@@ -131,7 +132,7 @@ const StockshipAdminLayout = ({ children }) => {
         {/* User Section */}
         <div className="p-3 border-t border-gray-200/50" dir={isRTL ? 'rtl' : 'ltr'}>
           <div className={`flex items-center ${isRTL ? 'flex-row-reverse justify-end' : 'flex-row'} gap-3 mb-2 px-2`}>
-            <div className={`w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-sm font-medium flex-shrink-0 ${isRTL ? 'order-2' : ''}`}>
+            <div className={`w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-sm font-medium shrink-0 ${isRTL ? 'order-2' : ''}`}>
               {adminUser?.name?.charAt(0) || "A"}
             </div>
             {sidebarOpen && (
@@ -149,7 +150,7 @@ const StockshipAdminLayout = ({ children }) => {
             onClick={handleLogout}
             className={`w-full flex items-center ${isRTL ? 'flex-row-reverse justify-end' : 'flex-row'} gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100/60 text-gray-600 hover:text-gray-900 transition-colors text-sm`}
           >
-            <LogOut size={18} className={`flex-shrink-0 ${isRTL ? 'order-2' : ''}`} />
+            <LogOut size={18} className={`shrink-0 ${isRTL ? 'order-2' : ''}`} />
             {sidebarOpen && <span className={isRTL ? 'order-1 text-right' : 'text-left'}>{t('common.logout')}</span>}
           </button>
         </div>
@@ -182,14 +183,7 @@ const StockshipAdminLayout = ({ children }) => {
             <RoleSwitcher />
             <ProfileStatusBadge />
             <NotificationsDropdown />
-            <button
-              onClick={toggleLanguage}
-              className={`p-2 rounded-lg hover:bg-gray-100/60 text-gray-600 transition-colors flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}
-              title={t('common.language')}
-            >
-              <Globe size={18} />
-              <span className="text-xs">{language === 'ar' ? 'EN' : 'AR'}</span>
-            </button>
+            <LanguageToggle />
           </div>
         </header>
 
