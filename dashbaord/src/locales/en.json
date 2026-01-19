@@ -561,6 +561,8 @@
       "tradersList": "Traders",
       "noTraders": "No traders found",
       "searchTraders": "Search traders by name, company, or code...",
+      "requests": "Requests",
+      "myTraders": "My Traders",
       "viewTrader": "View Trader",
       "viewQR": "View QR Code",
       "loadTradersFailed": "Failed to load traders",
