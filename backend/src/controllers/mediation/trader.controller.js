@@ -18,7 +18,7 @@ const createTrader = asyncHandler(async (req, res) => {
 
   // Verify employee exists and user is that employee
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(employeeId) }
+    where: { id: employeeId }
   });
 
   if (!employee) {
@@ -47,7 +47,7 @@ const createTrader = asyncHandler(async (req, res) => {
 
   // Generate trader code
   const traderCount = await prisma.trader.count({
-    where: { employeeId: parseInt(employeeId) }
+    where: { employeeId: employeeId }
   });
   const traderCode = `TRD-${String(traderCount + 1).padStart(4, '0')}`;
 
@@ -79,7 +79,7 @@ const createTrader = asyncHandler(async (req, res) => {
       traderCode,
       barcode,
       qrCodeUrl,
-      employeeId: parseInt(employeeId),
+      employeeId: employeeId,
       clientId: existingClient ? existingClient.id : null, // Link to client if exists
       isActive: true,
       isVerified: false
@@ -216,7 +216,7 @@ const getTraderById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   try {
-    const traderId = parseInt(id);
+    const traderId = id;
     
     // First, get basic trader info with counts
     const trader = await prisma.trader.findUnique({
@@ -396,13 +396,13 @@ const getTraderById = asyncHandler(async (req, res) => {
     // Total offers by status
     prisma.offer.groupBy({
       by: ['status'],
-      where: { traderId: parseInt(id) },
+      where: { traderId: id },
       _count: { status: true }
     }).catch(() => []), // Return empty array on error
     // Total deals by status
     prisma.deal.groupBy({
       by: ['status'],
-      where: { traderId: parseInt(id) },
+      where: { traderId: id },
       _count: { status: true },
       _sum: {
         totalCartons: true,
@@ -414,7 +414,7 @@ const getTraderById = asyncHandler(async (req, res) => {
     (async () => {
       try {
         const dealIds = await prisma.deal.findMany({
-          where: { traderId: parseInt(id) },
+          where: { traderId: id },
           select: { id: true }
         }).then(deals => deals.map(d => d.id));
 
@@ -443,7 +443,7 @@ const getTraderById = asyncHandler(async (req, res) => {
     (async () => {
       try {
         const dealIds = await prisma.deal.findMany({
-          where: { traderId: parseInt(id) },
+          where: { traderId: id },
           select: { id: true }
         }).then(deals => deals.map(d => d.id));
 
@@ -452,12 +452,12 @@ const getTraderById = asyncHandler(async (req, res) => {
         if (dealIds && dealIds.length > 0) {
           whereClause = {
             OR: [
-              { traderId: parseInt(id) },
+              { traderId: id },
               { dealId: { in: dealIds } }
             ]
           };
         } else {
-          whereClause = { traderId: parseInt(id) };
+          whereClause = { traderId: id };
         }
 
         const result = await prisma.financialTransaction.aggregate({
@@ -765,7 +765,7 @@ const getAllTraders = asyncHandler(async (req, res) => {
     if (status === 'verified') where.isVerified = true;
     if (status === 'unverified') where.isVerified = false;
   }
-  if (employeeId) where.employeeId = parseInt(employeeId);
+  if (employeeId) where.employeeId = employeeId;
 
   const [traders, total] = await Promise.all([
     prisma.trader.findMany({
