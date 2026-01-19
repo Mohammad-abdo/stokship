@@ -84,6 +84,7 @@ router.delete('/admin/traders/:id', protect, authorize('ADMIN'), traderControlle
 router.post('/employees/:employeeId/traders', protect, authorize('EMPLOYEE'), traderController.createTrader);
 
 // Trader routes
+router.post('/traders/register', protect, authorize('CLIENT'), traderController.registerTrader); // New registration route
 router.get('/traders/check-linked', protect, authorize('CLIENT'), traderController.checkLinkedTrader);
 router.get('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'MODERATOR'), traderController.getTraderById); // Added MODERATOR
 router.get('/traders/:id/offers', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'MODERATOR'), traderController.getTraderOffers); // Added MODERATOR

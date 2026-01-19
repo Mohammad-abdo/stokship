@@ -47,7 +47,7 @@ export default function MultiLogin() {
       } else if (roleToUse === "employee") {
         navigate("/stockship/employee/dashboard", { replace: true });
       } else if (roleToUse === "moderator") {
-        navigate("/moderator-dashboard", { replace: true });
+        navigate("/stockship/moderator/dashboard", { replace: true });
       } else if (roleToUse === "trader") {
         navigate("/stockship/trader/dashboard", { replace: true });
       } else if (roleToUse === "client") {

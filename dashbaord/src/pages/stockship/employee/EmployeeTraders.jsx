@@ -130,8 +130,55 @@ export default function EmployeeTraders() {
     }
   ];
 
+  const handleApprove = async (traderId) => {
+    try {
+      await traderApi.updateTrader(traderId, { isVerified: true });
+      showToast.success(t('mediation.traders.verifiedSuccess') || "Trader verified successfully");
+      loadTraders();
+    } catch (error) {
+       console.error(error);
+       showToast.error("Failed to verify trader");
+    }
+  };
+
+  const handleDecline = async (traderId) => {
+     if(!window.confirm("Are you sure you want to decline this trader? They will be deactivated.")) return;
+     try {
+       await traderApi.updateTrader(traderId, { isActive: false });
+       showToast.success(t('mediation.traders.declinedSuccess') || "Trader declined successfully");
+       loadTraders();
+     } catch (error) {
+        console.error(error);
+        showToast.error("Failed to decline trader");
+     }
+  };
+
   const rowActions = (row) => (
     <div className="flex items-center gap-1 justify-end">
+      {!row.isVerified && (
+         <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleApprove(row.id);
+              }}
+              className="p-1 px-2 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs transition-colors mr-1"
+              title="Approve"
+            >
+              Approve
+            </button>
+            <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 handleDecline(row.id);
+               }}
+               className="p-1 px-2 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs transition-colors mr-2"
+               title="Decline"
+            >
+               Decline
+            </button>
+         </>
+      )}
       <button
         onClick={(e) => {
           e.stopPropagation();

@@ -1,43 +1,22 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, Briefcase, User, Shield, Lock, UserCog } from "lucide-react";
+import { Lock } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ROUTES } from "../routes";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function LoginCard() {
   const { t, i18n } = useTranslation();
-  const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
+
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState('Admin'); // Default role
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const successMessage = location.state?.message;
-
-  const roles = [
-    { id: 'Trader', icon: Briefcase, label: 'Trader' },
-    { id: 'Employee', icon: User, label: 'Employee' },
-    { id: 'Moderator', icon: UserCog, label: 'Moderator' },
-    { id: 'Admin', icon: Shield, label: 'Admin' },
-  ];
-
-  const quickLogins = {
-    Admin: { email: 'admin@stokship.com', pass: 'admin123', label: 'Admin' },
-    Employee: { email: 'employee@stokship.com', pass: 'employee123', label: 'Employee' },
-    Moderator: { email: 'moderator1@stokship.com', pass: 'moderator123', label: 'Moderator' },
-    Trader: { email: 'trader@stokship.com', pass: 'trader123', label: 'Trader' }
-  };
-
-  const handleQuickLogin = (role) => {
-    setEmail(quickLogins[role].email);
-    setPassword(quickLogins[role].pass);
-    setSelectedRole(role);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,22 +24,29 @@ export default function LoginCard() {
     setLoading(true);
 
     try {
-      const result = await login(email, password, false); // rememberMe false by default for now
+      // Attempt login
+      const result = await login(email, password, false);
       
       if (result.success) {
-        // Handle multiple profiles if exists
+        // Enforce Client Only
+        const userType = result.user?.userType || result.user?.role;
+        
+        if (userType !== 'CLIENT' && userType !== 'USER') {
+           // If user is not CLIENT, deny access and logout
+           await logout();
+           setError("Access denied. This login is for Clients only.");
+           setLoading(false);
+           return;
+        }
+
+        // Handle linked profiles if needed (e.g. check for Trader/Seller profile)
         if (result.linkedProfiles && result.linkedProfiles.length > 1) {
           console.log('Multiple profiles found:', result.linkedProfiles);
         }
         
-        // Navigate based on user type
-        if (result.user.userType === 'TRADER') {
-          navigate(ROUTES.SELLER);
-        } else if (result.user.userType === 'MODERATOR') {
-          navigate(ROUTES.MODERATOR_DASHBOARD);
-        } else {
-          navigate(ROUTES.HOME);
-        }
+        // Navigate to Home
+        navigate(ROUTES.HOME);
+        
       } else {
         setError(result.message || t("auth.loginFailed"));
       }
@@ -78,34 +64,8 @@ export default function LoginCard() {
         
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">نظام الإدارة</h1>
-          <p className="text-gray-500">Select your role to continue</p>
-        </div>
-
-        {/* Role Selection */}
-        <div className="mb-6">
-          <label className="block text-right text-gray-700 mb-2 text-sm font-medium">Select Role</label>
-          <div className="grid grid-cols-4 gap-2">
-            {roles.map((role) => {
-              const Icon = role.icon;
-              const isSelected = selectedRole === role.id;
-              return (
-                <button
-                  key={role.id}
-                  type="button"
-                  onClick={() => setSelectedRole(role.id)}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-200 ${
-                    isSelected 
-                      ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                      : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:bg-blue-50'
-                  }`}
-                >
-                  <Icon className={`w-6 h-6 mb-2 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
-                  <span className="text-sm font-medium">{role.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">تسجيل الدخول</h1>
+          <p className="text-gray-500">Enter your credentials to access your account</p>
         </div>
 
         {successMessage && (
@@ -165,39 +125,17 @@ export default function LoginCard() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transform transition hover:-translate-y-0.5"
           >
-            {loading ? "Jari..." : `تسجيل الدخول as ${selectedRole}`}
+            {loading ? "Jari..." : "تسجيل الدخول"}
           </button>
         </form>
 
-        {/* Quick Login */}
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <h3 className="text-sm font-bold text-gray-900 mb-3">:Quick Login</h3>
-          <div className="space-y-2 text-xs text-gray-600">
-            <div 
-              onClick={() => handleQuickLogin('Admin')}
-              className="cursor-pointer hover:text-blue-600 transition-colors"
-            >
-              Admin: {quickLogins.Admin.email} / {quickLogins.Admin.pass}
-            </div>
-             <div 
-              onClick={() => handleQuickLogin('Employee')}
-              className="cursor-pointer hover:text-blue-600 transition-colors"
-            >
-              Employee: {quickLogins.Employee.email} / {quickLogins.Employee.pass}
-            </div>
-             <div 
-              onClick={() => handleQuickLogin('Moderator')}
-              className="cursor-pointer hover:text-blue-600 transition-colors"
-            >
-              Moderator: {quickLogins.Moderator.email} / {quickLogins.Moderator.pass}
-            </div>
-             <div 
-              onClick={() => handleQuickLogin('Trader')}
-              className="cursor-pointer hover:text-blue-600 transition-colors"
-            >
-              Trader: {quickLogins.Trader.email} / {quickLogins.Trader.pass}
-            </div>
-          </div>
+        <div className="mt-6 text-center text-sm text-gray-500">
+          <p>
+            Don't have an account?{' '}
+            <Link to={ROUTES.SIGNUP} className="font-semibold text-blue-600 hover:text-blue-500">
+              Sign up
+            </Link>
+          </p>
         </div>
 
       </div>

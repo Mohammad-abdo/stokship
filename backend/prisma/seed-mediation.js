@@ -286,7 +286,7 @@ async function main() {
       const qrCodeDataUrl1 = await QRCode.toDataURL(qrCodeData);
       qrCodeUrl1 = qrCodeDataUrl1;
     } catch (error) {
-      console.warn(`Failed to generate QR code for ${}:`, error.message);
+      console.warn(`Failed to generate QR code for ${traderCode1}:`, error.message);
     }
   }
 
@@ -461,10 +461,10 @@ async function main() {
             traderCode: finalTraderCode, // Use final trader code (existing or new)
             barcode: currentBarcode,
             qrCodeUrl: currentQrCodeUrl,
-            employeeId: employee.id,
-            isActive: true,
             isVerified: index === 0, // First trader is verified
-            verifiedAt: index === 0 ? new Date() : null
+            verifiedAt: index === 0 ? new Date() : null,
+            // Only assign an employee to the verified trader
+            employeeId: index === 0 ? employee.id : null,
           }
         });
         break; // Success - exit retry loop

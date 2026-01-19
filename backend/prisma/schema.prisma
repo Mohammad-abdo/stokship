@@ -187,29 +187,38 @@ model Employee {
 }
 
 model Trader {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  password      String
-  name          String
-  companyName   String
-  phone         String?
-  countryCode   String?
-  country       String?
-  city          String?
-  traderCode    String    @unique // Auto-generated (e.g., TRD-001)
-  barcode       String    @unique // Barcode/QR code
-  qrCodeUrl     String? // QR code image URL
-  employeeId    String // Permanently linked to this employee
-  isActive      Boolean   @default(true)
-  isVerified    Boolean   @default(false)
-  verifiedAt    DateTime?
-  lastLoginAt   DateTime?
-  rememberToken String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String
+  name              String
+  companyName       String
+  phone             String?
+  countryCode       String?
+  country           String?
+  city              String?
+  companyAddress    String?   @db.Text
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankName          String?
+  bankAddress       String?   @db.Text
+  bankCode          String?
+  swiftCode         String?
+  traderCode        String    @unique // Auto-generated (e.g., TRD-001)
+  barcode           String    @unique // Barcode/QR code
+  qrCodeUrl         String? // QR code image URL
+  employeeId        String? // Permanently linked to this employee
+  isActive          Boolean   @default(true)
+  isVerified        Boolean   @default(false)
+  verifiedAt        DateTime?
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  clientId          String?   @unique // Link to client profile
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
-  employee         Employee          @relation(fields: [employeeId], references: [id])
+  employee         Employee?         @relation(fields: [employeeId], references: [id])
+  client           Client?           @relation(fields: [clientId], references: [id])
   offers           Offer[]
   deals            Deal[]
   dealNegotiations DealNegotiation[] @relation("DealNegotiationTrader")
@@ -217,6 +226,7 @@ model Trader {
   auditTrails      AuditTrail[]      @relation("AuditTrailTrader")
 
   @@index([employeeId])
+  @@index([clientId])
   @@index([traderCode])
   @@index([barcode])
 }
@@ -246,6 +256,7 @@ model Client {
   payments         Payment[]
   activityLogs     ActivityLog[]     @relation("ActivityLogClient")
   auditTrails      AuditTrail[]      @relation("AuditTrailClient")
+  trader           Trader?
 }
 
 // ============================================

@@ -8,16 +8,17 @@ export const MultiProtectedRoute = ({
   requireAdmin = false, 
   requireEmployee = false, 
   requireTrader = false,
+  requireModerator = false,
   requireClient = false 
 }) => {
-  const { loading, isAdmin, isEmployee, isTrader, isClient, activeRole } = useMultiAuth();
+  const { loading, isAdmin, isEmployee, isTrader, isClient, isModerator, activeRole } = useMultiAuth();
   const location = useLocation();
 
   // Memoize auth checks to prevent infinite re-renders
   // ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
   const hasAnyAuth = useMemo(() => {
-    return isAdmin() || isEmployee() || isTrader() || isClient();
-  }, [isAdmin, isEmployee, isTrader, isClient]);
+    return isAdmin() || isEmployee() || isTrader() || isClient() || isModerator();
+  }, [isAdmin, isEmployee, isTrader, isClient, isModerator]);
 
   // STRICT ROLE CHECKING: User must have the role AND it must be the active role
   // This prevents traders/employees from accessing admin routes even if they have admin token stored
@@ -45,17 +46,24 @@ export const MultiProtectedRoute = ({
     return activeRole === 'client';
   }, [isClient, activeRole]);
 
+  const isModeratorUser = useMemo(() => {
+    if (!isModerator()) return false;
+    return activeRole === 'moderator';
+  }, [isModerator, activeRole]);
+
   // Helper to get correct dashboard route based on activeRole - memoized
   // MUST be before early returns to maintain hook order
   const getCorrectDashboard = useMemo(() => {
     // STRICT: Only redirect to dashboard if activeRole matches
     if (activeRole === 'admin' && isAdmin()) return "/stockship/admin/dashboard";
+    if (activeRole === 'moderator' && isModerator()) return "/moderator-dashboard";
     if (activeRole === 'employee' && isEmployee()) return "/stockship/employee/dashboard";
     if (activeRole === 'trader' && isTrader()) return "/stockship/trader/dashboard";
     if (activeRole === 'client' && isClient()) return "/";
     
     // Fallback: check all roles and redirect to first available
     if (isAdmin()) return "/stockship/admin/dashboard";
+    if (isModerator()) return "/moderator-dashboard";
     if (isEmployee()) return "/stockship/employee/dashboard";
     if (isTrader()) return "/stockship/trader/dashboard";
     if (isClient()) return "/";
@@ -164,6 +172,30 @@ export const MultiProtectedRoute = ({
             <h1 className="text-2xl font-bold text-destructive mb-2">Access Denied</h1>
             <p className="text-muted-foreground mb-4">
               Only clients can access this page. You are currently logged in as {activeRole || 'unknown role'}.
+            </p>
+            <button
+              onClick={() => window.location.href = getCorrectDashboard}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Go to Your Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  if (requireModerator) {
+    if (!isModeratorUser) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-background">
+          <div className="text-center max-w-md p-8">
+            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Shield className="w-8 h-8 text-destructive" />
+            </div>
+            <h1 className="text-2xl font-bold text-destructive mb-2">Access Denied</h1>
+            <p className="text-muted-foreground mb-4">
+              Only moderators can access this page. You are currently logged in as {activeRole || 'unknown role'}.
             </p>
             <button
               onClick={() => window.location.href = getCorrectDashboard}

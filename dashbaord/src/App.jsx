@@ -10,10 +10,17 @@ import { MultiProtectedRoute } from "./components/MultiProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Login from "./pages/Login";
 import MultiLogin from "./pages/MultiLogin";
+
 import StockshipAdminLayout from "./components/StockshipAdminLayout";
 import StockshipVendorLayout from "./components/StockshipVendorLayout";
 import StockshipEmployeeLayout from "./components/StockshipEmployeeLayout";
 import StockshipTraderLayout from "./components/StockshipTraderLayout";
+import { Toaster } from "sonner";
+import ModeratorDashboard from "./pages/moderator/ModeratorDashboard";
+import ModeratorTraders from "./pages/moderator/ModeratorTraders";
+import ModeratorReports from "./pages/moderator/ModeratorReports";
+import ModeratorSettings from "./pages/moderator/ModeratorSettings";
+import ModeratorLayout from "./components/ModeratorLayout";
 
 // Removed e-commerce frontend pages - not related to mediation platform
 
@@ -105,6 +112,8 @@ import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
 import TraderPayments from "./pages/stockship/trader/TraderPayments";
 import TraderSettings from "./pages/stockship/trader/TraderSettings";
 
+
+
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
   const { loading: multiAuthLoading, isAdmin, isEmployee, isTrader, isClient, activeRole } = useMultiAuth();
@@ -127,7 +136,7 @@ function AppRoutes() {
     if (isClient()) return "/";
     
     // Fallback to old AuthContext for legacy roles
-    if (!user) return "/multi-login";
+    if (!user) return "/login";
     
     // Stockship roles (userType: ADMIN, VENDOR, USER)
     const userType = user.userType || user.role;
@@ -142,7 +151,7 @@ function AppRoutes() {
     if (hasAdminRole) return "/stockship/admin/dashboard";
     if (hasVendorRole) return "/stockship/vendor/dashboard";
     
-    return "/multi-login";
+    return "/login";
   }, [activeRole, isAdmin, isEmployee, isTrader, isClient, user]);
 
   return (
@@ -154,6 +163,48 @@ function AppRoutes() {
       <Route
         path="/multi-login"
         element={<MultiLogin />}
+      />
+
+      {/* Moderator Routes */}
+      <Route
+        path="/stockship/moderator/dashboard"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorDashboard />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/moderator/traders"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorTraders />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/moderator/reports"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorReports />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/moderator/settings"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorSettings />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
       />
       
       {/* Stockship Admin Routes */}
@@ -1028,6 +1079,7 @@ function App() {
           </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>
+      <Toaster />
     </ErrorBoundary>
   );
 }

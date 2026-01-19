@@ -29,7 +29,10 @@ api.interceptors.request.use(
     
     // If no active role token, determine from endpoint path
     if (!token) {
-      if (path.includes('/admin/') || path.includes('/stockship/admin')) {
+      if (path.includes('/stockship/moderator') || (path.includes('/admin/') && activeRole === 'moderator')) {
+         roleToUse = 'moderator';
+         token = localStorage.getItem('moderator_token');
+      } else if (path.includes('/admin/') || path.includes('/stockship/admin')) {
         roleToUse = 'admin';
         token = localStorage.getItem('admin_token');
       } else if (path.includes('/employees/') || path.includes('/employee') || path.includes('/stockship/employee')) {
@@ -46,7 +49,7 @@ api.interceptors.request.use(
     
     // Fallback: try all roles in priority order
     if (!token) {
-      const tokenOrder = ['admin', 'employee', 'trader', 'client'];
+      const tokenOrder = ['admin', 'moderator', 'employee', 'trader', 'client'];
       for (const role of tokenOrder) {
         const roleToken = localStorage.getItem(`${role}_token`);
         if (roleToken) {
@@ -63,7 +66,10 @@ api.interceptors.request.use(
     }
     
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      // Only set Authorization header if not already set
+      if (!config.headers.Authorization) {
+          config.headers.Authorization = `Bearer ${token}`;
+      }
       // Add role context to request (useful for debugging)
       if (roleToUse) {
         config.headers['X-User-Role'] = roleToUse;

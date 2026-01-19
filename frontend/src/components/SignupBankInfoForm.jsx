@@ -95,7 +95,7 @@ export default function SignupBankInfoForm() {
         // region: form.region // Backend doesn't support region yet, ignored
       };
 
-      const response = await api.put('/auth/me', payload);
+      const response = await api.post('/traders/register', payload);
 
       if (response.data.success) {
         // Navigate to Login page with pending approval message
@@ -105,7 +105,7 @@ export default function SignupBankInfoForm() {
           } 
         });
       } else {
-        setError(response.data.message || 'Update failed');
+        setError(response.data.message || 'Registration failed');
       }
     } catch (err) {
       console.error('Update error:', err);
