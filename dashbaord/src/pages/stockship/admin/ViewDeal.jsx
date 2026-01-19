@@ -22,7 +22,8 @@ const ViewDeal = () => {
     try {
       setLoading(true);
       const response = await adminApi.getDeal(id);
-      setDeal(response.data.data || response.data);
+      const data = response.data.data || response.data;
+      setDeal(data.deal || data);
     } catch (error) {
       console.error('Error fetching deal:', error);
       showToast.error('Failed to load deal', error.response?.data?.message || 'Deal not found');

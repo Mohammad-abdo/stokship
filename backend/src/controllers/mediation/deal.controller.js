@@ -2,7 +2,6 @@ const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
 const { notifyDealCreated, notifyDealStatusChanged } = require('../../utils/notificationHelper');
-const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
 
 /**
@@ -15,7 +14,7 @@ const requestNegotiation = asyncHandler(async (req, res) => {
   const { notes } = req.body;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(offerId) },
+    where: { id: offerId },
     include: {
       trader: true
     }
@@ -129,7 +128,7 @@ const approveDeal = asyncHandler(async (req, res) => {
 
   const deal = await prisma.deal.findFirst({
     where: {
-      id: parseInt(id),
+      id: id,
       traderId: req.user.id,
       status: 'NEGOTIATION'
     },
@@ -240,7 +239,7 @@ const getDealById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const deal = await prisma.deal.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: id },
     include: {
       trader: {
         select: {
@@ -416,7 +415,7 @@ const addDealItems = asyncHandler(async (req, res) => {
 
   const deal = await prisma.deal.findFirst({
     where: {
-      id: parseInt(id),
+      id: id,
       OR: [
         { clientId: req.user.id },
         { traderId: req.user.id }
@@ -434,7 +433,7 @@ const addDealItems = asyncHandler(async (req, res) => {
   for (const item of items) {
     const offerItem = await prisma.offerItem.findFirst({
       where: {
-        id: parseInt(item.offerItemId),
+        id: item.offerItemId,
         offerId: deal.offerId
       }
     });
@@ -517,7 +516,7 @@ const settleDeal = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const deal = await prisma.deal.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: id },
     include: {
       offer: true,
       trader: true,
@@ -542,7 +541,7 @@ const settleDeal = asyncHandler(async (req, res) => {
 
   // Update deal status
   const settledDeal = await prisma.deal.update({
-    where: { id: parseInt(id) },
+    where: { id: id },
     data: {
       status: 'SETTLED',
       settledAt: new Date()
