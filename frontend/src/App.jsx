@@ -25,7 +25,11 @@ import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ModeratorDashboard from "./pages/ModeratorDashboard";
-import TraderDashboard from "./pages/TraderDashboard";
+import TraderDashboard from "./pages/trader/TraderDashboard";
+import TraderOffers from "./pages/trader/TraderOffers";
+import TraderDeals from "./pages/trader/TraderDeals";
+import TraderViewOffer from "./pages/trader/TraderViewOffer";
+import TraderViewDeal from "./pages/trader/TraderViewDeal";
 
 function AppContent() {
   const location = useLocation();
@@ -58,7 +62,11 @@ function AppContent() {
       <Route path={ROUTES.SELLER} element={<Seller />} />
       <Route path={`${ROUTES.SELLER_PRODUCTS}/:sellerId`} element={<SellerProductsPage />} />
       <Route path={ROUTES.PUBLISH_AD} element={<ProtectedRoute allowedRoles={['TRADER']}><PublishAdPage /></ProtectedRoute>} />
-      <Route path={ROUTES.TRADER_DASHBOARD} element={<TraderDashboard />} />
+      <Route path={ROUTES.TRADER_DASHBOARD} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderDashboard /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_OFFERS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderOffers /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_OFFER_DETAILS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderViewOffer /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_DEALS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderDeals /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_DEAL_DETAILS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderViewDeal /></ProtectedRoute>} />
       <Route path={ROUTES.MODERATOR_DASHBOARD} element={<ProtectedRoute allowedRoles={['MODERATOR']}><ModeratorDashboard /></ProtectedRoute>} />
       <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
       <Route path={ROUTES.REQUEST_SENT} element={<RequestSent />} />

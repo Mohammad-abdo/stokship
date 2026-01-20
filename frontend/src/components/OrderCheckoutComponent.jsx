@@ -1,77 +1,100 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
+import { offerService } from "../services/offerService";
 
 export default function OrderCheckoutComponent() {
   const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
   const location = useLocation();
+  const navigate = useNavigate();
   
-  // Get offer from navigation state
-  const offer = location.state?.offer;
+  // Get initial offer from navigation state
+  const [currentOffer, setCurrentOffer] = useState(location.state?.offer || null);
+  const [loading, setLoading] = useState(false);
   
-  console.log("OrderCheckout: Received Offer:", JSON.stringify(offer, null, 2));
-  console.log("OrderCheckout: Offer Items:", offer ? JSON.stringify(offer.items, null, 2) : "Offer is undefined");
-  
-  // Transform offer items to products format or use dummy if no offer
+  // Effect to fetch offer if items are missing but we have an ID
+  useEffect(() => {
+    const fetchFullOffer = async () => {
+      // If we don't have an offer ID, we can't fetch. Redirect.
+      if (!currentOffer?.id) {
+        // If it's completely empty (direct access), redirect
+        if (!currentOffer) {
+           navigate(ROUTES.PRODUCTS_LIST);
+        }
+        return;
+      }
+
+      // If we have an offer but NO items, fetch the full details
+      if (!currentOffer.items || currentOffer.items.length === 0) {
+        try {
+          console.log("OrderCheckout: Fetching full details for offer:", currentOffer.id);
+          setLoading(true);
+          const res = await offerService.getOfferById(currentOffer.id);
+          if (res.data?.success && res.data?.data) {
+             console.log("OrderCheckout: Fetched full offer:", res.data.data);
+             setCurrentOffer(res.data.data);
+          }
+        } catch (err) {
+          console.error("OrderCheckout: Error fetching offer details:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchFullOffer();
+  }, [currentOffer?.id]); 
+
+  // Transform offer items to products format
   const products = useMemo(() => {
-    if (!offer || !offer.items) return [];
+    if (!currentOffer || !currentOffer.items) return [];
     
-    // Group all items as one 'product' or map them individually? 
-    // Usually an Offer IS a product in this context, or a collection.
-    // Let's treat the Offer as the main entity, and items as parts.
-    // However, the existing UI expects an array of products, each with thumbs.
-    // We will map each Item as a Product if they have images, 
-    // OR we can just map the whole Offer as one Product line.
-    
-    // The current UI shows "Product Title" and then a TABLE of items (rows).
-    // So `products` array seems to be for the "Overview" section (top),
-    // and `rows` is for the table.
-    
-    // Let's create a single 'product' representing the Offer.
     return [{
-        id: offer.id,
-        title: offer.title || t("productDetails.offerDefaultTitle"),
-        sku: offer.id.substring(0, 8),
-        desc: offer.description || t("productDetails.noDescription"),
-        qtyTotal: offer.totalCartons || 0,
-        cbmTotal: offer.totalCBM || 0,
-        totalPrice: 0, // Calculated later
+        id: currentOffer.id,
+        title: currentOffer.title || t("productDetails.offerDefaultTitle"),
+        sku: currentOffer.id.substring(0, 8),
+        desc: currentOffer.description || t("productDetails.noDescription"),
+        qtyTotal: currentOffer.totalCartons || 0,
+        cbmTotal: currentOffer.totalCBM || 0,
+        totalPrice: 0, 
         currency: "USD",
-        mainImg: (offer.images && offer.images.length > 0) ? offer.images[0] : "https://placehold.co/600x400?text=No+Image",
-        thumbs: offer.images || [],
+        mainImg: (currentOffer.images && currentOffer.images.length > 0) ? currentOffer.images[0] : "https://placehold.co/600x400?text=No+Image",
+        thumbs: currentOffer.images || [],
     }];
-  }, [offer, t]);
+  }, [currentOffer, t]);
 
-
-  // ✅ selected image لكل منتج
-  const [selectedImages, setSelectedImages] = useState(() =>
-      Object.fromEntries(products.map((p) => [p.id, p.mainImg]))
-  );
-
-  // Initialize rows from offer items
-  const [rows, setRows] = useState(() => {
-    if (offer && offer.items) {
-        return offer.items.map((item, index) => ({
-            serial: index + 1,
-            itemNo: item.itemNo || item.productName,
-            qty: item.quantity || 0,
-            price: item.unitPrice || 0,
-            cbm: item.cbm || 0,
-            // Keep original item reference if needed
-            originalItem: item
-        }));
-    }
-    return [];
-  });
+  // ✅ selected image 
+  const [selectedImages, setSelectedImages] = useState({});
+  
+  // Update selected images when products change
+  useEffect(() => {
+     if (products.length > 0) {
+         setSelectedImages(Object.fromEntries(products.map((p) => [p.id, p.mainImg])));
+     }
+  }, [products]);
 
   const setSelectedFor = (productId, img) => {
     setSelectedImages((prev) => ({ ...prev, [productId]: img }));
   };
 
+  // Initialize rows from offer items - use useEffect to update when/if offer loads
+  const [rows, setRows] = useState([]);
 
-  
+  useEffect(() => {
+    if (currentOffer && currentOffer.items) {
+        const newRows = currentOffer.items.map((item, index) => ({
+            serial: index + 1,
+            itemNo: item.itemNo || item.productName,
+            qty: item.quantity || 0,
+            price: item.unitPrice || 0,
+            cbm: item.cbm || 0,
+            originalItem: item
+        }));
+        setRows(newRows);
+    }
+  }, [currentOffer]);
 
   const totals = useMemo(() => {
     const sumQty = rows.reduce((a, r) => a + Number(r.qty || 0), 0);
@@ -86,11 +109,19 @@ export default function OrderCheckoutComponent() {
     );
   };
    
-const [coupon, setCoupon] = useState("");
+  const [coupon, setCoupon] = useState("");
 
   const subtotal = totals.sumPrice;
   const shipping = 0; // Or calculate
   const total = subtotal + shipping;
+
+  if (loading) {
+      return (
+          <div className="flex h-screen items-center justify-center bg-white">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+          </div>
+      );
+  }
 
   return (
     <div dir={currentDir} className="min-h-screen bg-white mt-40 w-full">
