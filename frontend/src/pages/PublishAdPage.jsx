@@ -141,6 +141,8 @@ export default function PublishAdPage() {
       }
     } catch (error) {
       console.error("Error creating offer:", error);
+      console.error("Error details:", error.response?.data);
+      console.error("Error status:", error.response?.status);
       alert(error.response?.data?.message || "حدث خطأ في نشر الإعلان");
     } finally {
       setSubmitting(false);

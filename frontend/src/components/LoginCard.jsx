@@ -47,13 +47,20 @@ export default function LoginCard() {
           console.log('Multiple profiles found:', result.linkedProfiles);
         }
         
-        // Navigate based on role
-        if (userType === 'TRADER') {
-          // Navigate to internal Trader Dashboard
-          navigate(ROUTES.TRADER_DASHBOARD);
+        // Check for return URL
+        const from = location.state?.from?.pathname || location.state?.from;
+        if (from) {
+             const fromState = location.state?.from?.state; // Capture the state of the return route if any
+             navigate(from, { state: fromState }); // Pass state if needed (though ProductDetails doesn't strictly need it to render, might help context)
         } else {
-          // Clients go to Home
-          navigate(ROUTES.HOME);
+            // Navigate based on role
+            if (userType === 'TRADER') {
+              // Navigate to internal Trader Dashboard
+              navigate(ROUTES.TRADER_DASHBOARD);
+            } else {
+              // Clients go to Home
+              navigate(ROUTES.HOME);
+            }
         }
         
       } else {
