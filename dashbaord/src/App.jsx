@@ -125,7 +125,7 @@ import PublicViewOffer from "./pages/PublicViewOffer";
 
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
-  const { loading: multiAuthLoading, isAdmin, isEmployee, isTrader, isClient, activeRole } = useMultiAuth();
+  const { loading: multiAuthLoading, isAdmin, isEmployee, isTrader, isClient, isVendor, isModerator, activeRole } = useMultiAuth();
 
   const loading = authLoading || multiAuthLoading;
 
@@ -174,14 +174,7 @@ function AppRoutes() {
     // Fallback to old AuthContext for legacy roles
     if (!user) return "/login";
     
-    // Stockship roles (userType: ADMIN, VENDOR, USER)
-    const userType = user.userType || user.role;
-    const hasAdminRole = userType === "ADMIN" || userType === "admin" || 
-      (user.role_names && Array.isArray(user.role_names) && 
-       (user.role_names.includes("ADMIN") || user.role_names.includes("admin")));
-    const hasVendorRole = userType === "VENDOR" || userType === "vendor" || 
-      (user.role_names && Array.isArray(user.role_names) && 
-       (user.role_names.includes("VENDOR") || user.role_names.includes("vendor")));
+
     
     // Stockship routes
     if (hasAdminRole) return "/stockship/admin/dashboard";
@@ -194,7 +187,7 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={(isClient() || isTrader()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="public" />}
+        element={(isClient() || isTrader()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="staff" />}
       />
       <Route
         path="/admin/login"

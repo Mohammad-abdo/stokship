@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Mail, Lock, Loader2, AlertCircle, User, Building2, Briefcase, UserCog, ShoppingBag } from "lucide-react";
 
-export default function MultiLogin({ mode = "internal" }) { // mode: "internal" | "public"
+export default function MultiLogin({ mode = "internal" }) { // mode: "internal" | "public" | "staff"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   // Removed duplicate declaration
@@ -33,7 +33,9 @@ export default function MultiLogin({ mode = "internal" }) { // mode: "internal" 
   useEffect(() => {
     if (mode === 'public' && !['client', 'trader'].includes(selectedRole)) {
       setSelectedRole('client');
-    } else if (mode === 'internal' && !['admin', 'employee', 'moderator', 'vendor'].includes(selectedRole)) {
+    } else if (mode === 'internal' && !['admin', 'employee', 'moderator'].includes(selectedRole)) {
+      setSelectedRole('admin');
+    } else if (mode === 'staff' && !['admin', 'employee', 'moderator'].includes(selectedRole)) {
       setSelectedRole('admin');
     }
   }, [mode]);
@@ -65,13 +67,20 @@ export default function MultiLogin({ mode = "internal" }) { // mode: "internal" 
 
       // Navigate based on SELECTED role - use replace to prevent back button issues
       // Validate Mode Compliance BEFORE Navigation
-      const isInternalRole = ['admin', 'employee', 'moderator', 'vendor'].includes(roleToUse);
+      const isInternalRole = ['admin', 'employee', 'moderator'].includes(roleToUse);
+      const isStaffRole = ['admin', 'employee', 'moderator'].includes(roleToUse);
       const isPublicRole = ['client', 'trader'].includes(roleToUse);
 
       if (mode === 'internal' && !isInternalRole) {
         setError(`Access denied. ${roleToUse.charAt(0).toUpperCase() + roleToUse.slice(1)}s must use the public login page.`);
         setLoading(false);
         return;
+      }
+      
+      if (mode === 'staff' && !isStaffRole) {
+         setError(`Access denied. This login is for Staff only.`);
+         setLoading(false);
+         return;
       }
 
       if (mode === 'public' && !isPublicRole) {
@@ -84,7 +93,10 @@ export default function MultiLogin({ mode = "internal" }) { // mode: "internal" 
       if (roleToUse === "admin") navigate("/stockship/admin/dashboard", { replace: true });
       else if (roleToUse === "employee") navigate("/stockship/employee/dashboard", { replace: true });
       else if (roleToUse === "moderator") navigate("/stockship/moderator/dashboard", { replace: true });
-      else if (roleToUse === "vendor") navigate("/stockship/vendor/dashboard", { replace: true });
+      else if (roleToUse === 'vendor') {
+         // Vendor removed from system, redirect to dashboard fallback or handle error if needed
+         navigate("/stockship/admin/dashboard", { replace: true });
+      }
       else if (roleToUse === "trader") navigate("/stockship/trader/dashboard", { replace: true });
       else if (roleToUse === "client") navigate("/stockship/client/dashboard", { replace: true });
       else navigate("/dashboard", { replace: true }); // Fallback
@@ -104,12 +116,15 @@ export default function MultiLogin({ mode = "internal" }) { // mode: "internal" 
     { value: "admin", label: "Admin", icon: User, color: "from-blue-500 to-blue-600", mode: "internal" },
     { value: "moderator", label: "Moderator", icon: UserCog, color: "from-orange-500 to-orange-600", mode: "internal" },
     { value: "employee", label: "Employee", icon: Briefcase, color: "from-green-500 to-green-600", mode: "internal" },
-    { value: "vendor", label: "Vendor", icon: Building2, color: "from-cyan-500 to-cyan-600", mode: "internal" },
+    // Vendor role removed as per user request
     { value: "trader", label: "Trader", icon: Building2, color: "from-purple-500 to-purple-600", mode: "public" },
     { value: "client", label: "Client", icon: ShoppingBag, color: "from-pink-500 to-pink-600", mode: "public" },
   ];
   
-  const filteredRoles = roleOptions.filter(role => role.mode === mode);
+  const filteredRoles = roleOptions.filter(role => {
+      if (mode === 'staff') return ['admin', 'employee', 'moderator'].includes(role.value);
+      return role.mode === mode;
+  });
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary/10 via-background to-primary/5 p-4">

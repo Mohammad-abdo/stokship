@@ -47,6 +47,9 @@ export const MultiProtectedRoute = ({
     return activeRole === 'client';
   }, [isClient, activeRole]);
 
+  const isModeratorUser = useMemo(() => {
+    if (!isModerator()) return false;
+    // STRICT: activeRole MUST be 'moderator'
     return activeRole === 'moderator';
   }, [isModerator, activeRole]);
 
