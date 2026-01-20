@@ -25,6 +25,7 @@ import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ModeratorDashboard from "./pages/ModeratorDashboard";
+import TraderDashboard from "./pages/TraderDashboard";
 
 function AppContent() {
   const location = useLocation();
@@ -55,6 +56,7 @@ function AppContent() {
       <Route path={ROUTES.SELLER} element={<Seller />} />
       <Route path={`${ROUTES.SELLER_PRODUCTS}/:sellerId`} element={<SellerProductsPage />} />
       <Route path={ROUTES.PUBLISH_AD} element={<ProtectedRoute allowedRoles={['TRADER']}><PublishAdPage /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_DASHBOARD} element={<TraderDashboard />} />
       <Route path={ROUTES.MODERATOR_DASHBOARD} element={<ProtectedRoute allowedRoles={['MODERATOR']}><ModeratorDashboard /></ProtectedRoute>} />
       <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
       <Route path={ROUTES.REQUEST_SENT} element={<RequestSent />} />

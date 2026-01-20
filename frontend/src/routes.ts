@@ -37,6 +37,7 @@ export const ROUTES = {
   
   // Seller page (placeholder - can be created later)
   SELLER: "/seller",
+  TRADER_DASHBOARD: "/trader-dashboard",
   PUBLISH_AD: "/PublishAd",
   
   // Profile page

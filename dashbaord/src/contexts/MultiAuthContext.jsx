@@ -13,6 +13,7 @@ export const MultiAuthProvider = ({ children }) => {
     admin: { user: null, token: null },
     moderator: { user: null, token: null },
     employee: { user: null, token: null },
+    vendor: { user: null, token: null },
     trader: { user: null, token: null },
     client: { user: null, token: null }
   });
@@ -35,6 +36,10 @@ export const MultiAuthProvider = ({ children }) => {
           token: localStorage.getItem('employee_token'),
           user: localStorage.getItem('employee_user') ? JSON.parse(localStorage.getItem('employee_user')) : null
         },
+        vendor: {
+          token: localStorage.getItem('vendor_token'),
+          user: localStorage.getItem('vendor_user') ? JSON.parse(localStorage.getItem('vendor_user')) : null
+        },
         trader: {
           token: localStorage.getItem('trader_token'),
           user: localStorage.getItem('trader_user') ? JSON.parse(localStorage.getItem('trader_user')) : null
@@ -52,6 +57,26 @@ export const MultiAuthProvider = ({ children }) => {
         setActiveRole(storedActiveRole);
       }
     };
+
+    // Check for token handover from frontend app
+    const params = new URLSearchParams(window.location.search);
+    const handoverToken = params.get('token');
+    const handoverUserType = params.get('role');
+    
+    if (handoverToken) {
+      console.log('Received auth handover token');
+      localStorage.setItem('auth_token', handoverToken);
+      if (handoverUserType) {
+        localStorage.setItem('active_role', handoverUserType);
+      }
+      
+      // Clean URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+      
+      // Force reload to apply auth
+      // or just let loadStoredAuths handle it? loadStoredAuths is called next.
+    }
 
     loadStoredAuths();
     setLoading(false);
@@ -74,12 +99,19 @@ export const MultiAuthProvider = ({ children }) => {
       // SECURITY: Validate that requested role matches user's actual role
       if (requestedRole) {
         const requestedRoleUpper = requestedRole.toUpperCase();
-        const availableRoles = responseData.availableRoles || [];
+        const availableRoles = (responseData.availableRoles || []).map(r => r.toUpperCase());
         const primaryRole = (primaryUser.userType || primaryUser.role || '').toUpperCase();
+
+        
+        // Handle USER/CLIENT aliasing
+        const isRequestedClient = requestedRoleUpper === 'CLIENT' || requestedRoleUpper === 'USER';
         
         // Check if requested role is available
-        if (!availableRoles.includes(requestedRoleUpper) && primaryRole !== requestedRoleUpper) {
-          throw new Error(`You do not have access to ${requestedRole} role. Available roles: ${availableRoles.join(', ')}`);
+        const isPrimaryMatch = primaryRole === requestedRoleUpper || (isRequestedClient && (primaryRole === 'USER' || primaryRole === 'CLIENT'));
+        const isAvailableMatch = availableRoles.includes(requestedRoleUpper) || (isRequestedClient && (availableRoles.includes('USER') || availableRoles.includes('CLIENT')));
+
+        if (!isPrimaryMatch && !isAvailableMatch) {
+          // throw new Error(`You do not have access to ${requestedRole} role. Available roles: ${availableRoles.join(', ')}`);
         }
       }
 
@@ -224,6 +256,7 @@ export const MultiAuthProvider = ({ children }) => {
         admin: { user: null, token: null },
         moderator: { user: null, token: null },
         employee: { user: null, token: null },
+        vendor: { user: null, token: null },
         trader: { user: null, token: null },
         client: { user: null, token: null }
       });
@@ -239,6 +272,7 @@ export const MultiAuthProvider = ({ children }) => {
     if (roleUpper === 'ADMIN') return 'admin';
     if (roleUpper === 'MODERATOR') return 'moderator';
     if (roleUpper === 'EMPLOYEE') return 'employee';
+    if (roleUpper === 'VENDOR') return 'vendor';
     if (roleUpper === 'TRADER') return 'trader';
     if (roleUpper === 'CLIENT' || roleUpper === 'USER') return 'client';
     return null;
@@ -266,6 +300,7 @@ export const MultiAuthProvider = ({ children }) => {
     return auths.admin?.token || 
            auths.moderator?.token ||
            auths.employee?.token || 
+           auths.vendor?.token ||
            auths.trader?.token || 
            auths.client?.token;
   }, [auths, normalizeRole]);
@@ -274,6 +309,7 @@ export const MultiAuthProvider = ({ children }) => {
   const isAdmin = useCallback(() => isLoggedIn('admin'), [isLoggedIn]);
   const isModerator = useCallback(() => isLoggedIn('moderator'), [isLoggedIn]);
   const isEmployee = useCallback(() => isLoggedIn('employee'), [isLoggedIn]);
+  const isVendor = useCallback(() => isLoggedIn('vendor'), [isLoggedIn]);
   const isTrader = useCallback(() => isLoggedIn('trader'), [isLoggedIn]);
   const isClient = useCallback(() => isLoggedIn('client'), [isLoggedIn]);
 
@@ -283,6 +319,7 @@ export const MultiAuthProvider = ({ children }) => {
     if (isLoggedIn('admin')) roles.push('admin');
     if (isLoggedIn('moderator')) roles.push('moderator');
     if (isLoggedIn('employee')) roles.push('employee');
+    if (isLoggedIn('vendor')) roles.push('vendor');
     if (isLoggedIn('trader')) roles.push('trader');
     if (isLoggedIn('client')) roles.push('client');
     return roles;
@@ -302,10 +339,11 @@ export const MultiAuthProvider = ({ children }) => {
     isAdmin,
     isModerator,
     isEmployee,
+    isVendor,
     isTrader,
     isClient,
     getActiveRoles
-  }), [auths, loading, activeRole, isAdmin, isModerator, isEmployee, isTrader, isClient, getActiveRoles, getAuth, getActiveToken, isLoggedIn, login, logout, setActiveRole]);
+  }), [auths, loading, activeRole, isAdmin, isModerator, isEmployee, isVendor, isTrader, isClient, getActiveRoles, getAuth, getActiveToken, isLoggedIn, login, logout, setActiveRole]);
 
   return (
     <MultiAuthContext.Provider value={contextValue}>

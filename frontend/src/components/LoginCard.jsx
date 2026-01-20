@@ -27,14 +27,15 @@ export default function LoginCard() {
       // Attempt login
       const result = await login(email, password, false);
       
-      if (result.success) {
+        if (result.success) {
         // Enforce Client Only
-        const userType = result.user?.userType || result.user?.role;
+        const rawUserType = result.user?.userType || result.user?.role || '';
+        const userType = rawUserType.toUpperCase();
         
-        if (userType !== 'CLIENT' && userType !== 'USER') {
-           // If user is not CLIENT, deny access and logout
+        if (userType !== 'CLIENT' && userType !== 'USER' && userType !== 'TRADER') {
+           // If user is not CLIENT/TRADER, deny access and logout
            await logout();
-           setError("Access denied. This login is for Clients only.");
+           setError(`Access denied. This login is for Clients and Traders only. (Role: ${userType})`);
            setLoading(false);
            return;
         }
@@ -44,8 +45,14 @@ export default function LoginCard() {
           console.log('Multiple profiles found:', result.linkedProfiles);
         }
         
-        // Navigate to Home
-        navigate(ROUTES.HOME);
+        // Navigate based on role
+        if (userType === 'TRADER') {
+          // Navigate to internal Trader Dashboard
+          navigate(ROUTES.TRADER_DASHBOARD);
+        } else {
+          // Clients go to Home
+          navigate(ROUTES.HOME);
+        }
         
       } else {
         setError(result.message || t("auth.loginFailed"));

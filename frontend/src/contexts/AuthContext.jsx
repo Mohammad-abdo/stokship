@@ -71,7 +71,7 @@ export const AuthProvider = ({ children }) => {
         setUser(user);
         setUserType(user.userType || 'CLIENT');
         
-        return { success: true, user, linkedProfiles };
+        return { success: true, user, token, linkedProfiles };
       }
       
       return { success: false, message: response.data.message };

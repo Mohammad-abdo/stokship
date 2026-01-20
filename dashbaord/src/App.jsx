@@ -112,6 +112,15 @@ import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
 import TraderPayments from "./pages/stockship/trader/TraderPayments";
 import TraderSettings from "./pages/stockship/trader/TraderSettings";
 
+import StockshipClientLayout from "./components/StockshipClientLayout";
+import ClientDashboard from "./pages/stockship/client/ClientDashboard";
+import ClientViewOffer from "./pages/stockship/client/ClientViewOffer";
+import ClientViewDeal from "./pages/stockship/client/ClientViewDeal";
+import ClientDeals from "./pages/stockship/client/ClientDeals";
+import ClientSettings from "./pages/stockship/client/ClientSettings";
+import LandingPage from "./pages/LandingPage";
+import PublicViewOffer from "./pages/PublicViewOffer";
+
 
 
 function AppRoutes() {
@@ -126,14 +135,41 @@ function AppRoutes() {
     if (activeRole === 'admin' && isAdmin()) return "/stockship/admin/dashboard";
     if (activeRole === 'employee' && isEmployee()) return "/stockship/employee/dashboard";
     if (activeRole === 'trader' && isTrader()) return "/stockship/trader/dashboard";
-    if (activeRole === 'client' && isClient()) return "/";
+    if (activeRole === 'client' && isClient()) return "/stockship/client/dashboard";
     
     // If activeRole is set but doesn't match any logged-in role, check other roles
     // But prioritize by what's actually logged in, not by default priority
     if (isAdmin()) return "/stockship/admin/dashboard";
     if (isTrader()) return "/stockship/trader/dashboard";
     if (isEmployee()) return "/stockship/employee/dashboard";
-    if (isClient()) return "/";
+    if (isClient()) return "/stockship/client/dashboard";
+    
+    // Fallback to old AuthContext for legacy roles
+    if (!user) return "/login";
+    
+    // Stockship roles (userType: ADMIN, VENDOR, USER)
+    const userType = user.userType || user.role;
+    const hasAdminRole = userType === "ADMIN" || userType === "admin" || 
+      (user.role_names && Array.isArray(user.role_names) && 
+       (user.role_names.includes("ADMIN") || user.role_names.includes("admin")));
+    const hasVendorRole = userType === "VENDOR" || userType === "vendor" || 
+      (user.role_names && Array.isArray(user.role_names) && 
+       (user.role_names.includes("VENDOR") || user.role_names.includes("vendor")));
+    
+    if (activeRole === 'admin' && isAdmin()) return "/stockship/admin/dashboard";
+    if (activeRole === 'employee' && isEmployee()) return "/stockship/employee/dashboard";
+    if (activeRole === 'moderator' && isModerator()) return "/stockship/moderator/dashboard";
+    if (activeRole === 'vendor' && isVendor()) return "/stockship/vendor/dashboard";
+    if (activeRole === 'trader' && isTrader()) return "/stockship/trader/dashboard";
+    if (activeRole === 'client' && isClient()) return "/stockship/client/dashboard";
+    
+    // If activeRole is set but doesn't match any logged-in role, check other roles
+    if (isAdmin()) return "/stockship/admin/dashboard";
+    if (isModerator()) return "/stockship/moderator/dashboard";
+    if (isEmployee()) return "/stockship/employee/dashboard";
+    if (isVendor()) return "/stockship/vendor/dashboard";
+    if (isTrader()) return "/stockship/trader/dashboard";
+    if (isClient()) return "/stockship/client/dashboard";
     
     // Fallback to old AuthContext for legacy roles
     if (!user) return "/login";
@@ -152,17 +188,21 @@ function AppRoutes() {
     if (hasVendorRole) return "/stockship/vendor/dashboard";
     
     return "/login";
-  }, [activeRole, isAdmin, isEmployee, isTrader, isClient, user]);
+  }, [activeRole, isAdmin, isEmployee, isTrader, isClient, isVendor, isModerator, user]);
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={(user || isAdmin() || isEmployee() || isTrader() || isClient()) ? <Navigate to={getDefaultRoute} replace /> : <Login />}
+        element={(isClient() || isTrader()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="public" />}
+      />
+      <Route
+        path="/admin/login"
+        element={(isAdmin() || isEmployee() || isModerator() || isVendor()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="internal" />}
       />
       <Route
         path="/multi-login"
-        element={<MultiLogin />}
+        element={<Navigate to="/admin/login" replace />} 
       />
 
       {/* Moderator Routes */}
@@ -800,6 +840,59 @@ function AppRoutes() {
           </MultiProtectedRoute>
         }
       />
+
+      {/* Mediation Platform - Client Routes */}
+      <Route
+        path="/stockship/client/dashboard"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientDashboard />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/offers/:id"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientViewOffer />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/deals/:id"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientViewDeal />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/deals"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientDeals />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/settings"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientSettings />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+
       <Route
         path="/stockship/employee/categories"
         element={
@@ -1045,8 +1138,10 @@ function AppRoutes() {
         }
       />
 
-      {/* Root redirect to login */}
-      <Route path="/" element={<Navigate to="/multi-login" replace />} />
+      {/* Root Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/offers/:id" element={<PublicViewOffer />} />
+      {/* <Route path="/" element={<Navigate to="/multi-login" replace />} /> */}
       <Route 
         path="*" 
         element={

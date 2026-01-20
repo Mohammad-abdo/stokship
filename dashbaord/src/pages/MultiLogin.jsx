@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMultiAuth } from "@/contexts/MultiAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -11,17 +11,32 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Mail, Lock, Loader2, AlertCircle, User, Building2, Briefcase, UserCog } from "lucide-react";
+import { Mail, Lock, Loader2, AlertCircle, User, Building2, Briefcase, UserCog, ShoppingBag } from "lucide-react";
 
-export default function MultiLogin() {
+export default function MultiLogin({ mode = "internal" }) { // mode: "internal" | "public"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedRole, setSelectedRole] = useState("admin"); // admin, employee, trader
+  // Removed duplicate declaration
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login, setActiveRole } = useMultiAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Default role depends on mode
+  const [selectedRole, setSelectedRole] = useState(
+    mode === "public" ? "client" : "admin"
+  );
+
+  // Ensure selectedRole is valid for the current mode on mount/mode change
+  useEffect(() => {
+    if (mode === 'public' && !['client', 'trader'].includes(selectedRole)) {
+      setSelectedRole('client');
+    } else if (mode === 'internal' && !['admin', 'employee', 'moderator', 'vendor'].includes(selectedRole)) {
+      setSelectedRole('admin');
+    }
+  }, [mode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,35 +56,38 @@ export default function MultiLogin() {
         localStorage.setItem('active_role', roleToUse);
       }
 
-      // Navigate based on SELECTED role - use replace to prevent back button issues
-      if (roleToUse === "admin") {
-        navigate("/stockship/admin/dashboard", { replace: true });
-      } else if (roleToUse === "employee") {
-        navigate("/stockship/employee/dashboard", { replace: true });
-      } else if (roleToUse === "moderator") {
-        navigate("/stockship/moderator/dashboard", { replace: true });
-      } else if (roleToUse === "trader") {
-        navigate("/stockship/trader/dashboard", { replace: true });
-      } else if (roleToUse === "client") {
-        navigate("/", { replace: true });
-      } else {
-        // Fallback: check what roles are actually available
-        const { role: backendRole, availableRoles } = result;
-        if (availableRoles && availableRoles.includes(selectedRole.toUpperCase())) {
-          // User selected role exists, navigate to it
-          if (selectedRole === "admin") navigate("/stockship/admin/dashboard", { replace: true });
-          else if (selectedRole === "employee") navigate("/stockship/employee/dashboard", { replace: true });
-          else if (selectedRole === "trader") navigate("/stockship/trader/dashboard", { replace: true });
-          else if (selectedRole === "client") navigate("/", { replace: true });
-        } else {
-          // Use backend role as fallback
-          if (backendRole === "admin") navigate("/stockship/admin/dashboard", { replace: true });
-          else if (backendRole === "employee") navigate("/stockship/employee/dashboard", { replace: true });
-          else if (backendRole === "trader") navigate("/stockship/trader/dashboard", { replace: true });
-          else if (backendRole === "client") navigate("/", { replace: true });
-          else navigate("/dashboard", { replace: true });
-        }
+      // Check for returnUrl
+      const returnUrl = location.state?.returnUrl;
+      if (returnUrl) {
+        navigate(returnUrl, { replace: true });
+        return;
       }
+
+      // Navigate based on SELECTED role - use replace to prevent back button issues
+      // Validate Mode Compliance BEFORE Navigation
+      const isInternalRole = ['admin', 'employee', 'moderator', 'vendor'].includes(roleToUse);
+      const isPublicRole = ['client', 'trader'].includes(roleToUse);
+
+      if (mode === 'internal' && !isInternalRole) {
+        setError(`Access denied. ${roleToUse.charAt(0).toUpperCase() + roleToUse.slice(1)}s must use the public login page.`);
+        setLoading(false);
+        return;
+      }
+
+      if (mode === 'public' && !isPublicRole) {
+         setError(`Access denied. ${roleToUse.charAt(0).toUpperCase() + roleToUse.slice(1)}s must use the dashboard login page.`);
+         setLoading(false);
+         return;
+      }
+
+      // Navigate based on SELECTED role - use replace to prevent back button issues
+      if (roleToUse === "admin") navigate("/stockship/admin/dashboard", { replace: true });
+      else if (roleToUse === "employee") navigate("/stockship/employee/dashboard", { replace: true });
+      else if (roleToUse === "moderator") navigate("/stockship/moderator/dashboard", { replace: true });
+      else if (roleToUse === "vendor") navigate("/stockship/vendor/dashboard", { replace: true });
+      else if (roleToUse === "trader") navigate("/stockship/trader/dashboard", { replace: true });
+      else if (roleToUse === "client") navigate("/stockship/client/dashboard", { replace: true });
+      else navigate("/dashboard", { replace: true }); // Fallback
     } catch (err) {
       if (err.response?.status === 429) {
         const retryAfter = err.response.headers['retry-after'] || 15;
@@ -83,14 +101,18 @@ export default function MultiLogin() {
   };
 
   const roleOptions = [
-    { value: "admin", label: "Admin", icon: User, color: "from-blue-500 to-blue-600" },
-    { value: "moderator", label: "Moderator", icon: UserCog, color: "from-orange-500 to-orange-600" },
-    { value: "employee", label: "Employee", icon: Briefcase, color: "from-green-500 to-green-600" },
-    { value: "trader", label: "Trader", icon: Building2, color: "from-purple-500 to-purple-600" },
+    { value: "admin", label: "Admin", icon: User, color: "from-blue-500 to-blue-600", mode: "internal" },
+    { value: "moderator", label: "Moderator", icon: UserCog, color: "from-orange-500 to-orange-600", mode: "internal" },
+    { value: "employee", label: "Employee", icon: Briefcase, color: "from-green-500 to-green-600", mode: "internal" },
+    { value: "vendor", label: "Vendor", icon: Building2, color: "from-cyan-500 to-cyan-600", mode: "internal" },
+    { value: "trader", label: "Trader", icon: Building2, color: "from-purple-500 to-purple-600", mode: "public" },
+    { value: "client", label: "Client", icon: ShoppingBag, color: "from-pink-500 to-pink-600", mode: "public" },
   ];
+  
+  const filteredRoles = roleOptions.filter(role => role.mode === mode);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-primary/5 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary/10 via-background to-primary/5 p-4">
       <div className="absolute top-4 right-4">
         <LanguageToggle />
       </div>
@@ -106,7 +128,7 @@ export default function MultiLogin() {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="mx-auto mb-4 w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center"
+              className="mx-auto mb-4 w-16 h-16 rounded-full bg-linear-to-br from-primary to-primary/60 flex items-center justify-center"
             >
               <svg
                 width="32"
@@ -136,8 +158,8 @@ export default function MultiLogin() {
                 />
               </svg>
             </motion.div>
-            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              {t('login.title') || 'Login'}
+            <CardTitle className="text-3xl font-bold bg-linear-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              {t('login.title') || (mode === 'internal' ? 'Dashboard Login' : 'Login')}
             </CardTitle>
             <CardDescription className="text-lg">
               Select your role to continue
@@ -164,8 +186,8 @@ export default function MultiLogin() {
                 className="space-y-2"
               >
                 <label className="text-sm font-medium">Select Role</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {roleOptions.map((option) => {
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {filteredRoles.map((option) => {
                     const Icon = option.icon;
                     const isSelected = selectedRole === option.value;
                     return (
@@ -209,7 +231,8 @@ export default function MultiLogin() {
                       selectedRole === 'admin' ? 'admin@stokship.com' :
                       selectedRole === 'moderator' ? 'moderator1@stokship.com' :
                       selectedRole === 'employee' ? 'employee@stokship.com' :
-                      'trader@stokship.com'
+                      selectedRole === 'trader' ? 'trader@stokship.com' :
+                      'client_test@stokship.com'
                     }
                   />
                 </div>
@@ -271,6 +294,7 @@ export default function MultiLogin() {
                 <p>Moderator: moderator1@stokship.com / moderator123</p>
                 <p>Employee: employee@stokship.com / password</p>
                 <p>Trader: trader@stokship.com / password</p>
+                <p>Client: client_test@stokship.com / password</p>
               </div>
             </motion.div>
           </CardContent>

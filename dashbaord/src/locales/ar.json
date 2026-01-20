@@ -333,6 +333,22 @@
     "confirmPassword": "تأكيد كلمة المرور",
     "updatePassword": "تحديث كلمة المرور"
   },
+  "client": {
+    "portal": "بوابة العميل",
+    "marketplace": "المتجر",
+    "marketplaceDesc": "استكشف العروض المتاحة وقم بإبرام الصفقات",
+    "myDeals": "صفقاتي",
+    "settings": "الإعدادات",
+    "makeDeal": "إبدء صفقة",
+    "viewDeal": "عرض الصفقة",
+    "loadFailed": "فشل تحميل العروض",
+    "noOffers": "لا توجد عروض متاحة",
+    "checkLater": "تحقق لاحقًا للحصول على صفقات جديدة",
+    "offerDetails": "تفاصيل العرض",
+    "dealCreated": "تم إرسال طلب الصفقة بنجاح",
+    "createDealFailed": "فشل إنشاء طلب الصفقة",
+    "backToDashboard": "العودة إلى لوحة التحكم"
+  },
   "errors": {
     "notFound": "غير موجود",
     "unauthorized": "غير مصرح",

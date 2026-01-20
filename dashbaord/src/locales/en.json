@@ -333,6 +333,22 @@
     "confirmPassword": "Confirm Password",
     "updatePassword": "Update Password"
   },
+  "client": {
+    "portal": "Client Portal",
+    "marketplace": "Marketplace",
+    "marketplaceDesc": "Explore available offers and make deals",
+    "myDeals": "My Deals",
+    "settings": "Settings",
+    "makeDeal": "Make Deal",
+    "viewDeal": "View Deal",
+    "loadFailed": "Failed to load offers",
+    "noOffers": "No offers available",
+    "checkLater": "Check back later for new deals",
+    "offerDetails": "Offer Details",
+    "dealCreated": "Deal request sent successfully",
+    "createDealFailed": "Failed to create deal request",
+    "backToDashboard": "Back to Dashboard"
+  },
   "errors": {
     "notFound": "Not Found",
     "unauthorized": "Unauthorized",

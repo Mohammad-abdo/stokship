@@ -228,6 +228,14 @@ export default function Navbar() {
                     الملف الشخصي
                   </Link>
                   {user?.userType === 'TRADER' && (
+                    <>
+                    <Link
+                      to={ROUTES.TRADER_DASHBOARD}
+                      onClick={() => setUserDropdown(false)}
+                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      لوحة التحكم
+                    </Link>
                     <Link
                       to={ROUTES.PUBLISH_AD}
                       onClick={() => setUserDropdown(false)}
@@ -235,6 +243,7 @@ export default function Navbar() {
                     >
                       نشر إعلان
                     </Link>
+                    </>
                   )}
                   <button
                     onClick={() => {

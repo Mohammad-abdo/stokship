@@ -475,7 +475,7 @@ const validateOffer = asyncHandler(async (req, res) => {
   }
 
   const updatedOffer = await prisma.offer.update({
-    where: { id: parseInt(id) },
+    where: { id },
     data: {
       status: approved ? 'ACTIVE' : 'REJECTED',
       validatedBy: req.user.id,
@@ -548,7 +548,7 @@ const updateOffer = asyncHandler(async (req, res) => {
   } = req.body;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: { trader: true }
   });
 
@@ -586,7 +586,7 @@ const updateOffer = asyncHandler(async (req, res) => {
   }
 
   const updatedOffer = await prisma.offer.update({
-    where: { id: parseInt(id) },
+    where: { id },
     data: updateData,
     include: {
       trader: {
@@ -645,7 +645,7 @@ const uploadOfferExcelEmployee = asyncHandler(async (req, res) => {
   }
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: { trader: true }
   });
 
@@ -869,7 +869,7 @@ const getOfferById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       trader: {
         select: {
@@ -1180,7 +1180,7 @@ const deleteOffer = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       trader: true,
       _count: {
@@ -1217,7 +1217,7 @@ const deleteOffer = asyncHandler(async (req, res) => {
 
   // Delete offer (items will be cascade deleted)
   await prisma.offer.delete({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   successResponse(res, null, 'Offer deleted successfully');
