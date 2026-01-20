@@ -18,7 +18,7 @@ import {
   PieChart
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { clsx } from "clsx";
+import clsx from "clsx";
 import { twMerge } from "tailwind-merge";
 
 // --- UI Components (Locally defined to match Shadcn UI) ---
