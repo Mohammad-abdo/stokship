@@ -190,14 +190,6 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-2 sm:gap-3 shrink-0">
           {!isAuthenticated ? (
             <>
-              <Link to={ROUTES.SIGNUP_BANK_INFO}>
-                <button className="h-8 sm:h-9 md:h-10 lg:h-11 px-2 sm:px-3 md:px-4 lg:px-5 rounded-[5px] bg-(--accent) flex items-center justify-center">
-                  <span className="text-(--primary) font-bold text-[12px] sm:text-[12px] md:text-[14px] lg:text-[16px] leading-[150%] whitespace-nowrap">
-                    {t("nav.beSeller")}
-                  </span>
-                </button>
-              </Link>
-
               <Link to={ROUTES.LOGIN}>
                 <button className="h-8 sm:h-9 md:h-10 lg:h-11 px-2 sm:px-3 md:px-4 lg:px-5 rounded-[5px] bg-(--white) border border-(--primary) flex items-center justify-center">
                   <span className="text-(--primary) font-bold text-[12px] sm:text-[12px] md:text-[14px] lg:text-[16px] leading-[150%] whitespace-nowrap">
@@ -207,55 +199,67 @@ export default function Navbar() {
               </Link>
             </>
           ) : (
-            <div className="relative">
-              <button
-                onClick={() => setUserDropdown(!userDropdown)}
-                className="h-8 sm:h-9 md:h-10 lg:h-11 px-2 sm:px-3 md:px-4 lg:px-5 rounded-[5px] bg-(--white) border border-(--primary) flex items-center justify-center gap-2"
-              >
-                <span className="text-(--primary) font-bold text-[12px] sm:text-[12px] md:text-[14px] lg:text-[16px] leading-[150%] whitespace-nowrap">
-                  {user?.name || user?.email || "المستخدم"}
-                </span>
-                <img src={dropdown} alt="dropdown" className={`w-4 h-4 transition ${userDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {userDropdown && (
-                <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50">
-                  <Link
-                    to={ROUTES.PROFILE}
-                    onClick={() => setUserDropdown(false)}
-                    className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                  >
-                    الملف الشخصي
-                  </Link>
-                  {user?.userType === 'TRADER' && (
-                    <>
-                    <Link
-                      to={ROUTES.TRADER_DASHBOARD}
-                      onClick={() => setUserDropdown(false)}
-                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                      لوحة التحكم
-                    </Link>
-                    <Link
-                      to={ROUTES.PUBLISH_AD}
-                      onClick={() => setUserDropdown(false)}
-                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                    >
-                      نشر إعلان
-                    </Link>
-                    </>
-                  )}
-                  <button
-                    onClick={() => {
-                      setUserDropdown(false);
-                      logout();
-                    }}
-                    className="w-full text-right px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    تسجيل الخروج
+            <div className="flex items-center gap-2 sm:gap-3">
+              {user?.userType !== 'TRADER' && (
+                <Link to={ROUTES.SIGNUP_BANK_INFO}>
+                  <button className="h-8 sm:h-9 md:h-10 lg:h-11 px-2 sm:px-3 md:px-4 lg:px-5 rounded-[5px] bg-(--accent) flex items-center justify-center">
+                    <span className="text-(--primary) font-bold text-[12px] sm:text-[12px] md:text-[14px] lg:text-[16px] leading-[150%] whitespace-nowrap">
+                      {t("nav.beSeller")}
+                    </span>
                   </button>
-                </div>
+                </Link>
               )}
+
+              <div className="relative">
+                <button
+                  onClick={() => setUserDropdown(!userDropdown)}
+                  className="h-8 sm:h-9 md:h-10 lg:h-11 px-2 sm:px-3 md:px-4 lg:px-5 rounded-[5px] bg-(--white) border border-(--primary) flex items-center justify-center gap-2"
+                >
+                  <span className="text-(--primary) font-bold text-[12px] sm:text-[12px] md:text-[14px] lg:text-[16px] leading-[150%] whitespace-nowrap">
+                    {user?.name || user?.email || "المستخدم"}
+                  </span>
+                  <img src={dropdown} alt="dropdown" className={`w-4 h-4 transition ${userDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {userDropdown && (
+                  <div className="absolute left-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50">
+                    <Link
+                      to={ROUTES.PROFILE}
+                      onClick={() => setUserDropdown(false)}
+                      className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      الملف الشخصي
+                    </Link>
+                    {user?.userType === 'TRADER' && (
+                      <>
+                      <Link
+                        to={ROUTES.TRADER_DASHBOARD}
+                        onClick={() => setUserDropdown(false)}
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        لوحة التحكم
+                      </Link>
+                      <Link
+                        to={ROUTES.PUBLISH_AD}
+                        onClick={() => setUserDropdown(false)}
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        نشر إعلان
+                      </Link>
+                      </>
+                    )}
+                    <button
+                      onClick={() => {
+                        setUserDropdown(false);
+                        logout();
+                      }}
+                      className="w-full text-right px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      تسجيل الخروج
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -396,13 +400,15 @@ export default function Navbar() {
 
               <div className="grid gap-2">
                 <div className="flex  gap-3">
-                <Link
-                  to={ROUTES.SIGNUP_BANK_INFO}
-                  onClick={closeSidebar}
-                  className="w-full rounded-xl bg-(--accent) px-4 py-3 text-center font-['Tajawal'] font-bold text-(--primary) block"
-                >
-                  {t("nav.beSeller")}
-                </Link>
+                {isAuthenticated && user?.userType !== 'TRADER' && (
+                  <Link
+                    to={ROUTES.SIGNUP_BANK_INFO}
+                    onClick={closeSidebar}
+                    className="w-full rounded-xl bg-(--accent) px-4 py-3 text-center font-['Tajawal'] font-bold text-(--primary) block"
+                  >
+                    {t("nav.beSeller")}
+                  </Link>
+                )}
 
                 {!isAuthenticated ? (
                   <Link

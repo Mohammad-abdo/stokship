@@ -28,9 +28,11 @@ export default function LoginCard() {
       const result = await login(email, password, false);
       
         if (result.success) {
+        console.log("Login success result:", result);
         // Enforce Client Only
         const rawUserType = result.user?.userType || result.user?.role || '';
         const userType = rawUserType.toUpperCase();
+        console.log("Detected userType:", userType);
         
         if (userType !== 'CLIENT' && userType !== 'USER' && userType !== 'TRADER') {
            // If user is not CLIENT/TRADER, deny access and logout

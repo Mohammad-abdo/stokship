@@ -34,6 +34,8 @@ function AppContent() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  console.log("AppContent Rendered. Path:", location.pathname);
+  
   return (
     <Routes>
       <Route path={ROUTES.HOME} element={<Home />} />
