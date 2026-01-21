@@ -45,7 +45,20 @@
     "name": "الاسم",
     "email": "البريد الإلكتروني",
     "show": "إظهار",
-    "hide": "إخفاء"
+    "hide": "إخفاء",
+    "id": "المعرف",
+    "action": "الإجراء",
+    "create": "إنشاء",
+    "update": "تحديث",
+    "search": "بحث",
+    "filter": "تصفية",
+    "export": "تصدير",
+    "import": "استيراد",
+    "totalShops": "إجمالي المتاجر",
+    "approve": "الموافقة",
+    "assign": "تخصيص",
+    "reassign": "إعادة تخصيص",
+    "saveChanges": "حفظ التغييرات"
   },
   "sidebar": {
     "dashboard": "لوحة التحكم",
@@ -308,24 +321,33 @@
     "invalidCredentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة",
     "loginFailed": "فشل تسجيل الدخول. حاول مرة أخرى"
   },
-  "common_labels": {
-    "id": "المعرف",
-    "name": "الاسم",
-    "email": "البريد الإلكتروني",
-    "phone": "الهاتف",
-    "status": "الحالة",
-    "action": "الإجراء",
-    "edit": "تعديل",
-    "delete": "حذف",
-    "create": "إنشاء",
-    "update": "تحديث",
-    "save": "حفظ",
-    "cancel": "إلغاء",
-    "search": "بحث",
-    "filter": "تصفية",
-    "export": "تصدير",
-    "import": "استيراد",
-    "totalShops": "إجمالي المتاجر"
+  "settings": {
+    "language": "اللغة",
+    "languageDesc": "اختر لغتك المفضلة للوحة التحكم.",
+    "profile": "الملف الشخصي",
+    "profileDesc": "تحديث بياناتك الشخصية.",
+    "security": "الأمان",
+    "securityDesc": "تحديث كلمة المرور الخاصة بك.",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "updatePassword": "تحديث كلمة المرور"
+  },
+  "client": {
+    "portal": "بوابة العميل",
+    "marketplace": "المتجر",
+    "marketplaceDesc": "استكشف العروض المتاحة وقم بإبرام الصفقات",
+    "myDeals": "صفقاتي",
+    "settings": "الإعدادات",
+    "makeDeal": "إبدء صفقة",
+    "viewDeal": "عرض الصفقة",
+    "loadFailed": "فشل تحميل العروض",
+    "noOffers": "لا توجد عروض متاحة",
+    "checkLater": "تحقق لاحقًا للحصول على صفقات جديدة",
+    "offerDetails": "تفاصيل العرض",
+    "dealCreated": "تم إرسال طلب الصفقة بنجاح",
+    "createDealFailed": "فشل إنشاء طلب الصفقة",
+    "backToDashboard": "العودة إلى لوحة التحكم"
   },
   "errors": {
     "notFound": "غير موجود",
@@ -400,9 +422,7 @@
       "allStatus": "جميع الحالات",
       "active": "نشط",
       "inactive": "غير نشط",
-      "name": "الاسم",
-      "companyName": "اسم الشركة",
-      "traderCode": "رمز التاجر"
+      "name": "الاسم"
     },
     "offers": {
       "title": "ادارة الاعلانات",
@@ -456,7 +476,7 @@
       "amount": "المبلغ",
       "cbm": "المتر المكعب",
       "cartons": "الكرتونات",
-      "status": "الحالة",
+      "statusLabel": "الحالة",
       "created": "تاريخ الإنشاء",
       "actions": "الإجراءات",
       "viewDetails": "عرض التفاصيل",
@@ -505,7 +525,7 @@
       "unit": "الوحدة",
       "unitPrice": "سعر الوحدة",
       "currency": "العملة",
-      "amount": "المبلغ",
+
       "packing": "التعبئة",
       "cartonSize": "حجم الكرتون",
       "colour": "اللون",
@@ -525,8 +545,7 @@
       "notes": "ملاحظات",
       "offer": "العرض",
       "accessDenied": "تم رفض الوصول",
-      "notYourDeal": "هذه الصفقة لا تنتمي إليك",
-      "created": "تاريخ الإنشاء"
+      "notYourDeal": "هذه الصفقة لا تنتمي إليك"
     },
     "employee": {
       "dashboard": "لوحة تحكم الموظف",
@@ -562,6 +581,8 @@
       "tradersList": "التجار",
       "noTraders": "لا يوجد تجار",
       "searchTraders": "بحث في التجار بالاسم أو الشركة أو الرمز...",
+      "requests": "الطلبات",
+
       "viewTrader": "عرض التاجر",
       "viewQR": "عرض رمز QR",
       "loadTradersFailed": "فشل تحميل التجار",
@@ -580,7 +601,7 @@
       "searchDeals": "بحث في الصفقات بالرقم أو التاجر أو العميل...",
       "clearFilter": "مسح الفلتر",
       "noDeals": "لا توجد صفقات",
-      "offersValidation": "إعلانات تجاري",
+
       "offersValidationDesc": "مراجعة والتحقق من عروض تجارك",
       "searchOffers": "بحث في العروض بالعنوان أو التاجر...",
       "loadOffersFailed": "فشل تحميل العروض",
@@ -610,7 +631,7 @@
       "category": "الفئة",
       "acceptsNegotiation": "يقبل التفاوض",
       "description": "الوصف",
-      "payments": "المدفوعات",
+
       "paymentsDesc": "التحقق من وإدارة المدفوعات من صفقاتك",
       "searchPayments": "بحث في المدفوعات برقم الصفقة أو العميل أو التاجر...",
       "loadPaymentsFailed": "فشل تحميل المدفوعات",
@@ -1228,6 +1249,74 @@
       "lastUpdated": "آخر تحديث",
       "processedAt": "تاريخ المعالجة",
       "summary": "ملخص الدفع"
+    }
+  },
+  "moderator": {
+    "dashboard": {
+      "pendingApprovals": "طلبات معلقة",
+      "activeTraders": "تجار نشطون",
+      "reportsToday": "تقارير اليوم",
+      "recentRegistrations": "أحدث تسجيلات التجار",
+      "reviewTraders": "مراجعة واعتماد حسابات التجار الجديدة.",
+      "noPendingRegistrations": "لا توجد طلبات تسجيل معلقة."
+    },
+    "traders": {
+      "title": "إدارة التجار",
+      "subtitle": "إدارة وتعيين التجار للموظفين",
+      "traderName": "اسم التاجر",
+      "assignedTo": "مسند إلى",
+      "loadFailed": "فشل تحميل التجار",
+      "verifiedSuccess": "تم تفعيل التاجر بنجاح",
+      "verifyFailed": "فشل تفعيل التاجر",
+      "assignSuccess": "تم تعيين الموظف بنجاح",
+      "assignFailed": "فشل تعيين الموظف",
+      "noTradersFound": "لم يتم العثور على تجار",
+      "tryAdjustingFilters": "حاول تعديل البحث أو التصنيفات"
+    },
+    "reports": {
+      "title": "تقارير المنصة",
+      "subtitle": "التحليلات ومقاييس الأداء",
+      "dealStatus": "توزيع حالات الصفقات",
+      "traderGrowth": "تسجيلات التجار الجدد (7 أيام)",
+      "topEmployees": "أفضل الموظفين حسب تعيين التجار",
+      "topEmployeesDesc": "الموظفون الذين يديرون أكبر عدد من التجار.",
+      "loadFailed": "فشل تحميل التقارير"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "subtitle": "إدارة تفضيلات حسابك",
+      "updateSuccess": "تم تحديث الملف الشخصي بنجاح",
+      "updateFailed": "فشل تحديث الملف الشخصي",
+      "currentPassword": "كلمة المرور الحالية",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "updatePassword": "تحديث كلمة المرور"
+    },
+    "assignment": {
+      "title": "تعيين موظف",
+      "description": "تعيين موظف مخصص لإدارة هذا التاجر.",
+      "selectEmployee": "اختر الموظف",
+      "placeholder": "اختر موظفاً",
+      "confirm": "تعيين الموظف"
+    },
+    "common": {
+      "email": "البريد الإلكتروني",
+      "phone": "رقم الهاتف",
+      "status": "الحالة",
+      "action": "الإجراء",
+      "contact": "جهات الاتصال",
+      "unassigned": "غير معين",
+      "traders": "التجار",
+      "searchPlaceholder": "ابحث بالاسم، البريد الإلكتروني، أو الرمز..."
+    },
+    "status": {
+      "pending": "معلق",
+      "verified": "مفعل"
+    },
+    "filter": {
+      "all": "كل الحالات",
+      "verified": "مفعل",
+      "pending": "معلق"
     }
   }
 }

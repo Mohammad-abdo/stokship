@@ -1,71 +1,100 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
+import { offerService } from "../services/offerService";
 
 export default function OrderCheckoutComponent() {
   const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
-  const products = useMemo(
-    () => [
-      {
-        id: "p1",
-        title: "فلتر زيت أصلي",
-        sku: "6563453454",
-        desc:
-          "لوريم إيبسوم نص تجريبي يمكن استبداله بوصف المنتج الحقيقي. تفاصيل مختصرة عن المنتج ومواصفاته.",
-        qtyTotal: 50,
-        cbmTotal: 8,
-        totalPrice: 1000,
-        currency: "ر.س",
-        mainImg:
-          "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=900&q=80",
-        thumbs: [
-          "https://images.unsplash.com/photo-1512499617640-c2f999018b72?auto=format&fit=crop&w=300&q=80",
-          "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?auto=format&fit=crop&w=300&q=80",
-          "https://images.unsplash.com/photo-1567581935884-3349723552ca?auto=format&fit=crop&w=300&q=80",
-          "https://images.unsplash.com/photo-1565843708714-52ecf69c36b1?auto=format&fit=crop&w=300&q=80",
-        ],
-      },
-      {
-        id: "p2",
-        title: "فلتر زيت أصلي",
-        sku: "6563453454",
-        desc:
-          "لوريم إيبسوم نص تجريبي يمكن استبداله بوصف المنتج الحقيقي. تفاصيل مختصرة عن المنتج ومواصفاته.",
-        qtyTotal: 50,
-        cbmTotal: 8,
-        totalPrice: 1000,
-        currency: "ر.س",
-        mainImg:
-          "https://images.unsplash.com/photo-1565843708714-52ecf69c36b1?auto=format&fit=crop&w=900&q=80",
-        thumbs: [
-          "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=300&q=80",
-          "https://images.unsplash.com/photo-1512499617640-c2f999018b72?auto=format&fit=crop&w=300&q=80",
-          "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?auto=format&fit=crop&w=300&q=80",
-          "https://images.unsplash.com/photo-1567581935884-3349723552ca?auto=format&fit=crop&w=300&q=80",
-        ],
-      },
-    ],
-    []
-  );
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Get initial offer from navigation state
+  const [currentOffer, setCurrentOffer] = useState(location.state?.offer || null);
+  const [loading, setLoading] = useState(false);
+  
+  // Effect to fetch offer if items are missing but we have an ID
+  useEffect(() => {
+    const fetchFullOffer = async () => {
+      // If we don't have an offer ID, we can't fetch. Redirect.
+      if (!currentOffer?.id) {
+        // If it's completely empty (direct access), redirect
+        if (!currentOffer) {
+           navigate(ROUTES.PRODUCTS_LIST);
+        }
+        return;
+      }
 
-  // ✅ selected image لكل منتج
-  const [selectedImages, setSelectedImages] = useState(() =>
-    Object.fromEntries(products.map((p) => [p.id, p.mainImg]))
-  );
+      // If we have an offer but NO items, fetch the full details
+      if (!currentOffer.items || currentOffer.items.length === 0) {
+        try {
+          console.log("OrderCheckout: Fetching full details for offer:", currentOffer.id);
+          setLoading(true);
+          const res = await offerService.getOfferById(currentOffer.id);
+          if (res.data?.success && res.data?.data) {
+             console.log("OrderCheckout: Fetched full offer:", res.data.data);
+             setCurrentOffer(res.data.data);
+          }
+        } catch (err) {
+          console.error("OrderCheckout: Error fetching offer details:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchFullOffer();
+  }, [currentOffer?.id]); 
+
+  // Transform offer items to products format
+  const products = useMemo(() => {
+    if (!currentOffer || !currentOffer.items) return [];
+    
+    return [{
+        id: currentOffer.id,
+        title: currentOffer.title || t("productDetails.offerDefaultTitle"),
+        sku: currentOffer.id.substring(0, 8),
+        desc: currentOffer.description || t("productDetails.noDescription"),
+        qtyTotal: currentOffer.totalCartons || 0,
+        cbmTotal: currentOffer.totalCBM || 0,
+        totalPrice: 0, 
+        currency: "USD",
+        mainImg: (currentOffer.images && currentOffer.images.length > 0) ? currentOffer.images[0] : "https://placehold.co/600x400?text=No+Image",
+        thumbs: currentOffer.images || [],
+    }];
+  }, [currentOffer, t]);
+
+  // ✅ selected image 
+  const [selectedImages, setSelectedImages] = useState({});
+  
+  // Update selected images when products change
+  useEffect(() => {
+     if (products.length > 0) {
+         setSelectedImages(Object.fromEntries(products.map((p) => [p.id, p.mainImg])));
+     }
+  }, [products]);
 
   const setSelectedFor = (productId, img) => {
     setSelectedImages((prev) => ({ ...prev, [productId]: img }));
   };
 
-  const [rows, setRows] = useState([
-      { serial: 1, itemNo: 1, qty: 1, price: 1, cbm: 1 },
-      { serial: 2, itemNo: 2, qty: 2, price: 2, cbm: 2 },
-      { serial: 3, itemNo: 8, qty: 3, price: 3, cbm: 3 },
-      { serial: 5, itemNo: 5, qty: 6, price: 6, cbm: 6 },
-    ]);
-  
+  // Initialize rows from offer items - use useEffect to update when/if offer loads
+  const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    if (currentOffer && currentOffer.items) {
+        const newRows = currentOffer.items.map((item, index) => ({
+            serial: index + 1,
+            itemNo: item.itemNo || item.productName,
+            qty: item.quantity || 0,
+            price: item.unitPrice || 0,
+            cbm: item.cbm || 0,
+            originalItem: item
+        }));
+        setRows(newRows);
+    }
+  }, [currentOffer]);
 
   const totals = useMemo(() => {
     const sumQty = rows.reduce((a, r) => a + Number(r.qty || 0), 0);
@@ -80,11 +109,19 @@ export default function OrderCheckoutComponent() {
     );
   };
    
-const [coupon, setCoupon] = useState("");
+  const [coupon, setCoupon] = useState("");
 
-  const subtotal = 4589;
-  const shipping = 45.0;
-  const total = 4589;
+  const subtotal = totals.sumPrice;
+  const shipping = 0; // Or calculate
+  const total = subtotal + shipping;
+
+  if (loading) {
+      return (
+          <div className="flex h-screen items-center justify-center bg-white">
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+          </div>
+      );
+  }
 
   return (
     <div dir={currentDir} className="min-h-screen bg-white mt-40 w-full">
@@ -127,68 +164,24 @@ const [coupon, setCoupon] = useState("");
               >
                 
                 <div
-                  className="grid grid-cols-1 md:grid-cols-[1fr_190px] gap-4 p-4 sm:p-6"
+                  className="flex flex-col md:flex-row gap-6 p-4 sm:p-6"
                   dir={currentDir}
                 >
-                  {/* LEFT: text + summary */}
-                  <div dir={currentDir}>
-                    <div className={`flex items-start gap-3 ${currentDir === 'rtl' ? 'justify-between' : 'justify-between'}`}>
-                      <div className="flex-1">
-                        <h3 className={`text-lg sm:text-xl font-bold text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                          {p.title}
-                        </h3>
-                        <div className={`mt-1 text-xs text-slate-500 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                          #{p.sku}
-                        </div>
-                      </div>
-                    </div>
-
-                    <p className={`mt-3 text-sm leading-7 text-slate-600 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                      {p.desc}
-                    </p>
-
-                    {/* Summary rows */}
-                    <div className="mt-4 overflow-hidden rounded-md border border-slate-200" dir={currentDir}>
-                      {[
-                        { label: t("checkout.totalQuantity"), value: `${p.qtyTotal} ${t("checkout.piece")}` },
-                        { label: t("checkout.totalCbm"), value: `${p.cbmTotal} CBM` },
-                        { label: t("checkout.totalPrice"), value: `${p.totalPrice} ${i18n.language === 'ar' ? 'ر.س' : 'SAR'}` },
-                      ].map((row, idx) => (
-                        <div
-                          key={row.label}
-                          className={`grid grid-cols-2 ${idx !== 0 ? "border-t border-slate-200" : ""}`}
-                        >
-                          <div className={`px-4 py-2.5 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`} dir={currentDir}>
-                            {row.value}
-                          </div>
-
-                          <div
-                            className={`px-4 py-2.5 text-sm font-semibold text-blue-800 bg-slate-50 border-slate-200 ${currentDir === 'rtl' ? 'text-right border-l' : 'text-left border-r'}`}
-                            dir={currentDir}
-                          >
-                            {row.label}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* RIGHT: image + thumbs */}
-                  <div className={`flex flex-col ${currentDir === 'rtl' ? 'items-end' : 'items-start'}`}>
+                   {/* RIGHT: image + thumbs (First in DOM -> Right in RTL) */}
+                   <div className="w-full md:w-56 flex-shrink-0">
                     <div className="relative w-full overflow-hidden rounded-md border border-slate-200 bg-slate-50">
-                      
                       <img
                         src={activeImg}
                         alt={p.title}
-                        className="h-36 sm:h-40 w-full object-cover"
+                        className="h-48 w-full object-cover"
                       />
-                      <span className={`absolute top-2 rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white ${currentDir === 'rtl' ? 'left-2' : 'right-2'}`}>
+                      <span className={`absolute top-2 rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white ${currentDir === 'rtl' ? 'right-2' : 'left-2'}`}>
                         SALE
                       </span>
                     </div>
 
                     {/* ✅ thumbnails clickable */}
-                    <div className="mt-2 grid grid-cols-5 gap-1 w-full">
+                    <div className="mt-2 grid grid-cols-4 gap-2 w-full">
                       {p.thumbs.slice(0, 4).map((thumb, i) => {
                         const isActive = activeImg === thumb;
                         return (
@@ -196,7 +189,7 @@ const [coupon, setCoupon] = useState("");
                             key={i}
                             type="button"
                             onClick={() => setSelectedFor(p.id, thumb)}
-                            className={`h-10 overflow-hidden rounded border bg-slate-50 transition
+                            className={`h-12 overflow-hidden rounded border bg-slate-50 transition
                               ${isActive ? "border-blue-700 ring-2 ring-blue-200" : "border-slate-200 hover:border-slate-400"}`}
                             aria-label={t("checkout.viewImage")}
                           >
@@ -208,16 +201,48 @@ const [coupon, setCoupon] = useState("");
                           </button>
                         );
                       })}
+                    </div>
+                  </div>
 
-                      
-                      <button
-                        type="button"
-                        onClick={() => setSelectedFor(p.id, p.mainImg)}
-                        className="h-10 rounded border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
-                        aria-label={t("checkout.backToMainImage")}
-                      >
-                        ▶
-                      </button>
+                  {/* LEFT: text + summary */}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2">
+                          {p.title}
+                        </h3>
+                        <div className="text-sm text-slate-500 mb-4">
+                          #{p.sku}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-base leading-relaxed text-slate-600 mb-6">
+                      {p.desc}
+                    </p>
+
+                  {/* Summary rows */}
+                    <div className="overflow-hidden rounded-lg border border-slate-200">
+                      {[
+                        { label: t("checkout.totalQuantity"), value: `${p.qtyTotal} ${t("checkout.piece")}` },
+                        { label: t("checkout.totalCbm"), value: `${p.cbmTotal} CBM` },
+                        { label: t("checkout.totalPrice"), value: `${p.totalPrice} ${i18n.language === 'ar' ? 'ر.س' : 'SAR'}` },
+                      ].map((row, idx) => (
+                        <div
+                          key={row.label}
+                          className={`flex items-center justify-between px-4 py-3 ${idx !== 0 ? "border-t border-slate-200" : ""} bg-white`}
+                        >
+                           {/* Label first = Right in RTL */}
+                           <div className="font-bold text-blue-900">
+                            {row.label}
+                          </div>
+                          
+                          {/* Value second = Left in RTL */}
+                          <div className="text-slate-700 font-medium">
+                            {row.value}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -226,122 +251,120 @@ const [coupon, setCoupon] = useState("");
           })}
         </div>
 
-        {/* Order summary */}
-        <section className="w-full mt-8">
-          <div className={`text-lg font-bold text-slate-900 mb-4 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-            {t("checkout.orderSummary")}
+        {/* Order summary table */}
+        <section className="w-full mt-10">
+          <div className="flex items-center justify-between mb-4">
+             <h2 className="text-lg font-bold text-blue-900">{t("checkout.orderSummary")}</h2>
           </div>
 
-          <div className="overflow-hidden rounded-md border border-slate-200" dir={currentDir}>
-            <div className="grid grid-cols-5 bg-blue-50 text-sm font-semibold text-slate-800">
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>{t("checkout.serial")}</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>{t("checkout.itemNumber")}</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>{t("checkout.quantity")}</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>{t("checkout.price")}</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>CBM</div>
+          <div className="overflow-hidden rounded-lg border border-slate-200">
+            {/* Header */}
+            <div className="grid grid-cols-5 bg-blue-50 text-sm font-bold text-slate-800 border-b border-slate-200">
+              <div className="px-4 py-4 text-center">{t("checkout.serial")}</div>
+              <div className="px-4 py-4 text-center">{t("checkout.itemNumber")}</div>
+              <div className="px-4 py-4 text-center">{t("checkout.quantity")}</div>
+              <div className="px-4 py-4 text-center">{t("checkout.price")}</div>
+              <div className="px-4 py-4 text-center">CBM</div>
             </div>
 
-            <div className="bg-white">
+            {/* Rows */}
+            <div className="bg-white divide-y divide-slate-100">
               {rows.map((r, idx) => (
                 <div
                   key={idx}
-                  className={`grid grid-cols-5 items-center border-t border-slate-200 min-h-[74px] ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                  className="grid grid-cols-5 items-center py-3 bg-white hover:bg-slate-50 transition-colors"
                 >
-                  <div className={`px-3 py-3 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                  <div className="px-2 text-center">
                     <input
                       value={r.serial}
                       onChange={(e) => updateRow(idx, "serial", e.target.value)}
-                      className={`w-full rounded-md bg-white border border-slate-200 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}
-                      dir={currentDir}
+                      className="mx-auto w-16 block text-center bg-blue-50 text-blue-900 font-medium py-1.5 rounded-md border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
 
-                  <div className={`px-3 py-3 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right border-r' : 'text-left border-l'} border-slate-200`}>
+                  <div className="px-2 text-center">
                     <input
                       value={r.itemNo}
                       onChange={(e) => updateRow(idx, "itemNo", e.target.value)}
-                      className={`w-full rounded-md bg-white border border-slate-200 px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-200 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}
-                      dir={currentDir}
+                       className="mx-auto w-24 block text-center bg-blue-50 text-blue-900 font-medium py-1.5 rounded-md border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-200"
                     />
                   </div>
 
-                  <div className={`px-3 py-3 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right border-r' : 'text-left border-l'} border-slate-200`}>
-                    {r.qty}
+                  <div className="px-2 text-center">
+                    <input
+                      value={r.qty}
+                      onChange={(e) => updateRow(idx, "qty", e.target.value)}
+                       className="mx-auto w-24 block text-center bg-blue-50 text-blue-900 font-medium py-1.5 rounded-md border border-blue-100 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+                    />
                   </div>
 
-                  <div className={`px-3 py-3 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right border-r' : 'text-left border-l'} border-slate-200`}>
-                    {r.price} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                  <div className="px-2 text-center font-semibold text-slate-700 text-sm">
+                    {r.price}
                   </div>
 
-                  <div className={`px-3 py-3 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                    {r.cbm}
+                  <div className="px-2 text-center font-semibold text-slate-700 text-sm">
+                     {r.cbm}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="grid grid-cols-5 bg-blue-900 text-white text-sm font-semibold">
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>{t("checkout.total")}</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>........</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>{totals.sumQty}</div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+            {/* Footer / Total */}
+            <div className="grid grid-cols-5 bg-[#1E3A8A] text-white text-sm font-bold">
+              <div className="px-4 py-4 text-center">{t("checkout.total")}</div>
+              <div className="px-4 py-4 text-center">......</div>
+              <div className="px-4 py-4 text-center">{totals.sumQty}</div>
+              <div className="px-4 py-4 text-center">
                 {totals.sumPrice} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
               </div>
-              <div className={`px-3 py-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>2222</div>
+              <div className="px-4 py-4 text-center">{totals.sumCbm || 2222}</div>
             </div>
-          </div>
-
-          <div className={`mt-3 text-sm font-semibold text-blue-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-            {t("checkout.siteFee")}
           </div>
         </section>
         {/* Cart summary */}
-        <section className="w-full mt-8">
-          <div className={`text-lg font-bold text-slate-900 mb-4 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-            {t("checkout.cart")}
-          </div>
+        <section className="w-full mt-10">
+          <h2 className="text-lg font-bold text-slate-900 mb-4">{t("checkout.cart")}</h2>
 
-          <div className="w-full rounded-md border border-slate-200 overflow-hidden" dir={currentDir}>
-            <div className={`flex items-stretch ${currentDir === 'rtl' ? 'flex-row-reverse' : ''}`}>
+          <div className="w-full rounded-md border border-slate-200 overflow-hidden bg-white">
+            <div className="flex items-stretch">
               <input
                 value={coupon}
                 onChange={(e) => setCoupon(e.target.value)}
                 placeholder={t("checkout.enterCouponCode")}
-                className={`flex-1 px-4 py-3 text-sm outline-none ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}
+                className={`flex-1 px-4 py-3 text-sm outline-none bg-white text-slate-700 placeholder:text-slate-400`}
                 dir={currentDir}
               />
               <button
                 type="button"
-                className={`w-24 border-slate-200 text-sm font-semibold text-blue-700 hover:bg-slate-50 transition-colors ${currentDir === 'rtl' ? 'border-l' : 'border-r'}`}
+                className={`px-6 border-slate-200 text-sm font-semibold text-blue-700 hover:bg-slate-50 transition-colors border-l rtl:border-r rtl:border-l-0`}
               >
                 {t("checkout.save")}
               </button>
             </div>
           </div>
 
-          <div className={`mt-6 rounded-md border border-slate-200 bg-slate-50 p-4 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`} dir={currentDir}>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-700">{t("checkout.subtotal")}</span>
-                <span className="text-sm font-semibold text-slate-900">{i18n.language === 'ar' ? 'ر.س' : '$'}{subtotal}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-slate-700">{t("checkout.shipping")}</span>
-                <span className="text-sm font-semibold text-slate-900">{i18n.language === 'ar' ? 'ر.س' : '$'}{shipping.toFixed(2)}</span>
-              </div>
-
-              <div className="border-t border-slate-300 pt-3 flex items-center justify-between">
-                <span className="text-base font-bold text-slate-900">{t("checkout.total")}</span>
-                <span className="text-base font-bold text-blue-900">{i18n.language === 'ar' ? 'ر.س' : '$'}{total}</span>
-              </div>
+          <div className="mt-6 space-y-4">
+             {/* Totals Block */}
+            <div className="flex items-center justify-between text-base font-semibold text-slate-800">
+               <span>{t("checkout.subtotal")}</span>
+               <span>{subtotal} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}</span>
+            </div>
+            
+            <div className="flex items-center justify-between text-base font-semibold text-slate-800">
+               <span>{t("checkout.shipping")}</span>
+               <span>{shipping.toFixed(2)} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}</span>
+            </div>
+            
+             <div className="flex items-center justify-between text-base font-bold text-slate-900 pt-2">
+               <span>{t("checkout.total")}</span>
+               <span>{total} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}</span>
             </div>
           </div>
           
-          <Link to={ROUTES.ORDER_CHECKOUT_TWO}>
+          <Link to={ROUTES.ORDER_CHECKOUT_TWO} className="block mt-8">
             <button
               type="button"
-              className="mt-6 w-full rounded-md bg-amber-500 px-4 py-4 text-base font-bold text-blue-900 hover:bg-amber-600 transition-colors"
+              className="w-full rounded-md bg-[#F59E0B] px-4 py-4 text-center text-lg font-bold text-blue-900 hover:bg-[#D97706] transition-colors shadow-sm"
             >
               {t("checkout.completePurchase")}
             </button>

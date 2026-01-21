@@ -475,7 +475,7 @@ const validateOffer = asyncHandler(async (req, res) => {
   }
 
   const updatedOffer = await prisma.offer.update({
-    where: { id: parseInt(id) },
+    where: { id },
     data: {
       status: approved ? 'ACTIVE' : 'REJECTED',
       validatedBy: req.user.id,
@@ -548,7 +548,7 @@ const updateOffer = asyncHandler(async (req, res) => {
   } = req.body;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: { trader: true }
   });
 
@@ -586,7 +586,7 @@ const updateOffer = asyncHandler(async (req, res) => {
   }
 
   const updatedOffer = await prisma.offer.update({
-    where: { id: parseInt(id) },
+    where: { id },
     data: updateData,
     include: {
       trader: {
@@ -645,7 +645,7 @@ const uploadOfferExcelEmployee = asyncHandler(async (req, res) => {
   }
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: { trader: true }
   });
 
@@ -869,7 +869,7 @@ const getOfferById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       trader: {
         select: {
@@ -901,6 +901,15 @@ const getOfferById = asyncHandler(async (req, res) => {
       }
     }
   });
+  
+  console.log(`[DEBUG] getOfferById: Requested ID=${id}`);
+  console.log(`[DEBUG] getOfferById: User=${req.user?.id} Type=${req.userType}`);
+  
+  if (offer) {
+      console.log(`[DEBUG] getOfferById: Offer Found. Status=${offer.status} Trader=${offer.traderId}`);
+  } else {
+      console.log(`[DEBUG] getOfferById: Offer NOT Found for ID=${id}`);
+  }
 
   if (!offer) {
     return errorResponse(res, 'Offer not found', 404);
@@ -915,17 +924,25 @@ const getOfferById = asyncHandler(async (req, res) => {
       return errorResponse(res, 'Offer not found', 404);
     }
   } else if (req.userType === 'TRADER') {
-    // Trader: Only show their own offers (regardless of status)
-    if (offer.traderId !== req.user.id) {
+    // Trader: Show their own offers (any status) OR active offers from others
+    if (offer.traderId !== req.user.id && offer.status !== 'ACTIVE') {
       return errorResponse(res, 'Not authorized to view this offer', 403);
     }
   } else if (req.userType === 'EMPLOYEE') {
-    // Employee: Only show offers from their linked traders
+    // Employee: Show offers from their linked traders (any status) OR active offers from others
+    let isManagedOffer = false;
+    
+    // Check if this offer belongs to a trader managed by this employee
     const trader = await prisma.trader.findUnique({
       where: { id: offer.traderId },
       select: { employeeId: true }
     });
-    if (!trader || trader.employeeId !== req.user.id) {
+    
+    if (trader && trader.employeeId === req.user.id) {
+      isManagedOffer = true;
+    }
+
+    if (!isManagedOffer && offer.status !== 'ACTIVE') {
       return errorResponse(res, 'Not authorized to view this offer', 403);
     }
   } else if (req.userType === 'ADMIN') {
@@ -1180,7 +1197,7 @@ const deleteOffer = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       trader: true,
       _count: {
@@ -1217,7 +1234,7 @@ const deleteOffer = asyncHandler(async (req, res) => {
 
   // Delete offer (items will be cascade deleted)
   await prisma.offer.delete({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   successResponse(res, null, 'Offer deleted successfully');

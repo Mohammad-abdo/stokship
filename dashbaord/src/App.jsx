@@ -10,10 +10,17 @@ import { MultiProtectedRoute } from "./components/MultiProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Login from "./pages/Login";
 import MultiLogin from "./pages/MultiLogin";
+
 import StockshipAdminLayout from "./components/StockshipAdminLayout";
 import StockshipVendorLayout from "./components/StockshipVendorLayout";
 import StockshipEmployeeLayout from "./components/StockshipEmployeeLayout";
 import StockshipTraderLayout from "./components/StockshipTraderLayout";
+import { Toaster } from "sonner";
+import ModeratorDashboard from "./pages/moderator/ModeratorDashboard";
+import ModeratorTraders from "./pages/moderator/ModeratorTraders";
+import ModeratorReports from "./pages/moderator/ModeratorReports";
+import ModeratorSettings from "./pages/moderator/ModeratorSettings";
+import ModeratorLayout from "./components/ModeratorLayout";
 
 // Removed e-commerce frontend pages - not related to mediation platform
 
@@ -105,9 +112,20 @@ import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
 import TraderPayments from "./pages/stockship/trader/TraderPayments";
 import TraderSettings from "./pages/stockship/trader/TraderSettings";
 
+import StockshipClientLayout from "./components/StockshipClientLayout";
+import ClientDashboard from "./pages/stockship/client/ClientDashboard";
+import ClientViewOffer from "./pages/stockship/client/ClientViewOffer";
+import ClientViewDeal from "./pages/stockship/client/ClientViewDeal";
+import ClientDeals from "./pages/stockship/client/ClientDeals";
+import ClientSettings from "./pages/stockship/client/ClientSettings";
+import LandingPage from "./pages/LandingPage";
+import PublicViewOffer from "./pages/PublicViewOffer";
+
+
+
 function AppRoutes() {
   const { user, loading: authLoading } = useAuth();
-  const { loading: multiAuthLoading, isAdmin, isEmployee, isTrader, isClient, activeRole } = useMultiAuth();
+  const { loading: multiAuthLoading, isAdmin, isEmployee, isTrader, isClient, isVendor, isModerator, activeRole } = useMultiAuth();
 
   const loading = authLoading || multiAuthLoading;
 
@@ -117,17 +135,17 @@ function AppRoutes() {
     if (activeRole === 'admin' && isAdmin()) return "/stockship/admin/dashboard";
     if (activeRole === 'employee' && isEmployee()) return "/stockship/employee/dashboard";
     if (activeRole === 'trader' && isTrader()) return "/stockship/trader/dashboard";
-    if (activeRole === 'client' && isClient()) return "/";
+    if (activeRole === 'client' && isClient()) return "/stockship/client/dashboard";
     
     // If activeRole is set but doesn't match any logged-in role, check other roles
     // But prioritize by what's actually logged in, not by default priority
     if (isAdmin()) return "/stockship/admin/dashboard";
     if (isTrader()) return "/stockship/trader/dashboard";
     if (isEmployee()) return "/stockship/employee/dashboard";
-    if (isClient()) return "/";
+    if (isClient()) return "/stockship/client/dashboard";
     
     // Fallback to old AuthContext for legacy roles
-    if (!user) return "/multi-login";
+    if (!user) return "/login";
     
     // Stockship roles (userType: ADMIN, VENDOR, USER)
     const userType = user.userType || user.role;
@@ -138,22 +156,88 @@ function AppRoutes() {
       (user.role_names && Array.isArray(user.role_names) && 
        (user.role_names.includes("VENDOR") || user.role_names.includes("vendor")));
     
+    if (activeRole === 'admin' && isAdmin()) return "/stockship/admin/dashboard";
+    if (activeRole === 'employee' && isEmployee()) return "/stockship/employee/dashboard";
+    if (activeRole === 'moderator' && isModerator()) return "/stockship/moderator/dashboard";
+    if (activeRole === 'vendor' && isVendor()) return "/stockship/vendor/dashboard";
+    if (activeRole === 'trader' && isTrader()) return "/stockship/trader/dashboard";
+    if (activeRole === 'client' && isClient()) return "/stockship/client/dashboard";
+    
+    // If activeRole is set but doesn't match any logged-in role, check other roles
+    if (isAdmin()) return "/stockship/admin/dashboard";
+    if (isModerator()) return "/stockship/moderator/dashboard";
+    if (isEmployee()) return "/stockship/employee/dashboard";
+    if (isVendor()) return "/stockship/vendor/dashboard";
+    if (isTrader()) return "/stockship/trader/dashboard";
+    if (isClient()) return "/stockship/client/dashboard";
+    
+    // Fallback to old AuthContext for legacy roles
+    if (!user) return "/login";
+    
+
+    
     // Stockship routes
     if (hasAdminRole) return "/stockship/admin/dashboard";
     if (hasVendorRole) return "/stockship/vendor/dashboard";
     
-    return "/multi-login";
-  }, [activeRole, isAdmin, isEmployee, isTrader, isClient, user]);
+    return "/login";
+  }, [activeRole, isAdmin, isEmployee, isTrader, isClient, isVendor, isModerator, user]);
 
   return (
     <Routes>
       <Route
         path="/login"
-        element={(user || isAdmin() || isEmployee() || isTrader() || isClient()) ? <Navigate to={getDefaultRoute} replace /> : <Login />}
+        element={(isClient() || isTrader()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="staff" />}
+      />
+      <Route
+        path="/admin/login"
+        element={(isAdmin() || isEmployee() || isModerator() || isVendor()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="internal" />}
       />
       <Route
         path="/multi-login"
-        element={<MultiLogin />}
+        element={<Navigate to="/admin/login" replace />} 
+      />
+
+      {/* Moderator Routes */}
+      <Route
+        path="/stockship/moderator/dashboard"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorDashboard />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/moderator/traders"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorTraders />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/moderator/reports"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorReports />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/moderator/settings"
+        element={
+          <MultiProtectedRoute requireModerator>
+            <ModeratorLayout>
+              <ModeratorSettings />
+            </ModeratorLayout>
+          </MultiProtectedRoute>
+        }
       />
       
       {/* Stockship Admin Routes */}
@@ -749,6 +833,59 @@ function AppRoutes() {
           </MultiProtectedRoute>
         }
       />
+
+      {/* Mediation Platform - Client Routes */}
+      <Route
+        path="/stockship/client/dashboard"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientDashboard />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/offers/:id"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientViewOffer />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/deals/:id"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientViewDeal />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/deals"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientDeals />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/settings"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientSettings />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+
       <Route
         path="/stockship/employee/categories"
         element={
@@ -994,8 +1131,10 @@ function AppRoutes() {
         }
       />
 
-      {/* Root redirect to login */}
-      <Route path="/" element={<Navigate to="/multi-login" replace />} />
+      {/* Root Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/offers/:id" element={<PublicViewOffer />} />
+      {/* <Route path="/" element={<Navigate to="/multi-login" replace />} /> */}
       <Route 
         path="*" 
         element={
@@ -1028,6 +1167,7 @@ function App() {
           </LanguageProvider>
         </ThemeProvider>
       </BrowserRouter>
+      <Toaster />
     </ErrorBoundary>
   );
 }

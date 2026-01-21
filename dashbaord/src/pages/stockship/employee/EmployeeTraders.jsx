@@ -14,6 +14,7 @@ export default function EmployeeTraders() {
   const { getAuth } = useMultiAuth();
   const { t, language } = useLanguage();
   const { user } = getAuth('employee');
+  
   const [traders, setTraders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -23,13 +24,14 @@ export default function EmployeeTraders() {
     total: 0,
     pages: 0
   });
+  const [activeTab, setActiveTab] = useState("active"); // "active" or "requests"
   const fetchingRef = useRef(false);
 
   useEffect(() => {
     if (user?.id && !fetchingRef.current) {
       loadTraders();
     }
-  }, [user, pagination.page]);
+  }, [user, pagination.page, activeTab]);
 
   const loadTraders = async () => {
     if (fetchingRef.current) return;
@@ -37,13 +39,17 @@ export default function EmployeeTraders() {
     try {
       fetchingRef.current = true;
       setLoading(true);
+      
       const response = await employeeApi.getEmployeeTraders(user.id, {
         page: pagination.page,
         limit: pagination.limit,
+        isVerified: activeTab === 'active',
         ...(searchTerm && { search: searchTerm })
       });
+      
       const data = response.data.data || response.data;
       setTraders(Array.isArray(data) ? data : (data?.traders || []));
+      
       if (response.data.pagination) {
         setPagination(prev => ({
           ...prev,
@@ -58,9 +64,6 @@ export default function EmployeeTraders() {
         error.response?.data?.message || 'Please try again'
       );
       setTraders([]);
-      if (error.response?.status !== 429) {
-        // Only show error if not rate limited
-      }
     } finally {
       setLoading(false);
       fetchingRef.current = false;
@@ -76,6 +79,29 @@ export default function EmployeeTraders() {
     }, 500);
     return () => clearTimeout(timeoutId);
   }, [searchTerm]);
+
+  const handleApprove = async (traderId) => {
+    try {
+      await traderApi.updateTrader(traderId, { isVerified: true });
+      showToast.success(t('mediation.traders.verifiedSuccess') || "Trader verified successfully");
+      loadTraders(); // Reload to refresh list
+    } catch (error) {
+       console.error(error);
+       showToast.error("Failed to verify trader");
+    }
+  };
+
+  const handleDecline = async (traderId) => {
+     if(!window.confirm("Are you sure you want to decline this trader? They will be deactivated.")) return;
+     try {
+       await traderApi.updateTrader(traderId, { isActive: false });
+       showToast.success(t('mediation.traders.declinedSuccess') || "Trader declined successfully");
+       loadTraders();
+     } catch (error) {
+        console.error(error);
+        showToast.error("Failed to decline trader");
+     }
+  };
 
   const columns = [
     {
@@ -132,6 +158,30 @@ export default function EmployeeTraders() {
 
   const rowActions = (row) => (
     <div className="flex items-center gap-1 justify-end">
+      {!row.isVerified && (
+         <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleApprove(row.id);
+              }}
+              className="p-1 px-2 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs transition-colors mr-1"
+              title="Approve"
+            >
+              Approve
+            </button>
+            <button
+               onClick={(e) => {
+                 e.stopPropagation();
+                 handleDecline(row.id);
+               }}
+               className="p-1 px-2 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs transition-colors mr-2"
+               title="Decline"
+            >
+               Decline
+            </button>
+         </>
+      )}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -191,6 +241,36 @@ export default function EmployeeTraders() {
           <Plus className="w-4 h-4" />
           {t('mediation.employee.registerTrader') || 'Register New Trader'}
         </motion.button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        <button
+          onClick={() => {
+            setActiveTab("requests");
+            setPagination(prev => ({ ...prev, page: 1 }));
+          }}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "requests"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {t('mediation.employee.requests') || 'Requests'}
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("active");
+            setPagination(prev => ({ ...prev, page: 1 }));
+          }}
+          className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === "active"
+              ? "border-blue-600 text-blue-600"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {t('mediation.employee.myTraders') || 'My Traders'}
+        </button>
       </div>
 
       {/* Search */}

@@ -33,6 +33,37 @@ async function main() {
   console.log('✅ Created admin:', admin.email);
 
   // ============================================
+  // 1.5. CREATE MODERATORS
+  // ============================================
+  console.log('🛡️ Creating moderators...');
+  const moderatorPassword = await bcrypt.hash('moderator123', 10);
+  const moderators = await Promise.all([
+    prisma.moderator.upsert({
+      where: { email: 'moderator1@stokship.com' },
+      update: {},
+      create: {
+        email: 'moderator1@stokship.com',
+        password: moderatorPassword,
+        name: 'Senior Moderator',
+        role: 'moderator',
+        isActive: true
+      }
+    }),
+    prisma.moderator.upsert({
+      where: { email: 'moderator2@stokship.com' },
+      update: {},
+      create: {
+        email: 'moderator2@stokship.com',
+        password: moderatorPassword,
+        name: 'Junior Moderator',
+        role: 'moderator',
+        isActive: true
+      }
+    })
+  ]);
+  console.log(`✅ Created ${moderators.length} moderators`);
+
+  // ============================================
   // 2. CREATE EMPLOYEES
   // ============================================
   console.log('👔 Creating employees...');
@@ -250,8 +281,7 @@ async function main() {
       const qrCodeData = JSON.stringify({
         type: 'TRADER',
         traderCode: traderCode1,
-        barcode: barcode1,
-        clientId: linkedClient1.id
+        barcode: barcode1
       });
       const qrCodeDataUrl1 = await QRCode.toDataURL(qrCodeData);
       qrCodeUrl1 = qrCodeDataUrl1;
@@ -264,9 +294,7 @@ async function main() {
   const linkedTrader1 = await prisma.trader.upsert({
     where: { email: 'dualprofile@stokship.com' },
     update: {
-      // Update clientId to ensure it's linked (even if already exists)
-      clientId: linkedClient1.id,
-      // Update other fields to match latest schema
+      // Update fields to match latest schema
       password: clientPassword, // Ensure same password as client
       qrCodeUrl: qrCodeUrl1 || existingLinkedTrader1?.qrCodeUrl,
       barcode: barcode1 || existingLinkedTrader1?.barcode
@@ -285,13 +313,12 @@ async function main() {
       barcode: barcode1,
       qrCodeUrl: qrCodeUrl1,
       employeeId: employees[0].id,
-      clientId: linkedClient1.id, // Link to client - REQUIRED for dual profile
       isActive: true,
       isVerified: true,
       verifiedAt: new Date()
     }
   });
-  console.log(`✅ Created/Updated linked trader 1 (email: ${linkedTrader1.email}, clientId: ${linkedTrader1.clientId}, traderCode: ${linkedTrader1.traderCode})`);
+  console.log(`✅ Created/Updated linked trader 1 (email: ${linkedTrader1.email}, traderCode: ${linkedTrader1.traderCode})`);
 
   // Example 2: Merchant User (another dual profile example)
   const linkedClient2 = clients.find(c => c.email === 'merchant@stokship.com');
@@ -331,8 +358,7 @@ async function main() {
   const linkedTrader2 = await prisma.trader.upsert({
     where: { email: 'merchant@stokship.com' },
     update: {
-      // Update clientId to ensure it's linked (even if already exists)
-      clientId: linkedClient2.id,
+      // Update fields to match latest schema
       password: clientPassword, // Ensure same password as client
       qrCodeUrl: qrCodeUrl2 || existingLinkedTrader2?.qrCodeUrl,
       barcode: barcode2 || existingLinkedTrader2?.barcode
@@ -351,13 +377,12 @@ async function main() {
       barcode: barcode2,
       qrCodeUrl: qrCodeUrl2,
       employeeId: employees.length > 1 ? employees[1].id : employees[0].id, // Link to second employee or first
-      clientId: linkedClient2.id, // Link to client - dual profile
       isActive: true,
       isVerified: true,
       verifiedAt: new Date()
     }
   });
-  console.log(`✅ Created/Updated linked trader 2 (email: ${linkedTrader2.email}, clientId: ${linkedTrader2.clientId}, traderCode: ${linkedTrader2.traderCode})`);
+  console.log(`✅ Created/Updated linked trader 2 (email: ${linkedTrader2.email}, traderCode: ${linkedTrader2.traderCode})`);
 
   // Store all linked traders
   const linkedTraders = [linkedTrader1, linkedTrader2];
@@ -419,8 +444,6 @@ async function main() {
         standaloneTrader = await prisma.trader.upsert({
           where: { email: `trader${index + 1}@stokship.com` },
           update: {
-            // Ensure clientId is null for standalone traders (not linked)
-            clientId: null,
             password: traderPassword,
             qrCodeUrl: currentQrCodeUrl || freshCheck?.qrCodeUrl,
             barcode: currentBarcode || freshCheck?.barcode
@@ -438,11 +461,10 @@ async function main() {
             traderCode: finalTraderCode, // Use final trader code (existing or new)
             barcode: currentBarcode,
             qrCodeUrl: currentQrCodeUrl,
-            employeeId: employee.id,
-            clientId: null, // No linked client - standalone trader
-            isActive: true,
             isVerified: index === 0, // First trader is verified
-            verifiedAt: index === 0 ? new Date() : null
+            verifiedAt: index === 0 ? new Date() : null,
+            // Only assign an employee to the verified trader
+            employeeId: index === 0 ? employee.id : null,
           }
         });
         break; // Success - exit retry loop

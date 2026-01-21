@@ -11,9 +11,10 @@ import {
   BadgeCheck,
   Star,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { ROUTES, getSellerProductsUrl } from "../routes";
 import { offerService } from "../services/offerService";
+import { useAuth } from "../contexts/AuthContext";
 
 const StarRating = ({ value = 5 }) => {
   const { t } = useTranslation();
@@ -40,6 +41,26 @@ export default function ProductDetailsComponent({ offerId }) {
   const [activeImageId, setActiveImageId] = useState("main");
   const [liked, setLiked] = useState(false);
   const [tab, setTab] = useState("company");
+  const { isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleMakeDeal = () => {
+    if (!isAuthenticated) {
+      // Redirect to login with return path
+      navigate(ROUTES.LOGIN, { state: { from: location } });
+      return;
+    }
+
+    // Allow Clients AND Traders (for testing) to proceed
+    if (user?.userType === 'CLIENT' || user?.userType === 'TRADER') {
+      console.log("ProductDetails: Navigating with offer:", offer);
+      // Navigate to checkout with offer details
+      navigate(ROUTES.ORDER_CHECKOUT, { state: { offer } });
+    } else {
+       console.warn("User type not allowed to make deal:", user?.userType);
+    }
+  };
 
   const fetchOffer = useCallback(async () => {
     try {
@@ -331,6 +352,17 @@ export default function ProductDetailsComponent({ offerId }) {
                     </div>
                   </div>
                 </Link>
+              )}
+              
+              {/* Make Deal Button */}
+              {/* Make Deal Button - Show for Clients, Unauthenticated, AND Traders (for testing) */}
+              {(!isAuthenticated || user?.userType === 'CLIENT' || user?.userType === 'TRADER') && (
+                <button
+                  onClick={handleMakeDeal}
+                  className="w-full mt-4 rounded-md bg-amber-500 px-4 py-3 text-sm sm:text-base font-bold text-blue-900 hover:bg-amber-600 transition-colors shadow-sm"
+                >
+                  {i18n.language === 'ar' ? 'تقديم طلب' : 'Make Request'}
+                </button>
               )}
             </div>
           </div>

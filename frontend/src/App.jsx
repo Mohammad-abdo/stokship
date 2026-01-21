@@ -24,6 +24,12 @@ import RequestSent from "./pages/RequestSent";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import ModeratorDashboard from "./pages/ModeratorDashboard";
+import TraderDashboard from "./pages/trader/TraderDashboard";
+import TraderOffers from "./pages/trader/TraderOffers";
+import TraderDeals from "./pages/trader/TraderDeals";
+import TraderViewOffer from "./pages/trader/TraderViewOffer";
+import TraderViewDeal from "./pages/trader/TraderViewDeal";
 
 function AppContent() {
   const location = useLocation();
@@ -32,6 +38,8 @@ function AppContent() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  console.log("AppContent Rendered. Path:", location.pathname);
+  
   return (
     <Routes>
       <Route path={ROUTES.HOME} element={<Home />} />
@@ -39,6 +47,7 @@ function AppContent() {
       <Route path={`${ROUTES.PRODUCT_DETAILS}/:id`} element={<ProductDetails />} />
       <Route path={`${ROUTES.OFFER_DETAILS}/:id`} element={<ProductDetails />} />
       <Route path={ROUTES.LOGIN} element={<LogIn />} />
+      <Route path={ROUTES.MULTI_LOGIN} element={<LogIn />} />
       <Route path={ROUTES.SIGNUP} element={<SignUp />} />
       <Route path={ROUTES.TERMS_AND_POLICIES} element={<TermsPoliciesPage />} />
       <Route path={ROUTES.NOTIFICATION} element={<Notification />} />
@@ -53,6 +62,12 @@ function AppContent() {
       <Route path={ROUTES.SELLER} element={<Seller />} />
       <Route path={`${ROUTES.SELLER_PRODUCTS}/:sellerId`} element={<SellerProductsPage />} />
       <Route path={ROUTES.PUBLISH_AD} element={<ProtectedRoute allowedRoles={['TRADER']}><PublishAdPage /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_DASHBOARD} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderDashboard /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_OFFERS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderOffers /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_OFFER_DETAILS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderViewOffer /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_DEALS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderDeals /></ProtectedRoute>} />
+      <Route path={ROUTES.TRADER_DEAL_DETAILS} element={<ProtectedRoute allowedRoles={['TRADER']}><TraderViewDeal /></ProtectedRoute>} />
+      <Route path={ROUTES.MODERATOR_DASHBOARD} element={<ProtectedRoute allowedRoles={['MODERATOR']}><ModeratorDashboard /></ProtectedRoute>} />
       <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
       <Route path={ROUTES.REQUEST_SENT} element={<RequestSent />} />
       <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />

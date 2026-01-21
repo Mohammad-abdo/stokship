@@ -30,9 +30,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized - clear token and redirect to login
+      // Handle unauthorized - clear token
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Let the app handle the redirect based on context (e.g. AuthContext will catch this)
     }
     return Promise.reject(error);
   }

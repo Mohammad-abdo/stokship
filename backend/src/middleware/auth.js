@@ -94,6 +94,16 @@ const protect = async (req, res, next) => {
             isActive: true
           }
         });
+      } else if (decoded.userType === 'MODERATOR') {
+        user = await prisma.moderator.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            isActive: true
+          }
+        });
       }
 
       if (!user) {
@@ -234,6 +244,26 @@ const protectOptional = async (req, res, next) => {
         });
       } else if (decoded.userType === 'CLIENT') {
         user = await prisma.client.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            isActive: true
+          }
+        });
+      } else if (decoded.userType === 'MODERATOR') {
+        user = await prisma.moderator.findUnique({
+          where: { id: decoded.id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            isActive: true
+          }
+        });
+      } else if (decoded.userType === 'MODERATOR') {
+        user = await prisma.moderator.findUnique({
           where: { id: decoded.id },
           select: {
             id: true,

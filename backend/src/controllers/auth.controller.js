@@ -138,16 +138,17 @@ const login = async (req, res) => {
     let userData = null;
     let linkedProfiles = []; // Store all matching profiles
 
-    // Check all user types (admin, employee, trader, client) simultaneously
-    const [admin, employee, trader, client] = await Promise.all([
+    // Check all user types (admin, moderator, employee, trader, client) simultaneously
+    const [admin, moderator, employee, trader, client] = await Promise.all([
       prisma.admin.findUnique({ where: { email } }),
+      prisma.moderator.findUnique({ where: { email } }), // Added Moderator
       prisma.employee.findUnique({ where: { email } }),
       prisma.trader.findUnique({ where: { email } }),
       prisma.client.findUnique({ where: { email } })
     ]);
 
     // Check if email exists in any table
-    if (!admin && !employee && !trader && !client) {
+    if (!admin && !moderator && !employee && !trader && !client) {
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -161,6 +162,13 @@ const login = async (req, res) => {
         user: admin,
         userType: 'ADMIN',
         checkPassword: () => bcrypt.compare(password, admin.password)
+      });
+    }
+    if (moderator) {
+      profileChecks.push({
+        user: moderator,
+        userType: 'MODERATOR',
+        checkPassword: () => bcrypt.compare(password, moderator.password)
       });
     }
     if (employee) {
@@ -193,12 +201,17 @@ const login = async (req, res) => {
     // Find profiles with matching password
     const validProfiles = profileChecks
       .map((pc, index) => ({ ...pc, passwordMatch: passwordChecks[index] }))
-      .filter(pc => pc.passwordMatch && pc.user.isActive);
+      .filter(pc => {
+        if (!pc.passwordMatch || !pc.user.isActive) return false;
+        // For TRADER, also check if verified (approved)
+        if (pc.userType === 'TRADER' && !pc.user.isVerified) return false;
+        return true;
+      });
 
     // Better error messages for debugging
     if (validProfiles.length === 0) {
       // Check if email exists in any table
-      const emailExists = admin || employee || trader || client;
+      const emailExists = admin || moderator || employee || trader || client;
       
       if (emailExists) {
         // Check if any profile exists but password is wrong
@@ -225,6 +238,19 @@ const login = async (req, res) => {
           return res.status(401).json({
             success: false,
             message: 'Account is inactive. Please contact support.'
+          });
+        }
+
+        // Password is correct but account is unverified (pending approval) - TRADER only
+        const unverifiedProfiles = profileChecks
+          .map((pc, index) => ({ ...pc, passwordMatch: passwordChecks[index] }))
+          .filter(pc => pc.passwordMatch && pc.user.isActive && pc.userType === 'TRADER' && !pc.user.isVerified);
+
+        if (unverifiedProfiles.length > 0) {
+          logger.warn(`Login attempt failed: Unverified trader account for email ${email}`);
+          return res.status(403).json({
+            success: false,
+            message: 'Your account is under review. Please wait for admin approval.'
           });
         }
       }
@@ -299,6 +325,14 @@ const login = async (req, res) => {
         commissionRate: employee.commissionRate,
         isActive: employee.isActive
       };
+    } else if (userType === 'MODERATOR') {
+      userData = {
+        id: moderator.id,
+        email: moderator.email,
+        name: moderator.name,
+        role: moderator.role,
+        isActive: moderator.isActive
+      };
     } else if (userType === 'TRADER') {
       userData = {
         id: trader.id,
@@ -356,6 +390,11 @@ const login = async (req, res) => {
       });
     } else if (userType === 'EMPLOYEE') {
       await prisma.employee.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      });
+    } else if (userType === 'MODERATOR') {
+      await prisma.moderator.update({
         where: { id: user.id },
         data: { lastLoginAt: new Date() }
       });
@@ -624,7 +663,14 @@ const updateProfile = async (req, res) => {
           ...(phone && { phone }),
           ...(country && { country }),
           ...(city && { city }),
-          ...(req.body.companyName && { companyName: req.body.companyName })
+          ...(req.body.companyName && { companyName: req.body.companyName }),
+          ...(req.body.companyAddress && { companyAddress: req.body.companyAddress }),
+          ...(req.body.bankAccountName && { bankAccountName: req.body.bankAccountName }),
+          ...(req.body.bankAccountNumber && { bankAccountNumber: req.body.bankAccountNumber }),
+          ...(req.body.bankName && { bankName: req.body.bankName }),
+          ...(req.body.bankAddress && { bankAddress: req.body.bankAddress }),
+          ...(req.body.bankCode && { bankCode: req.body.bankCode }),
+          ...(req.body.swiftCode && { swiftCode: req.body.swiftCode })
         },
         select: {
           id: true,
@@ -633,7 +679,14 @@ const updateProfile = async (req, res) => {
           phone: true,
           country: true,
           city: true,
-          companyName: true
+          companyName: true,
+          companyAddress: true,
+          bankAccountName: true,
+          bankAccountNumber: true,
+          bankName: true,
+          bankAddress: true,
+          bankCode: true,
+          swiftCode: true
         }
       });
     } else if (req.userType === 'EMPLOYEE') {

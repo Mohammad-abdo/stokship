@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import RoleSwitcher from "./RoleSwitcher";
 import ProfileStatusBadge from "./ProfileStatusBadge";
 import NotificationsDropdown from "./NotificationsDropdown";
+import LanguageToggle from "./LanguageToggle";
 import {
   LayoutDashboard,
   Users,
@@ -89,7 +90,7 @@ export default function StockshipEmployeeLayout({ children }) {
         {/* User Info */}
         <div className="px-4 py-3 border-b border-gray-200/50">
           <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
               <Briefcase className="w-5 h-5 text-gray-600" />
             </div>
             <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}>
@@ -117,7 +118,7 @@ export default function StockshipEmployeeLayout({ children }) {
                     : "text-gray-600 hover:bg-gray-100/50 hover:text-gray-900"
                 } ${isRTL ? 'flex-row-reverse justify-end' : ''}`}
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
+                <Icon className="w-5 h-5 shrink-0" />
                 <span className={`text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{item.label}</span>
               </Link>
             );
@@ -130,7 +131,7 @@ export default function StockshipEmployeeLayout({ children }) {
             onClick={handleLogout}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100/60 text-gray-600 hover:text-gray-900 w-full transition-colors text-sm ${isRTL ? 'flex-row-reverse justify-end' : ''}`}
           >
-            <LogOut className="w-5 h-5 flex-shrink-0" />
+            <LogOut className="w-5 h-5 shrink-0" />
             <span className={`font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{t('common.logout')}</span>
           </button>
         </div>
@@ -167,17 +168,10 @@ export default function StockshipEmployeeLayout({ children }) {
             </h1>
           </div>
           <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <RoleSwitcher />
-            <ProfileStatusBadge />
-            <NotificationsDropdown />
-            <button
-              onClick={toggleLanguage}
-              className={`p-2 rounded-lg hover:bg-gray-100/60 text-gray-600 transition-colors flex items-center gap-1 ${isRTL ? 'flex-row-reverse' : ''}`}
-              title={t('common.language') || 'Language'}
-            >
-              <Globe size={18} />
-              <span className="text-xs">{language === 'ar' ? 'EN' : 'AR'}</span>
-            </button>
+             <RoleSwitcher />
+             <ProfileStatusBadge />
+             <NotificationsDropdown />
+             <LanguageToggle />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>

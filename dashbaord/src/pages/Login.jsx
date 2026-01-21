@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useAuth } from "@/contexts/AuthContext";
+// import { useAuth } from "@/contexts/AuthContext";
+import { useMultiAuth } from "@/contexts/MultiAuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import LanguageToggle from "@/components/LanguageToggle";
 import {
@@ -18,7 +19,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login: multiLogin } = useMultiAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -28,31 +29,42 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(email, password);
-      const user = JSON.parse(localStorage.getItem("auth_user"));
-      console.log(user);
-      const userType = user.userType || user.role;
-
-      // Stockship routes
-      if (userType === "ADMIN" || userType === "admin") {
+      // Use multi-auth login which handles all roles
+      const result = await multiLogin(email, password);
+      
+      const role = result.role;
+      const userType = result.user?.userType || result.user?.role;
+      
+      // Determine redirection based on returned role
+      if (role === 'admin') {
         navigate("/stockship/admin/dashboard");
-      } else if (userType === "VENDOR" || userType === "vendor") {
-        navigate("/stockship/vendor/dashboard");
-      } else if (userType === "USER" || userType === "user") {
-        navigate("/dashboard");
-      } 
-      // Legacy routes
-      else if (userType === "doctor") {
-        navigate("/doctor/dashboard");
+      } else if (role === 'moderator') {
+        navigate("/stockship/moderator/dashboard"); 
+      } else if (role === 'employee') {
+        navigate("/stockship/employee/dashboard");
+      } else if (role === 'trader') {
+        navigate("/stockship/trader/dashboard");
+      } else if (role === 'client') {
+        navigate("/");
       } else {
-        navigate("/dashboard");
+        // Fallback for unexpected roles
+        if (userType === "VENDOR" || userType === "vendor") {
+          navigate("/stockship/vendor/dashboard");
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (err) {
       if (err.response?.status === 429) {
         const retryAfter = err.response.headers['retry-after'] || 15;
         setError(`Too many login attempts. Please wait ${retryAfter} seconds before trying again.`);
       } else {
-        setError(err.response?.data?.message || err.message || "Login failed. Please try again.");
+        // Handle specific error messages
+        const msg = err.message || "Login failed";
+        if (msg.includes("verify")) {
+             navigate("/verify-email", { state: { email } });
+        }
+        setError(msg);
       }
     } finally {
       setLoading(false);

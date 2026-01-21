@@ -18,7 +18,7 @@ const createTrader = asyncHandler(async (req, res) => {
 
   // Verify employee exists and user is that employee
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(employeeId) }
+    where: { id: employeeId }
   });
 
   if (!employee) {
@@ -47,7 +47,7 @@ const createTrader = asyncHandler(async (req, res) => {
 
   // Generate trader code
   const traderCount = await prisma.trader.count({
-    where: { employeeId: parseInt(employeeId) }
+    where: { employeeId: employeeId }
   });
   const traderCode = `TRD-${String(traderCount + 1).padStart(4, '0')}`;
 
@@ -79,7 +79,7 @@ const createTrader = asyncHandler(async (req, res) => {
       traderCode,
       barcode,
       qrCodeUrl,
-      employeeId: parseInt(employeeId),
+      employeeId: employeeId,
       clientId: existingClient ? existingClient.id : null, // Link to client if exists
       isActive: true,
       isVerified: false
@@ -100,11 +100,11 @@ const createTrader = asyncHandler(async (req, res) => {
   // Log activity
   await prisma.activityLog.create({
     data: {
-      userId: req.user.id,
+      employeeId: req.user.id,
       userType: 'EMPLOYEE',
       action: 'TRADER_CREATED',
       entityType: 'TRADER',
-      entityId: trader.id,
+      traderId: trader.id,
       description: `Employee created trader: ${trader.name} (${traderCode})`,
       ipAddress: req.ip,
       userAgent: req.get('user-agent')
@@ -112,6 +112,99 @@ const createTrader = asyncHandler(async (req, res) => {
   });
 
   successResponse(res, trader, 'Trader created successfully', 201);
+});
+
+/**
+ * @desc    Register Trader (Client self-registration)
+ * @route   POST /api/traders/register
+ * @access  Private (Client)
+ */
+const registerTrader = asyncHandler(async (req, res) => {
+  const { 
+    bankAccountName, bankAccountNumber, bankName, bankAddress, bankCode, swiftCode,
+    companyAddress, name, phone, city, country
+  } = req.body;
+
+  // Basic validation
+  if (!bankAccountName || !bankAccountNumber || !bankName) {
+    return errorResponse(res, 'Please provide essential bank details', 400);
+  }
+
+  // Get client
+  const client = await prisma.client.findUnique({
+    where: { id: req.user.id }
+  });
+
+  if (!client) {
+    return errorResponse(res, 'Client not found', 404);
+  }
+
+  // Check if already has a trader profile
+  const existingTrader = await prisma.trader.findFirst({
+    where: { 
+      OR: [
+        { email: client.email },
+        { clientId: client.id }
+      ]
+    }
+  });
+
+  if (existingTrader) {
+    return errorResponse(res, 'You already have a trader profile linked to this account', 400);
+  }
+
+  // Generate codes
+  const traderCode = `TRD-${Date.now().toString().slice(-6)}`;
+  const barcode = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const qrCodeData = JSON.stringify({ type: 'TRADER', traderCode, barcode });
+  const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
+
+  const clientPassword = client.password; // This is the hash
+
+  const trader = await prisma.trader.create({
+    data: {
+      email: client.email,
+      password: clientPassword, // Copy password hash so they can login as Trader with same credentials
+      name: name || client.name,
+      phone: phone || client.phone,
+      country: country || client.country,
+      city: city || client.city,
+      countryCode: client.countryCode,
+      
+      companyName: bankAccountName || client.name, // Fallback if no company name provided
+      companyAddress: companyAddress,
+      
+      bankAccountName,
+      bankAccountNumber,
+      bankName,
+      bankAddress,
+      bankCode,
+      swiftCode,
+
+      traderCode,
+      barcode,
+      qrCodeUrl,
+      
+      clientId: client.id,
+      isActive: true,     // Active but...
+      isVerified: false,  // ...Not Verified (Pending Approval)
+      employeeId: null    // Unassigned initially
+    }
+  });
+
+  // Log activity
+  await prisma.activityLog.create({
+    data: {
+      clientId: req.user.id,
+      userType: 'CLIENT',
+      action: 'TRADER_REGISTERED',
+      entityType: 'TRADER',
+      traderId: trader.id,
+      description: `Client registered as trader: ${trader.name}`,
+    }
+  });
+
+  successResponse(res, trader, 'Trader application submitted successfully', 201);
 });
 
 /**
@@ -123,7 +216,7 @@ const getTraderById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   try {
-    const traderId = parseInt(id);
+    const traderId = id;
     
     // First, get basic trader info with counts
     const trader = await prisma.trader.findUnique({
@@ -303,13 +396,13 @@ const getTraderById = asyncHandler(async (req, res) => {
     // Total offers by status
     prisma.offer.groupBy({
       by: ['status'],
-      where: { traderId: parseInt(id) },
+      where: { traderId: id },
       _count: { status: true }
     }).catch(() => []), // Return empty array on error
     // Total deals by status
     prisma.deal.groupBy({
       by: ['status'],
-      where: { traderId: parseInt(id) },
+      where: { traderId: id },
       _count: { status: true },
       _sum: {
         totalCartons: true,
@@ -321,7 +414,7 @@ const getTraderById = asyncHandler(async (req, res) => {
     (async () => {
       try {
         const dealIds = await prisma.deal.findMany({
-          where: { traderId: parseInt(id) },
+          where: { traderId: id },
           select: { id: true }
         }).then(deals => deals.map(d => d.id));
 
@@ -350,7 +443,7 @@ const getTraderById = asyncHandler(async (req, res) => {
     (async () => {
       try {
         const dealIds = await prisma.deal.findMany({
-          where: { traderId: parseInt(id) },
+          where: { traderId: id },
           select: { id: true }
         }).then(deals => deals.map(d => d.id));
 
@@ -359,12 +452,12 @@ const getTraderById = asyncHandler(async (req, res) => {
         if (dealIds && dealIds.length > 0) {
           whereClause = {
             OR: [
-              { traderId: parseInt(id) },
+              { traderId: id },
               { dealId: { in: dealIds } }
             ]
           };
         } else {
-          whereClause = { traderId: parseInt(id) };
+          whereClause = { traderId: id };
         }
 
         const result = await prisma.financialTransaction.aggregate({
@@ -426,7 +519,7 @@ const getTraderOffers = asyncHandler(async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const trader = await prisma.trader.findUnique({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   if (!trader) {
@@ -441,7 +534,7 @@ const getTraderOffers = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Not authorized', 403);
   }
 
-  const where = { traderId: parseInt(id) };
+  const where = { traderId: id };
   if (status) where.status = status;
 
   const [offers, total] = await Promise.all([
@@ -480,7 +573,7 @@ const updateTrader = asyncHandler(async (req, res) => {
   const { name, companyName, phone, countryCode, country, city, isActive, isVerified } = req.body;
 
   const trader = await prisma.trader.findUnique({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   if (!trader) {
@@ -488,27 +581,68 @@ const updateTrader = asyncHandler(async (req, res) => {
   }
 
   // Check authorization
+  // Check authorization - Admin can update any, Employee only their own, Moderator can update specific fields
   if (req.userType === 'EMPLOYEE' && req.user.id !== trader.employeeId) {
     return errorResponse(res, 'Not authorized', 403);
   }
 
   const updateData = {};
-  if (name) updateData.name = name;
-  if (companyName) updateData.companyName = companyName;
-  if (phone !== undefined) updateData.phone = phone;
-  if (countryCode !== undefined) updateData.countryCode = countryCode;
-  if (country !== undefined) updateData.country = country;
-  if (city !== undefined) updateData.city = city;
-  if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
-  if (isVerified !== undefined) {
-    updateData.isVerified = isVerified === 'true' || isVerified === true;
-    if (isVerified && !trader.isVerified) {
-      updateData.verifiedAt = new Date();
+  
+  // Specific permissions for MODERATOR
+  if (req.userType === 'MODERATOR') {
+    if (isVerified !== undefined) {
+      updateData.isVerified = isVerified === 'true' || isVerified === true;
+      if (updateData.isVerified && !trader.isVerified) {
+        updateData.verifiedAt = new Date();
+      }
+    }
+  } 
+  // Specific permissions for EMPLOYEE (for assigned traders)
+  else if (req.userType === 'EMPLOYEE') {
+      // Employee can verify/unverify their assigned traders
+      if (isVerified !== undefined) {
+          updateData.isVerified = isVerified === 'true' || isVerified === true;
+          if (updateData.isVerified && !trader.isVerified) {
+             updateData.verifiedAt = new Date();
+          }
+      }
+      
+      // Employee can also update basic details
+      if (name) updateData.name = name;
+      if (companyName) updateData.companyName = companyName;
+      if (phone !== undefined) updateData.phone = phone;
+      if (countryCode !== undefined) updateData.countryCode = countryCode;
+      if (country !== undefined) updateData.country = country;
+      if (city !== undefined) updateData.city = city;
+      if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
+  }
+  else {
+    // Admin can update profile details and verify
+    if (name) updateData.name = name;
+    if (companyName) updateData.companyName = companyName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (countryCode !== undefined) updateData.countryCode = countryCode;
+    if (country !== undefined) updateData.country = country;
+    if (city !== undefined) updateData.city = city;
+    if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
+    
+    if (req.userType === 'ADMIN') {
+        if (isVerified !== undefined) {
+            updateData.isVerified = isVerified === 'true' || isVerified === true;
+            if (updateData.isVerified && !trader.isVerified) {
+              updateData.verifiedAt = new Date();
+            }
+        }
     }
   }
 
+  // If no data to update return
+  if (Object.keys(updateData).length === 0) {
+      return successResponse(res, trader, 'No changes made');
+  }
+
   const updated = await prisma.trader.update({
-    where: { id: parseInt(id) },
+    where: { id },
     data: updateData,
     select: {
       id: true,
@@ -523,33 +657,100 @@ const updateTrader = asyncHandler(async (req, res) => {
   });
 
   // Log activity
-  await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: req.userType,
-      action: 'TRADER_UPDATED',
-      entityType: 'TRADER',
-      entityId: updated.id,
-      description: `${req.userType} updated trader: ${updated.name}`,
-      changes: JSON.stringify(updateData),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  // Determine user ID field based on user type
+  const logData = {
+    userType: req.userType,
+    action: 'TRADER_UPDATED',
+    entityType: 'TRADER',
+    traderId: updated.id,
+    description: `${req.userType} updated trader: ${updated.name}`,
+    changes: JSON.stringify(updateData),
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+
+  if (req.userType === 'ADMIN') logData.adminId = req.user.id;
+  else if (req.userType === 'MODERATOR') logData.moderatorId = req.user.id;
+  else if (req.userType === 'EMPLOYEE') logData.employeeId = req.user.id;
+
+  await prisma.activityLog.create({ data: logData });
 
   successResponse(res, updated, 'Trader updated successfully');
 });
 
 /**
- * @desc    Get All Traders (Admin only)
+ * @desc    Assign Trader to Employee (Moderator/Admin)
+ * @route   PUT /api/traders/:id/assign
+ * @access  Private (Admin/Moderator)
+ */
+const assignTrader = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { employeeId } = req.body;
+
+  if (!employeeId) {
+    return errorResponse(res, 'Employee ID is required', 400);
+  }
+
+  const trader = await prisma.trader.findUnique({
+    where: { id }
+  });
+
+  if (!trader) {
+    return errorResponse(res, 'Trader not found', 404);
+  }
+
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId }
+  });
+
+  if (!employee) {
+    return errorResponse(res, 'Employee not found', 404);
+  }
+
+  const updated = await prisma.trader.update({
+    where: { id },
+    data: { employeeId },
+    select: {
+      id: true,
+      name: true,
+      employee: {
+        select: { id: true, name: true }
+      }
+    }
+  });
+
+  // Log activity
+  // Determine user ID field based on user type
+  const logData = {
+    userType: req.userType,
+    action: 'TRADER_ASSIGNED',
+    entityType: 'TRADER',
+    traderId: updated.id,
+    description: `${req.userType} assigned trader ${updated.name} to employee ${employee.name}`,
+    changes: JSON.stringify({ employeeId }),
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+
+  if (req.userType === 'ADMIN') logData.adminId = req.user.id;
+  else if (req.userType === 'MODERATOR') logData.moderatorId = req.user.id;
+
+  await prisma.activityLog.create({ data: logData });
+
+  successResponse(res, updated, 'Trader assigned to employee successfully');
+});
+
+/**
+ * @desc    Get All Traders (Admin/Moderator)
  * @route   GET /api/admin/traders
- * @access  Private (Admin)
+ * @access  Private (Admin/Moderator)
  */
 const getAllTraders = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 20, search, status, employeeId } = req.query;
+  const { page = 1, limit = 20, search, status, employeeId, isVerified } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const where = {};
+  if (isVerified !== undefined) where.isVerified = isVerified === 'true';
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -564,7 +765,7 @@ const getAllTraders = asyncHandler(async (req, res) => {
     if (status === 'verified') where.isVerified = true;
     if (status === 'unverified') where.isVerified = false;
   }
-  if (employeeId) where.employeeId = parseInt(employeeId);
+  if (employeeId) where.employeeId = employeeId;
 
   const [traders, total] = await Promise.all([
     prisma.trader.findMany({
@@ -608,7 +809,7 @@ const deleteTrader = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const trader = await prisma.trader.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       _count: {
         select: {
@@ -629,20 +830,19 @@ const deleteTrader = asyncHandler(async (req, res) => {
   }
 
   await prisma.trader.delete({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   // Log activity
   await prisma.activityLog.create({
     data: {
-      userId: req.user.id,
+      adminId: req.user.id,
       userType: 'ADMIN',
       action: 'TRADER_DELETED',
       entityType: 'TRADER',
-      entityId: parseInt(id),
+      // entityId removed as not in schema and trader is deleted
+      metadata: JSON.stringify({ deletedTraderId: id }),
       description: `Admin deleted trader: ${trader.name}`,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
     }
   });
 
@@ -715,7 +915,7 @@ const getTraderByIdPublic = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const trader = await prisma.trader.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     select: {
       id: true,
       name: true,
@@ -762,7 +962,7 @@ const getTraderOffersPublic = asyncHandler(async (req, res) => {
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   const trader = await prisma.trader.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     select: { id: true, isActive: true }
   });
 
@@ -771,7 +971,7 @@ const getTraderOffersPublic = asyncHandler(async (req, res) => {
   }
 
   const where = {
-    traderId: parseInt(id),
+    traderId: id,
     status: 'ACTIVE'
   };
 
@@ -822,6 +1022,7 @@ module.exports = {
   updateTrader,
   getAllTraders,
   deleteTrader,
-  checkLinkedTrader
+  checkLinkedTrader,
+  assignTrader,
+  registerTrader
 };
-

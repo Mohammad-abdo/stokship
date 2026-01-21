@@ -126,13 +126,8 @@ const getEmployeeById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   // Validate that id is a valid integer (not "offers", "traders", etc.)
-  const employeeId = parseInt(id);
-  if (isNaN(employeeId)) {
-    return errorResponse(res, 'Invalid employee ID', 400);
-  }
-
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       createdByAdmin: {
         select: {
@@ -182,7 +177,7 @@ const updateEmployee = asyncHandler(async (req, res) => {
   const { name, phone, commissionRate, isActive } = req.body;
 
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   if (!employee) {
@@ -196,7 +191,7 @@ const updateEmployee = asyncHandler(async (req, res) => {
   if (isActive !== undefined) updateData.isActive = isActive === 'true' || isActive === true;
 
   const updated = await prisma.employee.update({
-    where: { id: parseInt(id) },
+    where: { id },
     data: updateData,
     select: {
       id: true,
@@ -240,7 +235,7 @@ const getEmployeeTraders = asyncHandler(async (req, res) => {
 
   // Verify employee exists and user has access
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   if (!employee) {
@@ -252,8 +247,11 @@ const getEmployeeTraders = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Not authorized', 403);
   }
 
-  const where = { employeeId: parseInt(id) };
+  const where = { employeeId: id };
   if (isActive !== undefined) where.isActive = isActive === 'true';
+  if (req.query.isVerified !== undefined) {
+    where.isVerified = String(req.query.isVerified) === 'true';
+  }
 
   const [traders, total] = await Promise.all([
     prisma.trader.findMany({
@@ -293,7 +291,7 @@ const getEmployeeDeals = asyncHandler(async (req, res) => {
 
   // Verify employee exists and user has access
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   if (!employee) {
@@ -305,7 +303,7 @@ const getEmployeeDeals = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Not authorized', 403);
   }
 
-  const where = { employeeId: parseInt(id) };
+  const where = { employeeId: id };
   // Only filter by status if it's a valid deal status (not payment status)
   if (status && ['NEGOTIATION', 'APPROVED', 'PAID', 'SETTLED', 'CANCELLED'].includes(status)) {
     where.status = status;
@@ -377,7 +375,7 @@ const getEmployeeDashboard = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const employee = await prisma.employee.findUnique({
-    where: { id: parseInt(id) }
+    where: { id }
   });
 
   if (!employee) {
@@ -396,12 +394,12 @@ const getEmployeeDashboard = asyncHandler(async (req, res) => {
     totalCommission,
     recentDeals
   ] = await Promise.all([
-    prisma.trader.count({ where: { employeeId: parseInt(id), isActive: true } }),
-    prisma.deal.count({ where: { employeeId: parseInt(id), status: { in: ['NEGOTIATION', 'APPROVED', 'PAID'] } } }),
-    prisma.deal.count({ where: { employeeId: parseInt(id) } }),
+    prisma.trader.count({ where: { employeeId: id, isActive: true } }),
+    prisma.deal.count({ where: { employeeId: id, status: { in: ['NEGOTIATION', 'APPROVED', 'PAID'] } } }),
+    prisma.deal.count({ where: { employeeId: id } }),
     prisma.financialTransaction.aggregate({
       where: {
-        employeeId: parseInt(id),
+        employeeId: id,
         type: 'EMPLOYEE_COMMISSION',
         status: 'COMPLETED'
       },
@@ -410,7 +408,7 @@ const getEmployeeDashboard = asyncHandler(async (req, res) => {
       }
     }),
     prisma.deal.findMany({
-      where: { employeeId: parseInt(id) },
+      where: { employeeId: id },
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: {

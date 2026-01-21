@@ -20,6 +20,7 @@ export const AuthProvider = ({ children }) => {
 
   // Load user from localStorage on mount
   useEffect(() => {
+    console.log("AuthContext: Mounting - Starting loadUser");
     const loadUser = async () => {
       try {
         const token = authService.getToken();
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }) => {
         console.error('Error loading user:', error);
       } finally {
         setLoading(false);
+        console.log("AuthContext: loadUser finished, loading set to false");
       }
     };
 
@@ -71,7 +73,7 @@ export const AuthProvider = ({ children }) => {
         setUser(user);
         setUserType(user.userType || 'CLIENT');
         
-        return { success: true, user, linkedProfiles };
+        return { success: true, user, token, linkedProfiles };
       }
       
       return { success: false, message: response.data.message };

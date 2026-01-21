@@ -53,7 +53,7 @@ const financialController = require('../controllers/mediation/financial.controll
 
 // Admin routes
 router.post('/admin/employees', protect, authorize('ADMIN'), employeeController.createEmployee);
-router.get('/admin/employees', protect, authorize('ADMIN'), employeeController.getAllEmployees);
+router.get('/admin/employees', protect, authorize('ADMIN', 'MODERATOR'), employeeController.getAllEmployees); // Added MODERATOR
 router.get('/admin/employees/:id', protect, authorize('ADMIN'), employeeController.getEmployeeById);
 router.put('/admin/employees/:id', protect, authorize('ADMIN'), employeeController.updateEmployee);
 
@@ -77,17 +77,19 @@ router.get('/employees/:id/dashboard', protect, authorize('ADMIN', 'EMPLOYEE'), 
 // ============================================
 
 // Admin routes
-router.get('/admin/traders', protect, authorize('ADMIN'), traderController.getAllTraders);
+router.get('/admin/traders', protect, authorize('ADMIN', 'MODERATOR'), traderController.getAllTraders); // Added MODERATOR
 router.delete('/admin/traders/:id', protect, authorize('ADMIN'), traderController.deleteTrader);
 
 // Employee creates trader
 router.post('/employees/:employeeId/traders', protect, authorize('EMPLOYEE'), traderController.createTrader);
 
 // Trader routes
+router.post('/traders/register', protect, authorize('CLIENT'), traderController.registerTrader); // New registration route
 router.get('/traders/check-linked', protect, authorize('CLIENT'), traderController.checkLinkedTrader);
-router.get('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER'), traderController.getTraderById);
-router.get('/traders/:id/offers', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER'), traderController.getTraderOffers);
-router.put('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE'), traderController.updateTrader);
+router.get('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'MODERATOR'), traderController.getTraderById); // Added MODERATOR
+router.get('/traders/:id/offers', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'MODERATOR'), traderController.getTraderOffers); // Added MODERATOR
+router.put('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'MODERATOR'), traderController.updateTrader); // Added MODERATOR for verification
+router.put('/traders/:id/assign', protect, authorize('ADMIN', 'MODERATOR'), traderController.assignTrader); // New route for assignment
 
 // Public trader routes
 router.get('/traders/:id/public', traderController.getTraderByIdPublic);

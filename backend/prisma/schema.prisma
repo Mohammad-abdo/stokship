@@ -19,6 +19,7 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  MODERATOR
   EMPLOYEE
   TRADER
   CLIENT
@@ -26,6 +27,7 @@ enum UserRole {
 
 enum UserType {
   ADMIN
+  MODERATOR
   EMPLOYEE
   TRADER
   CLIENT
@@ -98,18 +100,6 @@ enum InvoiceStatus {
   CANCELLED
 }
 
-enum ContentPageType {
-  SUPPORT_CENTER
-  CONTACT_US
-  TERMS_AND_CONDITIONS
-  PRIVACY_POLICY
-  ABOUT_COMPANY
-  SUPPORT_TEXT
-  FAQ
-  HELP
-  OTHER
-}
-
 enum AuditAction {
   DEAL_CREATED
   DEAL_UPDATED
@@ -128,7 +118,7 @@ enum AuditAction {
 // ============================================
 
 model Admin {
-  id            Int       @id @default(autoincrement())
+  id            String    @id @default(uuid())
   email         String    @unique
   password      String
   name          String
@@ -146,13 +136,31 @@ model Admin {
   activityLogs          ActivityLog[]          @relation("ActivityLogAdmin")
   auditTrails           AuditTrail[]           @relation("AuditTrailAdmin")
   financialTransactions FinancialTransaction[] @relation("FinancialTransactionAdmin")
-  createdContentPages   ContentPage[]          @relation("ContentPageCreator")
-  updatedContentPages   ContentPage[]          @relation("ContentPageUpdater")
-  platformSettingsUpdates PlatformSettings[]   @relation("PlatformSettingsUpdater")
+
+  // Content & Settings
+  contentPagesCreated     ContentPage[]      @relation("ContentPageCreator")
+  contentPagesUpdated     ContentPage[]      @relation("ContentPageUpdater")
+  platformSettingsUpdated PlatformSettings[] @relation("PlatformSettingsUpdater")
+}
+
+model Moderator {
+  id          String    @id @default(uuid())
+  email       String    @unique
+  password    String
+  name        String
+  role        String    @default("moderator")
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  activityLogs ActivityLog[] @relation("ActivityLogModerator")
+  auditTrails  AuditTrail[]  @relation("AuditTrailModerator")
 }
 
 model Employee {
-  id             Int       @id @default(autoincrement())
+  id             String    @id @default(uuid())
   email          String    @unique
   password       String
   name           String
@@ -160,7 +168,7 @@ model Employee {
   employeeCode   String    @unique // Auto-generated
   isActive       Boolean   @default(true)
   commissionRate Decimal   @default(1.0) @db.Decimal(5, 2) // Percentage
-  createdBy      Int // Admin ID
+  createdBy      String // Admin ID
   lastLoginAt    DateTime?
   rememberToken  String?
   createdAt      DateTime  @default(now())
@@ -179,31 +187,38 @@ model Employee {
 }
 
 model Trader {
-  id            Int       @id @default(autoincrement())
-  email         String    @unique
-  password      String
-  name          String
-  companyName   String
-  phone         String?
-  countryCode   String?
-  country       String?
-  city          String?
-  traderCode    String    @unique // Auto-generated (e.g., TRD-001)
-  barcode       String    @unique // Barcode/QR code
-  qrCodeUrl     String? // QR code image URL
-  employeeId    Int // Permanently linked to this employee
-  clientId      Int?      @unique // Link to Client profile if same user (one-to-one)
-  isActive      Boolean   @default(true)
-  isVerified    Boolean   @default(false)
-  verifiedAt    DateTime?
-  lastLoginAt   DateTime?
-  rememberToken String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String
+  name              String
+  companyName       String
+  phone             String?
+  countryCode       String?
+  country           String?
+  city              String?
+  companyAddress    String?   @db.Text
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankName          String?
+  bankAddress       String?   @db.Text
+  bankCode          String?
+  swiftCode         String?
+  traderCode        String    @unique // Auto-generated (e.g., TRD-001)
+  barcode           String    @unique // Barcode/QR code
+  qrCodeUrl         String? // QR code image URL
+  employeeId        String? // Permanently linked to this employee
+  isActive          Boolean   @default(true)
+  isVerified        Boolean   @default(false)
+  verifiedAt        DateTime?
+  lastLoginAt       DateTime?
+  rememberToken     String?
+  clientId          String?   @unique // Link to client profile
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
-  employee         Employee          @relation(fields: [employeeId], references: [id])
-  client           Client?           @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  employee         Employee?         @relation(fields: [employeeId], references: [id])
+  client           Client?           @relation(fields: [clientId], references: [id])
   offers           Offer[]
   deals            Deal[]
   dealNegotiations DealNegotiation[] @relation("DealNegotiationTrader")
@@ -217,7 +232,7 @@ model Trader {
 }
 
 model Client {
-  id              Int       @id @default(autoincrement())
+  id              String    @id @default(uuid())
   email           String    @unique
   password        String
   name            String
@@ -236,12 +251,12 @@ model Client {
   updatedAt       DateTime  @updatedAt
 
   // Relations
-  trader           Trader?           @relation // One-to-one relation: Trader references Client via clientId
   deals            Deal[]
   dealNegotiations DealNegotiation[] @relation("DealNegotiationClient")
   payments         Payment[]
   activityLogs     ActivityLog[]     @relation("ActivityLogClient")
   auditTrails      AuditTrail[]      @relation("AuditTrailClient")
+  trader           Trader?
 }
 
 // ============================================
@@ -249,8 +264,8 @@ model Client {
 // ============================================
 
 model Offer {
-  id                 Int         @id @default(autoincrement())
-  traderId           Int
+  id                 String      @id @default(uuid())
+  traderId           String
   title              String
   description        String?     @db.Text
   status             OfferStatus @default(DRAFT)
@@ -258,7 +273,7 @@ model Offer {
   totalCBM           Decimal     @default(0) @db.Decimal(10, 3)
   // Ad/Offer metadata from create page
   category           String? // Category from create page (electronics, clothing, etc.) - Legacy field for backward compatibility
-  categoryId         Int? // Category ID - New field for relation
+  categoryId         String? // Category ID - New field for relation
   acceptsNegotiation Boolean     @default(false) // Whether trader accepts negotiation
   country            String? // Country from create page (Stockship Fees section)
   city               String? // City from create page (Stockship Fees section)
@@ -271,7 +286,7 @@ model Offer {
   companyName        String? // Company name from Excel header
   proformaInvoiceNo  String? // Proforma Invoice No from Excel header
   excelDate          DateTime? // DATE from Excel header
-  validatedBy        Int? // Employee ID who validated
+  validatedBy        String? // Employee ID who validated
   validatedAt        DateTime?
   validationNotes    String?     @db.Text
   closedAt           DateTime?
@@ -279,11 +294,11 @@ model Offer {
   updatedAt          DateTime    @updatedAt
 
   // Relations
-  trader       Trader        @relation(fields: [traderId], references: [id])
-  categoryRelation Category? @relation("OfferCategory", fields: [categoryId], references: [id])
-  items        OfferItem[]
-  deals        Deal[]
-  activityLogs ActivityLog[] @relation("ActivityLogOffer")
+  trader           Trader        @relation(fields: [traderId], references: [id])
+  categoryRelation Category?     @relation("OfferCategory", fields: [categoryId], references: [id])
+  items            OfferItem[]
+  deals            Deal[]
+  activityLogs     ActivityLog[] @relation("ActivityLogOffer")
 
   @@index([traderId])
   @@index([status])
@@ -291,8 +306,8 @@ model Offer {
 }
 
 model OfferItem {
-  id              Int      @id @default(autoincrement())
-  offerId         Int
+  id              String   @id @default(uuid())
+  offerId         String
   // Excel-based fields
   itemNo          String? // Item number from Excel (ITEM NO.)
   productName     String // Descriptive name only (DESCRIPTION)
@@ -341,12 +356,12 @@ model OfferItem {
 // ============================================
 
 model Deal {
-  id                 Int        @id @default(autoincrement())
+  id                 String     @id @default(uuid())
   dealNumber         String     @unique // Auto-generated (e.g., DEAL-2024-001)
-  offerId            Int
-  traderId           Int
-  clientId           Int
-  employeeId         Int // Guarantor employee
+  offerId            String
+  traderId           String
+  clientId           String
+  employeeId         String // Guarantor employee
   status             DealStatus @default(NEGOTIATION)
   negotiatedAmount   Decimal?   @db.Decimal(10, 2) // Agreed amount
   totalCartons       Int        @default(0)
@@ -386,9 +401,9 @@ model Deal {
 }
 
 model DealItem {
-  id              Int      @id @default(autoincrement())
-  dealId          Int
-  offerItemId     Int
+  id              String   @id @default(uuid())
+  dealId          String
+  offerItemId     String
   quantity        Int // Negotiated quantity
   cartons         Int
   cbm             Decimal  @db.Decimal(10, 3)
@@ -406,11 +421,11 @@ model DealItem {
 }
 
 model DealStatusHistory {
-  id            Int        @id @default(autoincrement())
-  dealId        Int
+  id            String     @id @default(uuid())
+  dealId        String
   status        DealStatus
   description   String?    @db.Text
-  changedBy     Int? // User ID who changed
+  changedBy     String? // User ID who changed
   changedByType UserType
   createdAt     DateTime   @default(now())
 
@@ -425,10 +440,10 @@ model DealStatusHistory {
 // ============================================
 
 model DealNegotiation {
-  id               Int                    @id @default(autoincrement())
-  dealId           Int
-  traderId         Int
-  clientId         Int
+  id               String                 @id @default(uuid())
+  dealId           String
+  traderId         String
+  clientId         String
   messageType      NegotiationMessageType @default(TEXT)
   message          String                 @db.Text
   proposedPrice    Decimal?               @db.Decimal(10, 2)
@@ -453,16 +468,16 @@ model DealNegotiation {
 // ============================================
 
 model Payment {
-  id            Int           @id @default(autoincrement())
-  dealId        Int
-  clientId      Int
+  id            String        @id @default(uuid())
+  dealId        String
+  clientId      String
   amount        Decimal       @db.Decimal(10, 2)
   method        PaymentMethod
   status        PaymentStatus @default(PENDING)
   transactionId String?       @unique
   receiptUrl    String? // Payment receipt
   verifiedAt    DateTime?
-  verifiedBy    Int? // Employee ID
+  verifiedBy    String? // Employee ID
   notes         String?       @db.Text
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -479,9 +494,9 @@ model Payment {
 }
 
 model FinancialTransaction {
-  id          Int               @id @default(autoincrement())
-  dealId      Int?
-  paymentId   Int?              @unique
+  id          String            @id @default(uuid())
+  dealId      String?
+  paymentId   String?           @unique
   type        TransactionType
   amount      Decimal           @db.Decimal(10, 2)
   status      TransactionStatus @default(PENDING)
@@ -491,17 +506,11 @@ model FinancialTransaction {
   platformCommission Decimal? @db.Decimal(10, 2)
   employeeCommission Decimal? @db.Decimal(10, 2)
   traderAmount       Decimal? @db.Decimal(10, 2)
-  
-  // CBM-based commission (new field)
-  totalCBM           Decimal? @db.Decimal(10, 3) // Total CBM for this deal
-  cbmBasedCommission Decimal? @db.Decimal(10, 2) // Commission calculated based on CBM
-  cbmRate            Decimal? @db.Decimal(10, 2) // CBM rate used for calculation
-  commissionMethod   String? // PERCENTAGE, CBM, BOTH - method used
 
   // Related entities
-  employeeId  Int?
-  traderId    Int?
-  processedBy Int? // Admin/Employee ID
+  employeeId  String?
+  traderId    String?
+  processedBy String? // Admin/Employee ID
   processedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -518,11 +527,11 @@ model FinancialTransaction {
 }
 
 model FinancialLedger {
-  id            Int      @id @default(autoincrement())
-  transactionId Int // FinancialTransaction ID
+  id            String   @id @default(uuid())
+  transactionId String // FinancialTransaction ID
   entryType     String // DEBIT or CREDIT
   accountType   String // PLATFORM, EMPLOYEE, TRADER, CLIENT
-  accountId     Int? // ID of the account holder
+  accountId     String? // ID of the account holder
   amount        Decimal  @db.Decimal(10, 2)
   balanceBefore Decimal  @db.Decimal(10, 2)
   balanceAfter  Decimal  @db.Decimal(10, 2)
@@ -536,8 +545,8 @@ model FinancialLedger {
 }
 
 model Invoice {
-  id                 Int           @id @default(autoincrement())
-  dealId             Int
+  id                 String        @id @default(uuid())
+  dealId             String
   invoiceNumber      String        @unique
   invoiceUrl         String // PDF URL
   status             InvoiceStatus @default(DRAFT)
@@ -565,12 +574,23 @@ model Invoice {
 // ============================================
 
 model ActivityLog {
-  id          Int      @id @default(autoincrement())
-  userId      Int?
-  userType    UserType
-  action      String
-  entityType  String? // DEAL, OFFER, NEGOTIATION, PAYMENT, etc.
-  entityId    Int?
+  id       String   @id @default(uuid())
+  userType UserType
+
+  // Split user ID fields
+  adminId     String?
+  moderatorId String?
+  employeeId  String?
+  traderId    String?
+  clientId    String?
+
+  action     String
+  entityType String? // DEAL, OFFER, NEGOTIATION, PAYMENT, etc.
+
+  // Split entity ID fields
+  dealId  String?
+  offerId String?
+
   description String?  @db.Text
   changes     String?  @db.Text // JSON
   ipAddress   String?
@@ -579,46 +599,115 @@ model ActivityLog {
   metadata    String?  @db.Text // JSON
   createdAt   DateTime @default(now())
 
-  // Relations - Polymorphic
-  admin    Admin?    @relation("ActivityLogAdmin", fields: [userId], references: [id], map: "ActivityLog_Admin_fkey")
-  employee Employee? @relation("ActivityLogEmployee", fields: [userId], references: [id], map: "ActivityLog_Employee_fkey")
-  trader   Trader?   @relation("ActivityLogTrader", fields: [userId], references: [id], map: "ActivityLog_Trader_fkey")
-  client   Client?   @relation("ActivityLogClient", fields: [userId], references: [id], map: "ActivityLog_Client_fkey")
-  deal     Deal?     @relation("ActivityLogDeal", fields: [entityId], references: [id], map: "ActivityLog_Deal_fkey")
-  offer    Offer?    @relation("ActivityLogOffer", fields: [entityId], references: [id], map: "ActivityLog_Offer_fkey")
+  // Relations - Specific foreign keys
+  admin     Admin?     @relation("ActivityLogAdmin", fields: [adminId], references: [id])
+  moderator Moderator? @relation("ActivityLogModerator", fields: [moderatorId], references: [id])
+  employee  Employee?  @relation("ActivityLogEmployee", fields: [employeeId], references: [id])
+  trader    Trader?    @relation("ActivityLogTrader", fields: [traderId], references: [id])
+  client    Client?    @relation("ActivityLogClient", fields: [clientId], references: [id])
+  deal      Deal?      @relation("ActivityLogDeal", fields: [dealId], references: [id])
+  offer     Offer?     @relation("ActivityLogOffer", fields: [offerId], references: [id])
 
-  @@index([userId, userType])
-  @@index([entityType, entityId])
+  @@index([adminId])
+  @@index([moderatorId])
+  @@index([employeeId])
+  @@index([traderId])
+  @@index([clientId])
+  @@index([dealId])
+  @@index([offerId])
+  @@index([userType])
+  @@index([entityType])
   @@index([createdAt])
 }
 
 model AuditTrail {
-  id           Int         @id @default(autoincrement())
-  userId       Int?
-  userType     UserType
-  action       AuditAction
-  entityType   String?
-  entityId     Int?
-  oldValue     String?     @db.Text // JSON
-  newValue     String?     @db.Text // JSON
-  reason       String?     @db.Text
+  id       String   @id @default(uuid())
+  userType UserType
+
+  // Split user ID fields
+  adminId     String?
+  moderatorId String?
+  employeeId  String?
+  traderId    String?
+  clientId    String?
+
+  action     AuditAction
+  entityType String?
+
+  // Split entity ID fields
+  dealId String?
+
+  oldValue     String?  @db.Text // JSON
+  newValue     String?  @db.Text // JSON
+  reason       String?  @db.Text
   ipAddress    String?
   userAgent    String?
-  success      Boolean     @default(true)
-  errorMessage String?     @db.Text
-  createdAt    DateTime    @default(now())
+  success      Boolean  @default(true)
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
 
-  // Relations - Polymorphic
-  admin    Admin?    @relation("AuditTrailAdmin", fields: [userId], references: [id], map: "AuditTrail_Admin_fkey")
-  employee Employee? @relation("AuditTrailEmployee", fields: [userId], references: [id], map: "AuditTrail_Employee_fkey")
-  trader   Trader?   @relation("AuditTrailTrader", fields: [userId], references: [id], map: "AuditTrail_Trader_fkey")
-  client   Client?   @relation("AuditTrailClient", fields: [userId], references: [id], map: "AuditTrail_Client_fkey")
-  deal     Deal?     @relation("AuditTrailDeal", fields: [entityId], references: [id], map: "AuditTrail_Deal_fkey")
+  // Relations - Specific foreign keys
+  admin     Admin?     @relation("AuditTrailAdmin", fields: [adminId], references: [id])
+  moderator Moderator? @relation("AuditTrailModerator", fields: [moderatorId], references: [id])
+  employee  Employee?  @relation("AuditTrailEmployee", fields: [employeeId], references: [id])
+  trader    Trader?    @relation("AuditTrailTrader", fields: [traderId], references: [id])
+  client    Client?    @relation("AuditTrailClient", fields: [clientId], references: [id])
+  deal      Deal?      @relation("AuditTrailDeal", fields: [dealId], references: [id])
 
-  @@index([userId, userType])
-  @@index([entityType, entityId])
+  @@index([adminId])
+  @@index([moderatorId])
+  @@index([employeeId])
+  @@index([traderId])
+  @@index([clientId])
+  @@index([dealId])
+  @@index([userType])
   @@index([action])
   @@index([createdAt])
+}
+
+// ============================================
+// CATEGORY MANAGEMENT
+// ============================================
+
+model Category {
+  id                        String   @id @default(uuid())
+  nameKey                   String   @unique // Translation key
+  descriptionKey            String?  @db.Text
+  slug                      String   @unique
+  parentId                  String?
+  isActive                  Boolean  @default(true)
+  isFeatured                Boolean  @default(false)
+  displayOrder              Int      @default(0)
+  icon                      String?
+  imageUrl                  String?
+  level                     Int      @default(0)
+  productCount              Int      @default(0)
+  breadcrumb                String?
+  metaTitleKey              String?
+  metaDescriptionKey        String?  @db.Text
+  metaKeywords              String?  @db.Text
+  canonicalUrl              String?
+  ogTitleKey                String?
+  ogDescriptionKey          String?  @db.Text
+  ogImage                   String?
+  twitterCardTitleKey       String?
+  twitterCardDescriptionKey String?  @db.Text
+  twitterCardImage          String?
+  structuredData            String?  @db.Text
+  pageDescriptionKey        String?  @db.Text
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // Relations
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  offers   Offer[]    @relation("OfferCategory") // Offers in this category
+
+  @@index([parentId])
+  @@index([slug])
+  @@index([isActive])
+  @@index([isFeatured])
+  @@index([displayOrder])
 }
 
 // ============================================
@@ -626,14 +715,14 @@ model AuditTrail {
 // ============================================
 
 model Notification {
-  id                Int       @id @default(autoincrement())
-  userId            Int
+  id                String    @id @default(uuid())
+  userId            String
   userType          UserType
   type              String // DEAL, NEGOTIATION, PAYMENT, etc.
   title             String
   message           String    @db.Text
   relatedEntityType String?
-  relatedEntityId   Int?
+  relatedEntityId   String?
   isRead            Boolean   @default(false)
   readAt            DateTime?
   createdAt         DateTime  @default(now())
@@ -644,41 +733,70 @@ model Notification {
 }
 
 // ============================================
+// BACKUP & EXPORT
+// ============================================
+
+model Backup {
+  id           String    @id @default(uuid())
+  backupType   String // DATABASE, EXCEL_FILES, INVOICES
+  fileUrl      String
+  fileSize     Int? // bytes
+  recordCount  Int?
+  status       String // PENDING, COMPLETED, FAILED
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  errorMessage String?   @db.Text
+  createdAt    DateTime  @default(now())
+
+  @@index([backupType])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
 // CONTENT MANAGEMENT
 // ============================================
 
+enum ContentPageType {
+  SUPPORT_CENTER
+  CONTACT_US
+  TERMS_AND_CONDITIONS
+  PRIVACY_POLICY
+  ABOUT_COMPANY
+  SUPPORT_TEXT
+  FAQ
+  HELP
+  OTHER
+}
+
 model ContentPage {
-  id              Int             @id @default(autoincrement())
+  id              String          @id @default(uuid())
   type            ContentPageType
   title           String
-  slug            String          @unique // URL-friendly identifier
-  content         String          @db.Text // HTML or Markdown content
-  excerpt         String?         @db.Text // Short description/summary
-  metaTitle       String? // SEO meta title
-  metaDescription String?         @db.Text // SEO meta description
-  metaKeywords    String?         @db.Text // SEO keywords
+  slug            String          @unique
+  content         String          @db.Text
+  excerpt         String?         @db.Text
+  metaTitle       String?
+  metaDescription String?         @db.Text
+  metaKeywords    String?         @db.Text
   isActive        Boolean         @default(true)
   isPublished     Boolean         @default(false)
   publishedAt     DateTime?
-  language        String          @default("ar") // ar, en, etc.
-  order           Int             @default(0) // Display order
-  views           Int             @default(0) // View count
-  // Contact Us specific fields
-  email           String? // Contact email
-  phone           String? // Contact phone
-  address         String?         @db.Text // Contact address
-  workingHours    String?         @db.Text // Working hours
-  socialMedia     String?         @db.Text // JSON: {facebook, twitter, instagram, etc.}
-  // Support Center specific fields
-  category        String? // Support category
-  priority        String? // HIGH, MEDIUM, LOW
-  // Relations
-  createdBy       Int? // Admin/Employee ID
-  updatedBy       Int? // Admin/Employee ID
+  language        String          @default("ar")
+  order           Int             @default(0)
+  views           Int             @default(0)
+  email           String?
+  phone           String?
+  address         String?         @db.Text
+  workingHours    String?         @db.Text
+  socialMedia     String?         @db.Text
+  category        String?
+  priority        String?
+  createdBy       String?
+  updatedBy       String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
-  // Relations
   creator Admin? @relation("ContentPageCreator", fields: [createdBy], references: [id])
   updater Admin? @relation("ContentPageUpdater", fields: [updatedBy], references: [id])
 
@@ -691,80 +809,26 @@ model ContentPage {
 }
 
 // ============================================
-// CATEGORY MANAGEMENT
-// ============================================
-
-model Category {
-  id              Int       @id @default(autoincrement())
-  nameKey         String    @unique // Translation key
-  descriptionKey  String?   @db.Text
-  slug            String    @unique
-  parentId        Int?
-  isActive        Boolean   @default(true)
-  isFeatured      Boolean   @default(false)
-  displayOrder    Int       @default(0)
-  icon            String?
-  imageUrl        String?
-  level           Int       @default(0)
-  productCount    Int       @default(0)
-  breadcrumb      String?
-  metaTitleKey    String?
-  metaDescriptionKey String? @db.Text
-  metaKeywords    String?   @db.Text
-  canonicalUrl    String?
-  ogTitleKey      String?
-  ogDescriptionKey String?   @db.Text
-  ogImage         String?
-  twitterCardTitleKey String?
-  twitterCardDescriptionKey String? @db.Text
-  twitterCardImage String?
-  structuredData  String?   @db.Text
-  pageDescriptionKey String? @db.Text
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  // Relations
-  parent          Category? @relation("CategoryTree", fields: [parentId], references: [id])
-  children        Category[] @relation("CategoryTree")
-  offers          Offer[]   @relation("OfferCategory") // Offers in this category
-
-  @@index([parentId])
-  @@index([slug])
-  @@index([isActive])
-  @@index([isFeatured])
-  @@index([displayOrder])
-}
-
-// ============================================
 // PLATFORM SETTINGS
 // ============================================
 
 model PlatformSettings {
-  id                    Int       @id @default(autoincrement())
-  // Commission Settings
-  platformCommissionRate Decimal? @db.Decimal(5, 2) // Percentage based on deal amount (default: 2.5%)
-  cbmRate                Decimal? @db.Decimal(10, 2) // Rate per cubic meter (CBM) for deals (e.g., 50 SAR per CBM)
-  // Financial Settings
-  taxRate                Decimal? @db.Decimal(5, 2) // Tax rate percentage
+  id                     String   @id @default(uuid())
+  platformCommissionRate Decimal? @db.Decimal(5, 2)
+  cbmRate                Decimal? @db.Decimal(10, 2)
+  taxRate                Decimal? @db.Decimal(5, 2)
   currency               String?  @default("SAR")
-  // General Settings
   platformName           String?  @default("Stockship")
   platformEmail          String?
   platformPhone          String?
   platformAddress        String?  @db.Text
   defaultLanguage        String?  @default("ar")
   timezone               String?  @default("Asia/Riyadh")
-  // Commission Calculation Method
-  // 'PERCENTAGE': Use platformCommissionRate based on deal amount
-  // 'CBM': Use cbmRate based on total CBM in deal
-  // 'BOTH': Use both methods and take the higher value
-  commissionMethod       String?  @default("PERCENTAGE") // PERCENTAGE, CBM, BOTH
-  // Last Updated
-  updatedBy              Int? // Admin ID who last updated
+  commissionMethod       String?  @default("PERCENTAGE")
+  updatedBy              String?
   updatedAt              DateTime @updatedAt
   createdAt              DateTime @default(now())
 
-  // Relations
   updater Admin? @relation("PlatformSettingsUpdater", fields: [updatedBy], references: [id])
 
   @@index([updatedBy])

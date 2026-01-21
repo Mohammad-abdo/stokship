@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import Banner from '../components/Banner'
 import Header from '../components/Header'
@@ -13,6 +14,7 @@ import { ROUTES } from '../routes'
 
 export default function Home() {
   const { t } = useTranslation();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const titles = [t("categories.smartphones"), t("categories.clothing")];
   
@@ -30,7 +32,7 @@ export default function Home() {
       <ProductsList title={titles[1]} limit={8}/>
        <NewArrivalsBannerWithSwiper/>
       <RecommendedProducts/>
-      <CtaBanner/>
+      {isAuthenticated && user?.userType !== 'TRADER' && <CtaBanner/>}
       <PopularGoodsChips onSelect={handleCategorySelect}/>
       <FooterArabic/>
      

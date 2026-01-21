@@ -16,6 +16,7 @@ export const ROUTES = {
   
   // Auth pages
   LOGIN: "/login",
+  MULTI_LOGIN: "/multi-login",
   SIGNUP: "/signup",
   SIGNUP_BANK_INFO: "/SignupBankInfoFormPage",
   
@@ -36,10 +37,18 @@ export const ROUTES = {
   
   // Seller page (placeholder - can be created later)
   SELLER: "/seller",
+  TRADER_DASHBOARD: "/trader-dashboard",
+  TRADER_OFFERS: "/trader-dashboard/offers",
+  TRADER_OFFER_DETAILS: "/trader-dashboard/offers/:id",
+  TRADER_DEALS: "/trader-dashboard/deals",
+  TRADER_DEAL_DETAILS: "/trader-dashboard/deals/:id",
   PUBLISH_AD: "/PublishAd",
   
   // Profile page
   PROFILE: "/profile",
+
+  // Moderator page
+  MODERATOR_DASHBOARD: "/moderator-dashboard",
   
   // 404 page
   NOT_FOUND: "/404",

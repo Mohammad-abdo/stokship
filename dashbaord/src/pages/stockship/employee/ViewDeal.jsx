@@ -22,7 +22,8 @@ const ViewDeal = () => {
     try {
       setLoading(true);
       const response = await dealApi.getDealById(id);
-      setDeal(response.data.data || response.data);
+      const data = response.data.data || response.data;
+      setDeal(data.deal || data);
     } catch (error) {
       console.error('Error fetching deal:', error);
       showToast.error(
@@ -119,11 +120,11 @@ const ViewDeal = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.cbm') || 'CBM'}</p>
-                  <p className="font-medium text-gray-900">{deal.cbm || 'N/A'}</p>
+                  <p className="font-medium text-gray-900">{deal.totalCBM || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.cartons') || 'Cartons'}</p>
-                  <p className="font-medium text-gray-900">{deal.cartons || 'N/A'}</p>
+                  <p className="font-medium text-gray-900">{deal.totalCartons || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500 mb-1">{t('mediation.common.createdAt') || 'Created At'}</p>
@@ -262,11 +263,11 @@ const ViewDeal = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-gray-600">{t('mediation.deals.cbm') || 'CBM'}</p>
-                  <p className="font-medium text-gray-900">{deal.cbm || 'N/A'}</p>
+                  <p className="font-medium text-gray-900">{deal.totalCBM || 'N/A'}</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-gray-600">{t('mediation.deals.cartons') || 'Cartons'}</p>
-                  <p className="font-medium text-gray-900">{deal.cartons || 'N/A'}</p>
+                  <p className="font-medium text-gray-900">{deal.totalCartons || 'N/A'}</p>
                 </div>
               </div>
             </CardContent>

@@ -1,9 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
+import api from "../services/api";
 
-const Field = ({ label, required, value, onChange, placeholder = "...", currentDir = 'rtl' }) => {
+const Field = ({ label, required, value, onChange, placeholder = "...", currentDir = 'rtl', disabled = false }) => {
   return (
     <div className="w-full">
       <label className={`block text-sm font-semibold text-slate-800 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
@@ -14,7 +16,8 @@ const Field = ({ label, required, value, onChange, placeholder = "...", currentD
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="mt-2 w-full rounded-md border border-blue-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200"
+        disabled={disabled}
+        className={`mt-2 w-full rounded-md border border-blue-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-200 ${disabled ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'}`}
       />
     </div>
   );
@@ -24,6 +27,9 @@ export default function SignupBankInfoForm() {
   const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -43,13 +49,70 @@ export default function SignupBankInfoForm() {
     agree: true,
   });
 
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      setForm(prev => ({ 
+        ...prev, 
+        email: user.email || prev.email,
+        fullName: user.name || prev.fullName,
+        phone: user.phone || prev.phone,
+        city: user.city || prev.city,
+        country: user.country || prev.country
+      }));
+    }
+  }, [user]);
+
   const set = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }));
   const setCheck = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.checked }));
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault();
-    // Navigate to Seller page after form submission
-    navigate(ROUTES.SELLER);
+    if (!form.agree) {
+      alert(t("signupBankInfo.mustAgree"));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const payload = {
+        name: form.fullName,
+        phone: form.phone,
+        city: form.city,
+        country: form.country,
+        // email is usually read-only or handled separately
+        
+        bankAccountName: form.bankAccountName,
+        bankAccountNumber: form.bankAccountNumber,
+        bankName: form.bankName,
+        bankAddress: form.bankAddress,
+        bankCode: form.bankCode,
+        swiftCode: form.swift, // Map swift to swiftCode
+        companyAddress: form.companyAddress,
+        // region: form.region // Backend doesn't support region yet, ignored
+      };
+
+      const response = await api.post('/traders/register', payload);
+
+      if (response.data.success) {
+        // Navigate to Login page with pending approval message
+        navigate(ROUTES.LOGIN, { 
+          state: { 
+            message: t("signupBankInfo.pendingApprovalMessage") || "Application submitted successfully! Your account is pending admin approval." 
+          } 
+        });
+      } else {
+        setError(response.data.message || 'Registration failed');
+      }
+    } catch (err) {
+      console.error('Update error:', err);
+      setError(err.response?.data?.message || 'An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,6 +136,7 @@ export default function SignupBankInfoForm() {
                 onChange={set("fullName")}
                 placeholder={t("signupBankInfo.fullNamePlaceholder")}
                 currentDir={currentDir}
+                disabled={!!user?.name}
               />
               <Field
                 label={t("signupBankInfo.phone")}
@@ -81,6 +145,7 @@ export default function SignupBankInfoForm() {
                 onChange={set("phone")}
                 placeholder={t("signupBankInfo.phonePlaceholder")}
                 currentDir={currentDir}
+                disabled={!!user?.phone}
               />
             </div>
 
@@ -92,6 +157,7 @@ export default function SignupBankInfoForm() {
                 onChange={set("email")}
                 placeholder={t("signupBankInfo.emailPlaceholder")}
                 currentDir={currentDir}
+                disabled={!!user?.email} // Email is read-only if present
               />
             </div>
 
@@ -103,6 +169,7 @@ export default function SignupBankInfoForm() {
                 onChange={set("city")}
                 placeholder={t("signupBankInfo.cityPlaceholder")}
                 currentDir={currentDir}
+                disabled={!!user?.city}
               />
               <Field
                 label={t("signupBankInfo.country")}
@@ -111,6 +178,7 @@ export default function SignupBankInfoForm() {
                 onChange={set("country")}
                 placeholder={t("signupBankInfo.countryPlaceholder")}
                 currentDir={currentDir}
+                disabled={!!user?.country}
               />
             </div>
           </div>
