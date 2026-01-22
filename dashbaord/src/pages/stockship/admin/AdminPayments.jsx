@@ -66,7 +66,7 @@ const AdminPayments = () => {
     };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status?.replace(/_/g, ' ') || 'Unknown'}
+        {t(`mediation.payments.status.${status?.toLowerCase()}`) || status?.replace(/_/g, ' ') || 'Unknown'}
       </span>
     );
   };
@@ -87,7 +87,7 @@ const AdminPayments = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading payments...</p>
+          <p className="text-muted-foreground">{t('mediation.payments.loading') || 'Loading payments...'}</p>
         </div>
       </div>
     );
@@ -97,8 +97,8 @@ const AdminPayments = () => {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Payments Management</h1>
-          <p className="text-muted-foreground mt-2">Manage all platform payments</p>
+          <h1 className="text-3xl font-bold">{t('mediation.payments.title') || 'Payments Management'}</h1>
+          <p className="text-muted-foreground mt-2">{t('mediation.payments.subtitle') || 'Manage all platform payments'}</p>
         </div>
       </div>
 
@@ -110,7 +110,7 @@ const AdminPayments = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search payments..."
+                placeholder={t('mediation.payments.searchPlaceholder') || 'Search payments...'}
                 value={searchTerm}
                 onChange={(e) => {
                   setSearchTerm(e.target.value);
@@ -127,13 +127,13 @@ const AdminPayments = () => {
               }}
               className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="">All Status</option>
-              <option value="PENDING">Pending</option>
-              <option value="PROCESSING">Processing</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="FAILED">Failed</option>
-              <option value="REFUNDED">Refunded</option>
-              <option value="CANCELLED">Cancelled</option>
+              <option value="">{t('mediation.payments.allStatus') || 'All Status'}</option>
+              <option value="PENDING">{t('mediation.payments.pending') || 'Pending'}</option>
+              <option value="PROCESSING">{t('mediation.payments.processing') || 'Processing'}</option>
+              <option value="COMPLETED">{t('mediation.payments.completed') || 'Completed'}</option>
+              <option value="FAILED">{t('mediation.payments.failed') || 'Failed'}</option>
+              <option value="REFUNDED">{t('mediation.payments.refunded') || 'Refunded'}</option>
+              <option value="CANCELLED">{t('mediation.payments.cancelled') || 'Cancelled'}</option>
             </select>
             <select
               value={methodFilter}
@@ -143,10 +143,10 @@ const AdminPayments = () => {
               }}
               className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <option value="">All Methods</option>
-              <option value="BANK_CARD">Bank Card</option>
-              <option value="BANK_TRANSFER">Bank Transfer</option>
-              <option value="WALLET">Wallet</option>
+              <option value="">{t('mediation.payments.allMethods') || 'All Methods'}</option>
+              <option value="BANK_CARD">{t('mediation.payments.methods.bankCard') || 'Bank Card'}</option>
+              <option value="BANK_TRANSFER">{t('mediation.payments.methods.bankTransfer') || 'Bank Transfer'}</option>
+              <option value="WALLET">{t('mediation.payments.methods.wallet') || 'Wallet'}</option>
             </select>
             <button
               onClick={() => {
@@ -157,7 +157,7 @@ const AdminPayments = () => {
               }}
               className="px-4 py-2 border rounded-lg hover:bg-gray-50"
             >
-              Clear Filters
+              {t('mediation.payments.clearFilters') || 'Clear Filters'}
             </button>
           </div>
         </CardContent>
@@ -166,27 +166,27 @@ const AdminPayments = () => {
       {/* Payments Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Payments List ({pagination.total})</CardTitle>
+          <CardTitle>{t('mediation.payments.paymentsList') || 'Payments List'} ({pagination.total})</CardTitle>
         </CardHeader>
         <CardContent>
           {payments.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No payments found</p>
+              <p className="text-muted-foreground">{t('mediation.payments.noPayments') || 'No payments found'}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left p-4">ID</th>
-                    <th className="text-left p-4">Order</th>
-                    <th className="text-left p-4">Customer</th>
-                    <th className="text-left p-4">Vendor</th>
-                    <th className="text-left p-4">Amount</th>
-                    <th className="text-left p-4">Method</th>
-                    <th className="text-left p-4">Status</th>
-                    <th className="text-left p-4">Date</th>
-                    <th className="text-left p-4">Actions</th>
+                    <th className="text-left p-4">{t('mediation.common.id') || 'ID'}</th>
+                    <th className="text-left p-4">{t('mediation.payments.order') || 'Order'}</th>
+                    <th className="text-left p-4">{t('mediation.payments.customer') || 'Customer'}</th>
+                    <th className="text-left p-4">{t('mediation.payments.vendor') || 'Vendor'}</th>
+                    <th className="text-left p-4">{t('mediation.payments.amount') || 'Amount'}</th>
+                    <th className="text-left p-4">{t('mediation.payments.method') || 'Method'}</th>
+                    <th className="text-left p-4">{t('mediation.common.status') || 'Status'}</th>
+                    <th className="text-left p-4">{t('mediation.payments.date') || 'Date'}</th>
+                    <th className="text-left p-4">{t('mediation.common.actions') || 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -200,7 +200,7 @@ const AdminPayments = () => {
                       </td>
                       <td className="p-4">
                         <div>
-                          <div className="font-medium">{payment.order?.orderNumber || `Order #${payment.orderId}`}</div>
+                          <div className="font-medium">{payment.order?.orderNumber || `${t('mediation.payments.orderNumber') || 'Order #'}${payment.orderId}`}</div>
                         </div>
                       </td>
                       <td className="p-4">
@@ -217,13 +217,13 @@ const AdminPayments = () => {
                       <td className="p-4">
                         <div className="font-semibold">{payment.amount ? `${payment.amount} SAR` : 'N/A'}</div>
                         {payment.siteCommission && (
-                          <div className="text-sm text-gray-500">Commission: {payment.siteCommission} SAR</div>
+                          <div className="text-sm text-gray-500">{t('mediation.payments.commission') || 'Commission'}: {payment.siteCommission} SAR</div>
                         )}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <CreditCard className="w-4 h-4 text-gray-400" />
-                          <span>{payment.method?.replace(/_/g, ' ') || 'N/A'}</span>
+                          <span>{t(`mediation.payments.methods.${payment.method?.toLowerCase().replace(/_/g, '')}`) || payment.method?.replace(/_/g, ' ') || 'N/A'}</span>
                         </div>
                       </td>
                       <td className="p-4">
@@ -252,7 +252,7 @@ const AdminPayments = () => {
           {pagination.pages > 1 && (
             <div className="flex justify-between items-center mt-4">
               <div className="text-sm text-gray-600">
-                Page {pagination.page} of {pagination.pages}
+                {t('mediation.common.page') || 'Page'} {pagination.page} {t('mediation.common.of') || 'of'} {pagination.pages}
               </div>
               <div className="flex gap-2">
                 <button
@@ -260,14 +260,14 @@ const AdminPayments = () => {
                   disabled={pagination.page === 1}
                   className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  Previous
+                  {t('mediation.common.previous') || 'Previous'}
                 </button>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
                   disabled={pagination.page === pagination.pages}
                   className="px-4 py-2 border rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                 >
-                  Next
+                  {t('mediation.common.next') || 'Next'}
                 </button>
               </div>
             </div>

@@ -31,10 +31,36 @@ const validateLogin = [
   validate
 ];
 
+// Helper function to parse ID (handles both UUID and integer)
+const parseId = (id) => {
+  if (!id) return null;
+  // Check if it's a UUID (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(id)) {
+    return id; // Return UUID as string
+  }
+  // Try to parse as integer
+  const parsed = parseInt(id, 10);
+  return isNaN(parsed) ? id : parsed; // Return original if not a number
+};
+
+// Helper function to create where clause for ID lookup
+const createIdWhereClause = (id) => {
+  if (!id) return null;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(id)) {
+    return { id }; // UUID
+  }
+  const parsed = parseInt(id, 10);
+  return isNaN(parsed) ? { id } : { id: parsed }; // Integer or fallback to string
+};
+
 module.exports = {
   validate,
   validateRegister,
-  validateLogin
+  validateLogin,
+  parseId,
+  createIdWhereClause
 };
 
 

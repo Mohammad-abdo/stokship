@@ -3,23 +3,23 @@ import { useTranslation } from "react-i18next";
 import { RefreshCw } from "lucide-react";
 
 export default function OrderTrackingCard() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
   const data = useMemo(
     () => ({
-      statusLabel: "في انتظار الشحن",
+      statusLabel: t("orderTracking.statusLabel"),
       trackingId: "SHR123456789",
       shippingCompany: "DHL",
-      duration: "خلال 5 - 7 أيام عمل",
+      duration: t("orderTracking.shippingDurationText"),
       steps: [
-        { title: "رفع استلام الطلب", desc: "تم استلام الطلب بنجاح", date: "17 سبتمبر 2022 10:00 م", done: true },
-        { title: "تأكيد الدفع", desc: "تم تأكيد عملية الدفع", date: "17 سبتمبر 2022 10:00 م", done: true },
-        { title: "رفع تجهيز الطلب", desc: "جاري تجهيز الطلب", date: "18 سبتمبر 2022 10:00 م", done: true },
-        { title: "طلب شركة الشحن", desc: "تم طلب شركة الشحن", date: "19 سبتمبر 2022 10:00 م", done: true },
-        { title: "جاهز لاستلام الشحن", desc: "الطلب جاهز للاستلام", date: "19 سبتمبر 2022 10:00 م", done: false },
+        { title: t("orderTracking.steps.orderReceived"), desc: t("orderTracking.steps.orderReceivedDesc"), date: "17 سبتمبر 2022 10:00 م", done: true },
+        { title: t("orderTracking.steps.paymentConfirmed"), desc: t("orderTracking.steps.paymentConfirmedDesc"), date: "17 سبتمبر 2022 10:00 م", done: true },
+        { title: t("orderTracking.steps.orderPreparing"), desc: t("orderTracking.steps.orderPreparingDesc"), date: "18 سبتمبر 2022 10:00 م", done: true },
+        { title: t("orderTracking.steps.shippingRequested"), desc: t("orderTracking.steps.shippingRequestedDesc"), date: "19 سبتمبر 2022 10:00 م", done: true },
+        { title: t("orderTracking.steps.readyForPickup"), desc: t("orderTracking.steps.readyForPickupDesc"), date: "19 سبتمبر 2022 10:00 م", done: false },
       ],
     }),
-    []
+    [t]
   );
 
   return (
@@ -32,7 +32,7 @@ export default function OrderTrackingCard() {
             </span>
           </div>
 
-          <div className="text-sm font-bold text-slate-900">تتبع الطلب</div>
+          <div className="text-sm font-bold text-slate-900">{t("orderTracking.title")}</div>
 
           <button
             type="button"
@@ -46,10 +46,10 @@ export default function OrderTrackingCard() {
         <div className="mt-4 rounded-xl bg-slate-50 p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="text-right">
-              <div className="text-xs text-slate-500">رقم التتبع</div>
+              <div className="text-xs text-slate-500">{t("orderTracking.trackingNumber")}</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">{data.trackingId}</div>
 
-              <div className="mt-3 text-xs text-slate-500">مدة الشحن</div>
+              <div className="mt-3 text-xs text-slate-500">{t("orderTracking.shippingDuration")}</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">{data.duration}</div>
             </div>
 

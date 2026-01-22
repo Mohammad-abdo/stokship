@@ -21,6 +21,7 @@ import {
   ShoppingCart,
   Package,
   FolderTree,
+  MapPin,
 } from "lucide-react";
 
 export default function StockshipEmployeeLayout({ children }) {
@@ -48,6 +49,7 @@ export default function StockshipEmployeeLayout({ children }) {
     { icon: Users, label: t('mediation.employee.traders') || 'My Traders', path: "/stockship/employee/traders" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/employee/deals" },
     { icon: Package, label: t('mediation.employee.offersValidation') || 'Offers Validation', path: "/stockship/employee/offers" },
+    { icon: MapPin, label: 'Shipping Tracking', path: "/stockship/employee/shipping-tracking" },
     { icon: DollarSign, label: t('mediation.employee.payments') || 'Payments', path: "/stockship/employee/payments" },
     { icon: FolderTree, label: t('sidebar.categories') || 'Categories', path: "/stockship/employee/categories" },
     { icon: Settings, label: t('common.settings'), path: "/stockship/employee/settings" },

@@ -9,7 +9,10 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { MultiProtectedRoute } from "./components/MultiProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import Login from "./pages/Login";
-import MultiLogin from "./pages/MultiLogin";
+import AdminLogin from "./pages/AdminLogin";
+import ModeratorLogin from "./pages/ModeratorLogin";
+import EmployeeLogin from "./pages/EmployeeLogin";
+import TraderLogin from "./pages/TraderLogin";
 
 import StockshipAdminLayout from "./components/StockshipAdminLayout";
 import StockshipVendorLayout from "./components/StockshipVendorLayout";
@@ -36,6 +39,10 @@ import EditProduct from "./pages/stockship/admin/EditProduct";
 import DeleteProduct from "./pages/stockship/admin/DeleteProduct";
 import ViewProduct from "./pages/stockship/admin/ViewProduct";
 import StockshipAdminCategories from "./pages/stockship/admin/AdminCategories";
+import AdminSliders from "./pages/stockship/admin/AdminSliders";
+import CreateSlider from "./pages/stockship/admin/CreateSlider";
+import EditSlider from "./pages/stockship/admin/EditSlider";
+import ViewSlider from "./pages/stockship/admin/ViewSlider";
 import CreateCategory from "./pages/stockship/admin/CreateCategory";
 import EditCategory from "./pages/stockship/admin/EditCategory";
 import ViewCategory from "./pages/stockship/admin/ViewCategory";
@@ -63,6 +70,12 @@ import EditEmployee from "./pages/stockship/admin/EditEmployee";
 import ViewOffer from "./pages/stockship/admin/ViewOffer";
 import ViewPayment from "./pages/stockship/admin/ViewPayment";
 import ViewDeal from "./pages/stockship/admin/ViewDeal";
+import AdminShippingCompanies from "./pages/stockship/admin/AdminShippingCompanies";
+import CreateShippingCompany from "./pages/stockship/admin/CreateShippingCompany";
+import EditShippingCompany from "./pages/stockship/admin/EditShippingCompany";
+import ViewShippingCompany from "./pages/stockship/admin/ViewShippingCompany";
+import AdminShippingTracking from "./pages/stockship/admin/AdminShippingTracking";
+import ViewShippingTracking from "./pages/stockship/admin/ViewShippingTracking";
 import StockshipAdminAnalytics from "./pages/stockship/admin/AdminAnalytics";
 import StockshipAdminContent from "./pages/stockship/admin/AdminContent";
 import StockshipAdminSEO from "./pages/stockship/admin/AdminSEO";
@@ -97,6 +110,8 @@ import EmployeeViewTrader from "./pages/stockship/employee/ViewTrader";
 import EmployeeViewDeal from "./pages/stockship/employee/ViewDeal";
 import EmployeeOffers from "./pages/stockship/employee/EmployeeOffers";
 import EmployeeViewOffer from "./pages/stockship/employee/EmployeeViewOffer";
+import EmployeeShippingTracking from "./pages/stockship/employee/EmployeeShippingTracking";
+import EmployeeViewShippingTracking from "./pages/stockship/employee/EmployeeViewShippingTracking";
 import EmployeePayments from "./pages/stockship/employee/EmployeePayments";
 import EmployeeSettings from "./pages/stockship/employee/EmployeeSettings";
 import EmployeeCategories from "./pages/stockship/employee/EmployeeCategories";
@@ -111,6 +126,7 @@ import TraderDeals from "./pages/stockship/trader/TraderDeals";
 import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
 import TraderPayments from "./pages/stockship/trader/TraderPayments";
 import TraderSettings from "./pages/stockship/trader/TraderSettings";
+import TraderUpdateRequest from "./pages/stockship/trader/TraderUpdateRequest";
 
 import StockshipClientLayout from "./components/StockshipClientLayout";
 import ClientDashboard from "./pages/stockship/client/ClientDashboard";
@@ -187,15 +203,23 @@ function AppRoutes() {
     <Routes>
       <Route
         path="/login"
-        element={(isClient() || isTrader()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="staff" />}
+        element={<Navigate to="/admin/login" replace />}
       />
       <Route
         path="/admin/login"
-        element={(isAdmin() || isEmployee() || isModerator() || isVendor()) ? <Navigate to={getDefaultRoute} replace /> : <MultiLogin mode="internal" />}
+        element={isAdmin() ? <Navigate to={getDefaultRoute} replace /> : <AdminLogin />}
       />
       <Route
-        path="/multi-login"
-        element={<Navigate to="/admin/login" replace />} 
+        path="/moderator/login"
+        element={isModerator() ? <Navigate to={getDefaultRoute} replace /> : <ModeratorLogin />}
+      />
+      <Route
+        path="/employee/login"
+        element={isEmployee() ? <Navigate to={getDefaultRoute} replace /> : <EmployeeLogin />}
+      />
+      <Route
+        path="/trader/login"
+        element={isTrader() ? <Navigate to={getDefaultRoute} replace /> : <TraderLogin />}
       />
 
       {/* Moderator Routes */}
@@ -347,6 +371,66 @@ function AppRoutes() {
           <MultiProtectedRoute requireAdmin>
             <StockshipAdminLayout>
               <ViewDeal />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/shipping-companies"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <AdminShippingCompanies />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/shipping-companies/create"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <CreateShippingCompany />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/shipping-companies/:id/view"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <ViewShippingCompany />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/shipping-companies/:id/edit"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <EditShippingCompany />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/shipping-tracking"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <AdminShippingTracking />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/shipping-tracking/:dealId/view"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <ViewShippingTracking />
             </StockshipAdminLayout>
           </MultiProtectedRoute>
         }
@@ -517,6 +601,46 @@ function AppRoutes() {
           <MultiProtectedRoute requireAdmin>
             <StockshipAdminLayout>
               <ViewCategory />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/sliders"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <AdminSliders />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/sliders/create"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <CreateSlider />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/sliders/:id/edit"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <EditSlider />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/sliders/:id/view"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <ViewSlider />
             </StockshipAdminLayout>
           </MultiProtectedRoute>
         }
@@ -833,6 +957,26 @@ function AppRoutes() {
           </MultiProtectedRoute>
         }
       />
+      <Route
+        path="/stockship/employee/shipping-tracking"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeShippingTracking />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/shipping-tracking/:dealId/view"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeViewShippingTracking />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
 
       {/* Mediation Platform - Client Routes */}
       <Route
@@ -1004,6 +1148,16 @@ function AppRoutes() {
           <MultiProtectedRoute requireTrader>
             <StockshipTraderLayout>
               <TraderSettings />
+            </StockshipTraderLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/trader/update-request"
+        element={
+          <MultiProtectedRoute requireTrader>
+            <StockshipTraderLayout>
+              <TraderUpdateRequest />
             </StockshipTraderLayout>
           </MultiProtectedRoute>
         }

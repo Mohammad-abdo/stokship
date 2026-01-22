@@ -25,7 +25,7 @@ const ViewCategory = () => {
       setCategory(response.data.data || response.data);
     } catch (error) {
       console.error('Error fetching category:', error);
-      showToast.error('Failed to load category', error.response?.data?.message || 'Category not found');
+      showToast.error(t('mediation.categories.loadCategoryFailed') || 'Failed to load category', error.response?.data?.message || t('mediation.categories.categoryNotFound') || 'Category not found');
       navigate('/stockship/admin/categories');
     } finally {
       setLoading(false);
@@ -37,7 +37,7 @@ const ViewCategory = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading category details...</p>
+          <p className="text-muted-foreground">{t('mediation.categories.loadingDetails') || 'Loading category details...'}</p>
         </div>
       </div>
     );
@@ -66,8 +66,8 @@ const ViewCategory = () => {
             <ArrowLeft className="w-5 h-5" />
           </motion.button>
           <div>
-            <h1 className="text-3xl font-bold">Category Details</h1>
-            <p className="text-muted-foreground mt-2">View complete category information</p>
+            <h1 className="text-3xl font-bold">{t('mediation.categories.categoryDetails') || 'Category Details'}</h1>
+            <p className="text-muted-foreground mt-2">{t('mediation.categories.viewCompleteInfo') || 'View complete category information'}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ const ViewCategory = () => {
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
           >
             <Edit className="w-4 h-4" />
-            Edit
+            {t('mediation.common.edit') || 'Edit'}
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -87,7 +87,7 @@ const ViewCategory = () => {
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
           >
             <Trash2 className="w-4 h-4" />
-            Delete
+            {t('mediation.common.delete') || 'Delete'}
           </motion.button>
         </div>
       </div>
@@ -97,35 +97,35 @@ const ViewCategory = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FolderTree className="w-5 h-5" />
-            Basic Information
+            {t('mediation.categories.basicInfo') || 'Basic Information'}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
             <div>
-              <label className="text-sm font-medium text-gray-500">Category ID</label>
+              <label className="text-sm font-medium text-gray-500">{t('mediation.categories.categoryId') || 'Category ID'}</label>
               <p className="text-lg font-semibold mt-1">#{category.id}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Name Key</label>
+              <label className="text-sm font-medium text-gray-500">{t('mediation.categories.nameKey') || 'Name Key'}</label>
               <p className="text-lg font-semibold mt-1">{category.nameKey || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Slug</label>
+              <label className="text-sm font-medium text-gray-500">{t('mediation.categories.slug') || 'Slug'}</label>
               <p className="text-lg font-semibold mt-1">{category.slug || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Parent Category</label>
+              <label className="text-sm font-medium text-gray-500">{t('mediation.categories.parentCategory') || 'Parent Category'}</label>
               <p className="text-lg font-semibold mt-1">
-                {category.parentId ? `#${category.parentId}` : 'Root Category'}
+                {category.parentId ? `#${category.parentId}` : (t('mediation.categories.rootCategory') || 'Root Category')}
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Level</label>
+              <label className="text-sm font-medium text-gray-500">{t('mediation.categories.level') || 'Level'}</label>
               <p className="text-lg font-semibold mt-1">{category.level || 0}</p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500">Sort Order</label>
+              <label className="text-sm font-medium text-gray-500">{t('mediation.categories.sortOrder') || 'Sort Order'}</label>
               <p className="text-lg font-semibold mt-1">{category.sortOrder || 0}</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ const ViewCategory = () => {
       {category.descriptionKey && (
         <Card>
           <CardHeader>
-            <CardTitle>Description</CardTitle>
+            <CardTitle>{t('mediation.common.description') || 'Description'}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-gray-700 whitespace-pre-wrap">{category.descriptionKey}</p>
@@ -148,20 +148,20 @@ const ViewCategory = () => {
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Status & Visibility</CardTitle>
+            <CardTitle>{t('mediation.categories.statusVisibility') || 'Status & Visibility'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-500">Is Active</label>
+                <label className="text-sm font-medium text-gray-500">{t('mediation.categories.isActive') || 'Is Active'}</label>
                 <p className="text-lg font-semibold mt-1">
-                  {category.isActive ? 'Yes' : 'No'}
+                  {category.isActive ? (t('mediation.categories.yes') || 'Yes') : (t('mediation.categories.no') || 'No')}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Is Featured</label>
+                <label className="text-sm font-medium text-gray-500">{t('mediation.categories.isFeatured') || 'Is Featured'}</label>
                 <p className="text-lg font-semibold mt-1">
-                  {category.isFeatured ? 'Yes' : 'No'}
+                  {category.isFeatured ? (t('mediation.categories.yes') || 'Yes') : (t('mediation.categories.no') || 'No')}
                 </p>
               </div>
             </div>
@@ -172,19 +172,19 @@ const ViewCategory = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
-              Timestamps
+              {t('mediation.categories.timestamps') || 'Timestamps'}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium text-gray-500">Created At</label>
+                <label className="text-sm font-medium text-gray-500">{t('mediation.categories.createdAt') || 'Created At'}</label>
                 <p className="text-sm mt-1">
                   {category.createdAt ? new Date(category.createdAt).toLocaleString() : 'N/A'}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Updated At</label>
+                <label className="text-sm font-medium text-gray-500">{t('mediation.categories.updatedAt') || 'Updated At'}</label>
                 <p className="text-sm mt-1">
                   {category.updatedAt ? new Date(category.updatedAt).toLocaleString() : 'N/A'}
                 </p>
@@ -200,7 +200,7 @@ const ViewCategory = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FolderTree className="w-5 h-5" />
-              Subcategories ({category.subcategories.length})
+              {t('mediation.categories.subCategories') || 'Subcategories'} ({category.subcategories.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -222,12 +222,12 @@ const ViewCategory = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="w-5 h-5" />
-              Products
+              {t('mediation.categories.products') || 'Products'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{category._count.products || 0} Products</p>
-            <p className="text-sm text-gray-500 mt-1">Total products in this category</p>
+            <p className="text-2xl font-bold">{category._count.products || 0} {t('mediation.categories.products') || 'Products'}</p>
+            <p className="text-sm text-gray-500 mt-1">{t('mediation.categories.totalProducts') || 'Total products in this category'}</p>
           </CardContent>
         </Card>
       )}

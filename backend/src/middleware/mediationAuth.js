@@ -15,7 +15,7 @@ const checkEmployeeTraderRelation = async (req, res, next) => {
     // Check if it's an offer validation
     if (req.path.includes('/offers/') && req.method === 'PUT') {
       const offer = await prisma.offer.findUnique({
-        where: { id: parseInt(id) },
+        where: { id: id },
         include: {
           trader: true
         }
@@ -35,7 +35,7 @@ const checkEmployeeTraderRelation = async (req, res, next) => {
       const traderId = req.params.id || req.params.traderId;
       if (traderId) {
         const trader = await prisma.trader.findUnique({
-          where: { id: parseInt(traderId) }
+          where: { id: traderId }
         });
 
         if (!trader) {
@@ -70,25 +70,30 @@ const checkEmployeeDealRelation = async (req, res, next) => {
       return next(); // Let other middleware handle authorization
     }
 
-    const deal = await prisma.deal.findUnique({
-      where: { id: parseInt(dealId) }
-    });
+    try {
+      const deal = await prisma.deal.findUnique({
+        where: { id: dealId }
+      });
 
-    if (!deal) {
-      return errorResponse(res, 'Deal not found', 404);
+      if (!deal) {
+        return errorResponse(res, 'Deal not found', 404);
+      }
+
+      // Admin can access all deals
+      if (req.userType === 'ADMIN') {
+        return next();
+      }
+
+      // Employee can only access deals they guarantee
+      if (deal.employeeId !== req.user.id) {
+        return errorResponse(res, 'Not authorized to access this deal', 403);
+      }
+
+      next();
+    } catch (dbError) {
+      console.error('Database error in checkEmployeeDealRelation:', dbError);
+      return errorResponse(res, 'Database error while checking deal authorization', 500);
     }
-
-    // Admin can access all deals
-    if (req.userType === 'ADMIN') {
-      return next();
-    }
-
-    // Employee can only access deals they guarantee
-    if (deal.employeeId !== req.user.id) {
-      return errorResponse(res, 'Not authorized to access this deal', 403);
-    }
-
-    next();
   } catch (error) {
     console.error('Employee-Deal relation check error:', error);
     return errorResponse(res, 'Authorization check failed', 500);
@@ -109,7 +114,7 @@ const checkTraderOwnership = async (req, res, next) => {
 
     if (resourceType === 'offers') {
       const offer = await prisma.offer.findUnique({
-        where: { id: parseInt(resourceId) }
+        where: { id: resourceId }
       });
 
       if (!offer) {
@@ -121,7 +126,7 @@ const checkTraderOwnership = async (req, res, next) => {
       }
     } else if (resourceType === 'deals') {
       const deal = await prisma.deal.findUnique({
-        where: { id: parseInt(resourceId) }
+        where: { id: resourceId }
       });
 
       if (!deal) {
@@ -153,7 +158,7 @@ const checkClientOwnership = async (req, res, next) => {
 
     if (dealId) {
       const deal = await prisma.deal.findUnique({
-        where: { id: parseInt(dealId) }
+        where: { id: dealId }
       });
 
       if (!deal) {

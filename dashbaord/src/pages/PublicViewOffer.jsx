@@ -98,7 +98,7 @@ export default function PublicViewOffer() {
           className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           {creatingDeal ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Gift className="w-4 h-4 mr-2" />}
-          {isClient() ? (t('client.makeDeal') || 'Make Deal') : 'Login to Make Deal'}
+          {isClient() ? (t('client.makeDeal') || 'Make Deal') : (t('client.loginToMakeDeal') || 'Login to Make Deal')}
         </Button>
       </div>
 
@@ -125,7 +125,7 @@ export default function PublicViewOffer() {
                      )}
                      <div className="flex items-center gap-2 text-gray-600">
                         <Store className="w-4 h-4" />
-                        <span>{offer.trader?.companyName || offer.trader?.name || 'Trader'}</span>
+                        <span>{offer.trader?.companyName || offer.trader?.name || (t('client.trader') || 'Trader')}</span>
                      </div>
                   </div>
                </CardContent>
@@ -140,10 +140,10 @@ export default function PublicViewOffer() {
                         {offer.items.map((item, idx) => (
                            <div key={idx} className="border p-4 rounded-lg flex flex-col md:flex-row gap-4">
                               <div>
-                                 <h4 className="font-medium">{item.name || `Item ${idx + 1}`}</h4>
+                                 <h4 className="font-medium">{item.name || `${t('client.item') || 'Item'} ${idx + 1}`}</h4>
                                  <p className="text-sm text-gray-500 mt-1">{item.description}</p>
                                  <div className="mt-2 text-sm flex gap-4">
-                                     <span className="bg-gray-100 px-2 py-1 rounded">Qty: {item.quantity}</span>
+                                     <span className="bg-gray-100 px-2 py-1 rounded">{t('client.quantity') || 'Qty'}: {item.quantity}</span>
                                      {item.price && <span className="bg-green-50 text-green-700 px-2 py-1 rounded">{item.price} {item.currency}</span>}
                                  </div>
                               </div>
@@ -168,7 +168,7 @@ export default function PublicViewOffer() {
                         download
                      >
                         <FileSpreadsheet className="w-5 h-5" />
-                        <span className="flex-1 font-medium truncate">{offer.excelFileName || 'Download Excel'}</span>
+                        <span className="flex-1 font-medium truncate">{offer.excelFileName || (t('client.downloadExcel') || 'Download Excel')}</span>
                         <Download className="w-4 h-4" />
                      </a>
                   </CardContent>

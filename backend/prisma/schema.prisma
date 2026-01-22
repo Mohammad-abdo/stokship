@@ -100,6 +100,13 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum TraderUpdateRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum AuditAction {
   DEAL_CREATED
   DEAL_UPDATED
@@ -180,6 +187,7 @@ model Employee {
   deals                 Deal[] // Deals this employee guarantees
   activityLogs          ActivityLog[]          @relation("ActivityLogEmployee")
   auditTrails           AuditTrail[]           @relation("AuditTrailEmployee")
+  traderUpdateRequests  TraderUpdateRequest[]  @relation("TraderUpdateRequestReviewer")
   financialTransactions FinancialTransaction[] @relation("FinancialTransactionEmployee")
 
   @@index([createdBy])
@@ -217,13 +225,14 @@ model Trader {
   updatedAt         DateTime  @updatedAt
 
   // Relations
-  employee         Employee?         @relation(fields: [employeeId], references: [id])
-  client           Client?           @relation(fields: [clientId], references: [id])
+  employee         Employee?             @relation(fields: [employeeId], references: [id])
+  client           Client?               @relation(fields: [clientId], references: [id])
   offers           Offer[]
   deals            Deal[]
-  dealNegotiations DealNegotiation[] @relation("DealNegotiationTrader")
-  activityLogs     ActivityLog[]     @relation("ActivityLogTrader")
-  auditTrails      AuditTrail[]      @relation("AuditTrailTrader")
+  dealNegotiations DealNegotiation[]     @relation("DealNegotiationTrader")
+  activityLogs     ActivityLog[]         @relation("ActivityLogTrader")
+  auditTrails      AuditTrail[]          @relation("AuditTrailTrader")
+  updateRequests   TraderUpdateRequest[]
 
   @@index([employeeId])
   @@index([clientId])
@@ -232,23 +241,24 @@ model Trader {
 }
 
 model Client {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  password        String
-  name            String
-  phone           String?
-  countryCode     String?
-  country         String?
-  city            String?
-  isActive        Boolean   @default(true)
-  isEmailVerified Boolean   @default(false)
-  termsAccepted   Boolean   @default(false)
-  termsAcceptedAt DateTime?
-  language        String    @default("ar")
-  lastLoginAt     DateTime?
-  rememberToken   String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  password            String
+  name                String
+  phone               String?
+  countryCode         String?
+  country             String?
+  city                String?
+  isActive            Boolean   @default(true)
+  isEmailVerified     Boolean   @default(false)
+  termsAccepted       Boolean   @default(false)
+  termsAcceptedAt     DateTime?
+  language            String    @default("ar")
+  preferredCategories String?   @db.Text // JSON array of category IDs
+  lastLoginAt         DateTime?
+  rememberToken       String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   // Relations
   deals            Deal[]
@@ -362,6 +372,7 @@ model Deal {
   traderId           String
   clientId           String
   employeeId         String // Guarantor employee
+  shippingCompanyId  String? // Assigned shipping company
   status             DealStatus @default(NEGOTIATION)
   negotiatedAmount   Decimal?   @db.Decimal(10, 2) // Agreed amount
   totalCartons       Int        @default(0)
@@ -380,22 +391,25 @@ model Deal {
   updatedAt          DateTime   @updatedAt
 
   // Relations
-  offer         Offer               @relation(fields: [offerId], references: [id])
-  trader        Trader              @relation(fields: [traderId], references: [id])
-  client        Client              @relation(fields: [clientId], references: [id])
-  employee      Employee            @relation(fields: [employeeId], references: [id])
-  items         DealItem[]
-  negotiations  DealNegotiation[]
-  payments      Payment[]
-  invoices      Invoice[]
-  statusHistory DealStatusHistory[]
-  activityLogs  ActivityLog[]       @relation("ActivityLogDeal")
-  auditTrails   AuditTrail[]        @relation("AuditTrailDeal")
+  offer            Offer               @relation(fields: [offerId], references: [id])
+  trader           Trader              @relation(fields: [traderId], references: [id])
+  client           Client              @relation(fields: [clientId], references: [id])
+  employee         Employee            @relation(fields: [employeeId], references: [id])
+  shippingCompany  ShippingCompany?    @relation(fields: [shippingCompanyId], references: [id])
+  shippingTracking ShippingTracking?
+  items            DealItem[]
+  negotiations     DealNegotiation[]
+  payments         Payment[]
+  invoices         Invoice[]
+  statusHistory    DealStatusHistory[]
+  activityLogs     ActivityLog[]       @relation("ActivityLogDeal")
+  auditTrails      AuditTrail[]        @relation("AuditTrailDeal")
 
   @@index([offerId])
   @@index([traderId])
   @@index([clientId])
   @@index([employeeId])
+  @@index([shippingCompanyId])
   @@index([status])
   @@index([dealNumber])
 }
@@ -444,6 +458,8 @@ model DealNegotiation {
   dealId           String
   traderId         String
   clientId         String
+  senderId         String                 @default("") // ID of the user who sent the message (clientId, traderId, or employeeId)
+  senderType       String                 @default("CLIENT") // 'CLIENT', 'TRADER', or 'EMPLOYEE'
   messageType      NegotiationMessageType @default(TEXT)
   message          String                 @db.Text
   proposedPrice    Decimal?               @db.Decimal(10, 2)
@@ -549,9 +565,11 @@ model Invoice {
   dealId             String
   invoiceNumber      String        @unique
   invoiceUrl         String // PDF URL
+  qrCodeUrl          String? // QR code for invoice
   status             InvoiceStatus @default(DRAFT)
   subtotal           Decimal       @db.Decimal(10, 2)
   platformCommission Decimal       @db.Decimal(10, 2)
+  shippingCommission Decimal       @db.Decimal(10, 2) @default(0) // Shipping commission (paid by buyer)
   employeeCommission Decimal       @db.Decimal(10, 2)
   traderAmount       Decimal       @db.Decimal(10, 2)
   total              Decimal       @db.Decimal(10, 2)
@@ -711,6 +729,30 @@ model Category {
 }
 
 // ============================================
+// SLIDER MANAGEMENT
+// ============================================
+
+model Slider {
+  id            String   @id @default(uuid())
+  titleAr       String   @db.Text
+  titleEn       String   @db.Text
+  descriptionAr String?  @db.Text
+  descriptionEn String?  @db.Text
+  imageUrl      String
+  imageAlt      String?
+  linkUrl       String?
+  linkTextAr    String?
+  linkTextEn    String?
+  displayOrder  Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([displayOrder])
+}
+
+// ============================================
 // NOTIFICATION SYSTEM
 // ============================================
 
@@ -809,12 +851,127 @@ model ContentPage {
 }
 
 // ============================================
+// SHIPPING COMPANIES MANAGEMENT
+// ============================================
+
+model ShippingCompany {
+  id          String   @id @default(uuid())
+  nameAr      String   @default("") // Arabic name
+  nameEn      String   @default("") // English name
+  avatar      String? // Avatar/logo image URL
+  address     String?  @db.Text
+  contactName String?
+  phone       String?
+  email       String?
+  notes       String?  @db.Text
+  status      String   @default("ACTIVE") // ACTIVE, INACTIVE
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  deals          Deal[]
+  shippingTracks ShippingTracking[]
+
+  @@index([status])
+  @@index([nameAr])
+  @@index([nameEn])
+}
+
+enum ShippingStatus {
+  PENDING // في انتظار الشحن
+  PREPARING // جاري التحضير
+  PICKED_UP // تم الاستلام من التاجر
+  IN_TRANSIT // في الطريق
+  OUT_FOR_DELIVERY // جاري التوصيل
+  DELIVERED // تم التسليم
+  RETURNED // تم الإرجاع
+  CANCELLED // ملغاة
+}
+
+model ShippingTracking {
+  id                String         @id @default(uuid())
+  dealId            String         @unique
+  shippingCompanyId String?
+  trackingNumber    String?        @unique // رقم التتبع من شركة الشحن
+  status            ShippingStatus @default(PENDING)
+  currentLocation   String?        @db.Text // الموقع الحالي
+  estimatedDelivery DateTime? // تاريخ التوصيل المتوقع
+  actualDelivery    DateTime? // تاريخ التسليم الفعلي
+  notes             String?        @db.Text
+  updatedBy         String? // User ID who updated
+  updatedByType     UserType? // User type who updated
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  // Relations
+  deal            Deal                    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  shippingCompany ShippingCompany?        @relation(fields: [shippingCompanyId], references: [id])
+  statusHistory   ShippingStatusHistory[]
+
+  @@index([shippingCompanyId])
+  @@index([trackingNumber])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ShippingStatusHistory {
+  id                 String         @id @default(uuid())
+  shippingTrackingId String
+  status             ShippingStatus
+  location           String?        @db.Text
+  description        String?        @db.Text
+  updatedBy          String? // User ID
+  updatedByType      UserType? // User type
+  createdAt          DateTime       @default(now())
+
+  // Relations
+  shippingTracking ShippingTracking @relation(fields: [shippingTrackingId], references: [id], onDelete: Cascade)
+
+  @@index([shippingTrackingId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ============================================
+// TRADER UPDATE REQUESTS
+// ============================================
+
+model TraderUpdateRequest {
+  id       String                    @id @default(uuid())
+  traderId String
+  status   TraderUpdateRequestStatus @default(PENDING)
+
+  // Requested changes (JSON to store all fields)
+  requestedData Json @db.Json
+
+  // Review information
+  reviewedBy     String? // Employee or Admin ID
+  reviewedByType UserType? // EMPLOYEE or ADMIN
+  reviewedAt     DateTime?
+  reviewNotes    String?   @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  trader   Trader    @relation(fields: [traderId], references: [id], onDelete: Cascade)
+  reviewer Employee? @relation("TraderUpdateRequestReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([traderId])
+  @@index([status])
+  @@index([reviewedBy])
+  @@index([createdAt])
+}
+
+// ============================================
 // PLATFORM SETTINGS
 // ============================================
 
 model PlatformSettings {
   id                     String   @id @default(uuid())
   platformCommissionRate Decimal? @db.Decimal(5, 2)
+  shippingCommissionRate Decimal? @db.Decimal(5, 2) @default(5.00) // Shipping commission rate (default 5%)
   cbmRate                Decimal? @db.Decimal(10, 2)
   taxRate                Decimal? @db.Decimal(5, 2)
   currency               String?  @default("SAR")

@@ -1,14 +1,11 @@
 import React from 'react'
 import SignupBankInfoForm from '../components/SignupBankInfoForm'
-import Header from '../components/Header'
-import FooterArabic from '../components/FooterArabic'
+import { MainLayout } from '../components/Layout'
 
 export default function SignupBankInfoFormPage() {
   return (
-    <div>
-      <Header/>
+    <MainLayout>
       <SignupBankInfoForm/>
-      <FooterArabic/>
-    </div>
+    </MainLayout>
   )
 }

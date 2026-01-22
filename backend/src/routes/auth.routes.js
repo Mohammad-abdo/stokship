@@ -8,6 +8,7 @@ const {
   resetPassword,
   getMe,
   updateProfile,
+  updatePreferences,
   logout,
   refreshToken,
   verifyEmail,
@@ -22,6 +23,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 router.get('/me', protect, getMe);
 router.put('/me', protect, updateProfile);
+router.put('/preferences', protect, updatePreferences);
 router.post('/logout', protect, logout);
 router.post('/refresh-token', refreshToken);
 router.post('/verify-email', verifyEmail);

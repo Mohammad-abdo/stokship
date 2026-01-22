@@ -226,15 +226,15 @@ const EmployeeViewOffer = () => {
       setValidating(true);
       await offerApi.updateOffer(offer.id, editData);
       showToast.success(
-        language === 'ar' ? 'تم التحديث بنجاح' : 'Offer Updated',
-        language === 'ar' ? 'تم تحديث الإعلان بنجاح' : 'Offer has been updated successfully'
+        t('mediation.offers.updated') || 'Offer Updated',
+        t('mediation.offers.updatedSuccess') || 'Offer has been updated successfully'
       );
       setEditing(false);
       await fetchOffer();
     } catch (error) {
       console.error('Error updating offer:', error);
       showToast.error(
-        language === 'ar' ? 'فشل التحديث' : 'Failed to update offer',
+        t('mediation.offers.updateFailed') || 'Failed to update offer',
         error.response?.data?.message || 'Please try again'
       );
     } finally {
@@ -248,7 +248,7 @@ const EmployeeViewOffer = () => {
 
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
       showToast.error(
-        language === 'ar' ? 'نوع ملف غير مدعوم' : 'Invalid File Type',
+        t('mediation.offers.invalidFileType') || 'Invalid File Type',
         language === 'ar' ? 'يرجى اختيار ملف Excel (.xlsx, .xls, .csv)' : 'Please select an Excel file (.xlsx, .xls, .csv)'
       );
       return;
@@ -258,14 +258,14 @@ const EmployeeViewOffer = () => {
       setUploadingExcel(true);
       await offerApi.uploadOfferExcelEmployee(offer.id, file);
       showToast.success(
-        language === 'ar' ? 'تم رفع الملف بنجاح' : 'File Uploaded',
-        language === 'ar' ? 'تم رفع ومعالجة ملف Excel بنجاح' : 'Excel file uploaded and processed successfully'
+        t('mediation.offers.fileUploaded') || 'File Uploaded',
+        t('mediation.offers.excelUploadedSuccess') || 'Excel file uploaded and processed successfully'
       );
       await fetchOffer();
     } catch (error) {
       console.error('Error uploading Excel:', error);
       showToast.error(
-        language === 'ar' ? 'فشل رفع الملف' : 'Failed to upload file',
+        t('mediation.offers.uploadFailed') || 'Failed to upload file',
         error.response?.data?.message || 'Please try again'
       );
     } finally {

@@ -1,4 +1,32 @@
 /**
+ * Get API base URL for images
+ */
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  
+  // If already a full URL (http/https), return as is
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // If it's a relative path starting with /uploads, prepend API URL
+  if (imagePath.startsWith('/uploads')) {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const BASE_URL = API_URL.replace('/api', ''); // Remove /api to get base URL
+    return `${BASE_URL}${imagePath}`;
+  }
+  
+  // If it's a relative path without /uploads, assume it's in uploads
+  if (!imagePath.startsWith('/')) {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const BASE_URL = API_URL.replace('/api', '');
+    return `${BASE_URL}/uploads/${imagePath}`;
+  }
+  
+  return imagePath;
+};
+
+/**
  * Transform Backend Offer to Frontend Product format
  * This ensures we don't change the design, just map the data
  */
@@ -7,7 +35,11 @@ export const transformOfferToProduct = (offer) => {
   let images = [];
   if (offer.images) {
     try {
-      images = typeof offer.images === 'string' ? JSON.parse(offer.images) : offer.images;
+      const parsedImages = typeof offer.images === 'string' ? JSON.parse(offer.images) : offer.images;
+      // Convert image paths to full URLs
+      images = Array.isArray(parsedImages) 
+        ? parsedImages.map(img => getImageUrl(img)).filter(img => img !== null)
+        : [];
     } catch (e) {
       images = [];
     }
@@ -53,6 +85,7 @@ export const transformOfferToProduct = (offer) => {
 export const transformOffersToProducts = (offers) => {
   return offers.map(transformOfferToProduct);
 };
+
 
 
 

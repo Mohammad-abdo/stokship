@@ -6,7 +6,7 @@ import { employeeApi } from "@/lib/mediationApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StandardDataTable from "@/components/StandardDataTable";
 import { motion } from "framer-motion";
-import { ShoppingCart, Search, Eye, Filter, Calendar, DollarSign, Building2, User } from "lucide-react";
+import { ShoppingCart, Search, Eye, Filter, Calendar, DollarSign, Building2, User, Truck } from "lucide-react";
 import showToast from "@/lib/toast";
 
 export default function EmployeeDeals() {
@@ -131,6 +131,22 @@ export default function EmployeeDeals() {
       )
     },
     {
+      key: 'shippingCompany',
+      label: 'Shipping Company',
+      render: (value, row) => (
+        <div className="flex items-center gap-2">
+          {row.shippingCompany?.avatar && (
+            <img 
+              src={row.shippingCompany.avatar} 
+              alt={row.shippingCompany.nameEn || row.shippingCompany.nameAr} 
+              className="w-5 h-5 rounded-full object-cover"
+            />
+          )}
+          <span className="text-sm">{row.shippingCompany?.nameEn || row.shippingCompany?.nameAr || 'Not Assigned'}</span>
+        </div>
+      )
+    },
+    {
       key: 'status',
       label: t('mediation.common.status') || 'Status',
       render: (value) => getStatusBadge(value)
@@ -151,6 +167,18 @@ export default function EmployeeDeals() {
 
   const rowActions = (row) => (
     <div className="flex items-center gap-1 justify-end">
+      {row.shippingCompany && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/stockship/employee/shipping-tracking/${row.id}/view`);
+          }}
+          className="p-1.5 hover:bg-blue-100 rounded transition-colors"
+          title={t('mediation.employee.shippingTracking.title') || 'View Shipping Tracking'}
+        >
+          <Truck className="w-4 h-4 text-blue-600" />
+        </button>
+      )}
       <button
         onClick={(e) => {
           e.stopPropagation();

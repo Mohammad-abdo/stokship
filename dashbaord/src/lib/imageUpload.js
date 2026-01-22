@@ -20,24 +20,28 @@ export const uploadImage = async (file, type = 'image', language = 'en') => {
 
   try {
     const formData = new FormData();
-    formData.append('file', file); // Primary field
-    formData.append('image', file); // Fallback field
-    formData.append('type', type);
+    formData.append('images', file); // Field name matches backend expectation
 
-    const response = await api.post('/admin/file-uploads', formData, {
+    const response = await api.post('/upload/images', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
 
-    const imageUrl = response.data?.data?.url || 
-                    response.data?.data?.file_url || 
-                    response.data?.url ||
-                    response.data?.file?.url;
+    // Backend returns { success: true, data: { files: [{ url: '...' }] } }
+    const files = response.data?.data?.files || response.data?.files || [];
+    const imageUrl = files[0]?.url || files[0]?.path || response.data?.data?.url;
 
     if (imageUrl) {
+      // Make sure the URL is absolute
+      let fullUrl = imageUrl;
+      if (!imageUrl.startsWith('http')) {
+        // Remove /api from baseURL if it exists, then add the URL path
+        const baseURL = (api.defaults?.baseURL || '').replace('/api', '');
+        fullUrl = `${baseURL}${imageUrl}`;
+      }
       showToast.success(language === 'ar' ? 'تم رفع الصورة بنجاح' : 'Image uploaded successfully');
-      return imageUrl;
+      return fullUrl;
     } else {
       showToast.error(language === 'ar' ? 'فشل الحصول على رابط الصورة' : 'Failed to get image URL');
       return null;

@@ -85,10 +85,38 @@ export const MultiAuthProvider = ({ children }) => {
   // Login function that stores by role
   const login = async (email, password, requestedRole = null) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      // Send role parameter to backend for explicit role-based login
+      const requestBody = { email, password };
+      if (requestedRole) {
+        // Map frontend role names to backend role names
+        const roleMap = {
+          'admin': 'ADMIN',
+          'moderator': 'MODERATOR',
+          'employee': 'EMPLOYEE',
+          'trader': 'TRADER',
+          'client': 'CLIENT',
+          'user': 'CLIENT'
+        };
+        requestBody.role = roleMap[requestedRole.toLowerCase()] || requestedRole.toUpperCase();
+      }
+      const response = await api.post('/auth/login', requestBody);
+      
+      // Check if response is successful
+      if (!response.data || (!response.data.success && !response.data.data)) {
+        throw new Error(response.data?.message || 'Login failed: Invalid response from server');
+      }
+      
       const responseData = response.data.data || response.data;
       const primaryToken = responseData.token || responseData.accessToken;
       const primaryUser = responseData.user || responseData;
+      
+      // Validate response data
+      if (!primaryToken) {
+        throw new Error('Login failed: No token received from server');
+      }
+      if (!primaryUser) {
+        throw new Error('Login failed: No user data received from server');
+      }
 
       // Determine role: prioritize requested role, then check roleTokens, then primary user role
       let selectedRole = requestedRole;
@@ -227,7 +255,29 @@ export const MultiAuthProvider = ({ children }) => {
         availableRoles: responseData.availableRoles || [selectedUserRole] 
       };
     } catch (error) {
-      throw new Error(error.response?.data?.message || "Login failed");
+      // Better error handling
+      if (error.response) {
+        // Server responded with error
+        const errorMessage = error.response.data?.message || error.response.data?.error || 'Login failed';
+        const status = error.response.status;
+        
+        // Provide more specific error messages
+        if (status === 401) {
+          throw new Error(errorMessage || 'Invalid email or password');
+        } else if (status === 403) {
+          throw new Error(errorMessage || 'Access denied. You do not have permission to login with this role.');
+        } else if (status === 500) {
+          throw new Error(errorMessage || 'Server error. Please try again later.');
+        } else {
+          throw new Error(errorMessage || `Login failed (${status})`);
+        }
+      } else if (error.request) {
+        // Request was made but no response received
+        throw new Error('Network error. Please check your connection and try again.');
+      } else {
+        // Error in setting up the request
+        throw new Error(error.message || 'Login failed. Please try again.');
+      }
     }
   };
 

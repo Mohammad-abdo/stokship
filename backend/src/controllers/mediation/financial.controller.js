@@ -2,14 +2,7 @@ const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
 const { notifyPaymentVerified } = require('../../utils/notificationHelper');
-// PDFDocument is optional - install with: npm install pdfkit
-let PDFDocument;
-try {
-  PDFDocument = require('pdfkit');
-} catch (e) {
-  console.warn('PDFKit not installed. Invoice generation will be limited.');
-  PDFDocument = null;
-}
+const { generateInvoiceWithQRCode } = require('../../services/invoice.service');
 const fs = require('fs');
 const path = require('path');
 
@@ -38,7 +31,13 @@ const processPayment = asyncHandler(async (req, res) => {
           employee: true
         }
       },
-      employee: true
+      client: true,
+      employee: true,
+      items: {
+        include: {
+          offerItem: true
+        }
+      }
     }
   });
 
@@ -50,8 +49,22 @@ const processPayment = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Deal amount not negotiated yet', 400);
   }
 
-  if (parseFloat(amount) !== parseFloat(deal.negotiatedAmount)) {
-    return errorResponse(res, `Payment amount must be ${deal.negotiatedAmount}`, 400);
+  // Calculate total amount including commissions
+  const platformSettings = await prisma.platformSettings.findFirst({
+    orderBy: { updatedAt: 'desc' }
+  });
+  const platformCommissionRate = platformSettings?.platformCommissionRate || 2.5;
+  const shippingCommissionRate = platformSettings?.shippingCommissionRate || 5.0;
+  const employeeCommissionRate = deal.employee.commissionRate || 1.0;
+  
+  const dealAmount = parseFloat(deal.negotiatedAmount);
+  const platformCommission = (dealAmount * platformCommissionRate) / 100;
+  const shippingCommission = (dealAmount * shippingCommissionRate) / 100;
+  const employeeCommission = (dealAmount * employeeCommissionRate) / 100;
+  const totalAmount = dealAmount + platformCommission + shippingCommission + employeeCommission;
+
+  if (Math.abs(parseFloat(amount) - totalAmount) > 0.01) {
+    return errorResponse(res, `Payment amount must be ${totalAmount.toFixed(2)} (includes commissions)`, 400);
   }
 
   // Create payment
@@ -121,7 +134,13 @@ const verifyPayment = asyncHandler(async (req, res) => {
               employee: true
             }
           },
-          employee: true
+          client: true,
+          employee: true,
+          items: {
+            include: {
+              offerItem: true
+            }
+          }
         }
       }
     }
@@ -210,42 +229,54 @@ async function calculateAndDistributeCommissions(deal, payment) {
   const platformCommissionRate = platformSettings?.platformCommissionRate 
     ? parseFloat(platformSettings.platformCommissionRate) 
     : 2.5; // 2.5% default
+  const shippingCommissionRate = platformSettings?.shippingCommissionRate 
+    ? parseFloat(platformSettings.shippingCommissionRate) 
+    : 5.0; // 5% default for shipping commission
   const cbmRate = platformSettings?.cbmRate 
     ? parseFloat(platformSettings.cbmRate) 
     : null; // No CBM rate by default
   const commissionMethod = platformSettings?.commissionMethod || 'PERCENTAGE'; // PERCENTAGE, CBM, BOTH
   const employeeCommissionRate = deal.employee.commissionRate || 1.0; // Employee's rate
 
-  const amount = parseFloat(payment.amount);
+  // The deal amount (negotiated amount) - this is what the buyer pays for the products
+  const dealAmount = parseFloat(deal.negotiatedAmount) || parseFloat(payment.amount);
   const totalCBM = parseFloat(deal.totalCBM) || 0;
 
-  // Calculate platform commission based on method
+  // Calculate platform commission based on method (based on deal amount)
   let platformCommission = 0;
   let cbmBasedCommission = null;
   let usedMethod = commissionMethod;
 
   if (commissionMethod === 'PERCENTAGE') {
     // Use percentage-based commission only
-    platformCommission = (amount * platformCommissionRate) / 100;
+    platformCommission = (dealAmount * platformCommissionRate) / 100;
   } else if (commissionMethod === 'CBM' && cbmRate) {
     // Use CBM-based commission only
     cbmBasedCommission = totalCBM * cbmRate;
     platformCommission = cbmBasedCommission;
   } else if (commissionMethod === 'BOTH' && cbmRate) {
     // Use both methods and take the higher value
-    const percentageCommission = (amount * platformCommissionRate) / 100;
+    const percentageCommission = (dealAmount * platformCommissionRate) / 100;
     cbmBasedCommission = totalCBM * cbmRate;
     platformCommission = Math.max(percentageCommission, cbmBasedCommission);
     usedMethod = percentageCommission >= cbmBasedCommission ? 'PERCENTAGE' : 'CBM';
   } else {
     // Fallback to percentage if CBM rate not set
-    platformCommission = (amount * platformCommissionRate) / 100;
+    platformCommission = (dealAmount * platformCommissionRate) / 100;
     usedMethod = 'PERCENTAGE';
   }
 
-  // Calculate employee commission (based on amount, not CBM)
-  const employeeCommission = (amount * employeeCommissionRate) / 100;
-  const traderAmount = amount - platformCommission - employeeCommission;
+  // Calculate shipping commission (5% of deal amount, paid by buyer)
+  const shippingCommission = (dealAmount * shippingCommissionRate) / 100;
+
+  // Calculate employee commission (based on deal amount)
+  const employeeCommission = (dealAmount * employeeCommissionRate) / 100;
+
+  // Total amount buyer pays = deal amount + all commissions
+  const totalAmount = dealAmount + platformCommission + shippingCommission + employeeCommission;
+
+  // Trader receives only the deal amount (all commissions are deducted)
+  const traderAmount = dealAmount;
 
   // Create financial transaction
   const transaction = await prisma.financialTransaction.create({
@@ -253,9 +284,9 @@ async function calculateAndDistributeCommissions(deal, payment) {
       dealId: deal.id,
       paymentId: payment.id,
       type: 'DEPOSIT',
-      amount,
+      amount: totalAmount, // Total amount paid by buyer (including all commissions)
       status: 'COMPLETED',
-      description: `Payment for deal ${deal.dealNumber}`,
+      description: `Payment for deal ${deal.dealNumber} (includes commissions)`,
       platformCommission,
       employeeCommission,
       traderAmount,
@@ -272,16 +303,16 @@ async function calculateAndDistributeCommissions(deal, payment) {
 
   // Create ledger entries
   const ledgerEntries = [
-    // Client payment (DEBIT from client, CREDIT to platform)
+    // Client payment (DEBIT from client, CREDIT to platform) - Total amount including all commissions
     {
       transactionId: transaction.id,
       entryType: 'DEBIT',
       accountType: 'CLIENT',
       accountId: deal.clientId,
-      amount,
+      amount: totalAmount,
       balanceBefore: 0, // Would need to track client balance
       balanceAfter: 0,
-      description: `Payment for deal ${deal.dealNumber}`,
+      description: `Payment for deal ${deal.dealNumber} (includes all commissions)`,
       reference: deal.dealNumber
     },
     // Platform commission (CREDIT to platform)
@@ -296,6 +327,18 @@ async function calculateAndDistributeCommissions(deal, payment) {
       description: `Platform commission for deal ${deal.dealNumber}`,
       reference: deal.dealNumber
     },
+    // Shipping commission (CREDIT to platform - shipping commission goes to platform)
+    {
+      transactionId: transaction.id,
+      entryType: 'CREDIT',
+      accountType: 'PLATFORM',
+      accountId: null,
+      amount: shippingCommission,
+      balanceBefore: 0,
+      balanceAfter: 0,
+      description: `Shipping commission for deal ${deal.dealNumber} (paid by buyer)`,
+      reference: deal.dealNumber
+    },
     // Employee commission (CREDIT to employee)
     {
       transactionId: transaction.id,
@@ -308,7 +351,7 @@ async function calculateAndDistributeCommissions(deal, payment) {
       description: `Employee commission for deal ${deal.dealNumber}`,
       reference: deal.dealNumber
     },
-    // Trader payout (CREDIT to trader)
+    // Trader payout (CREDIT to trader) - Only the deal amount
     {
       transactionId: transaction.id,
       entryType: 'CREDIT',
@@ -337,73 +380,83 @@ async function calculateAndDistributeCommissions(deal, payment) {
  * @private
  */
 async function generateInvoice(deal, payment, transaction) {
-  // Get invoice data
-  const invoiceData = {
-    invoiceNumber: deal.invoiceNumber || `INV-${Date.now()}`,
-    dealNumber: deal.dealNumber,
-    trader: deal.trader,
-    client: deal.client,
-    items: deal.items,
-    subtotal: transaction.traderAmount,
-    platformCommission: transaction.platformCommission,
-    employeeCommission: transaction.employeeCommission,
-    total: payment.amount,
-    date: new Date()
-  };
+  try {
+    // Get platform settings for company info
+    const platformSettings = await prisma.platformSettings.findFirst({
+      orderBy: { updatedAt: 'desc' }
+    });
 
-  // Create invoice record
-  const invoice = await prisma.invoice.create({
-    data: {
-      dealId: deal.id,
-      invoiceNumber: invoiceData.invoiceNumber,
-      invoiceUrl: `/invoices/${invoiceData.invoiceNumber}.pdf`, // Will be generated
-      status: 'SENT',
-      subtotal: invoiceData.subtotal,
-      platformCommission: invoiceData.platformCommission,
-      employeeCommission: invoiceData.employeeCommission,
-      traderAmount: invoiceData.subtotal,
-      total: invoiceData.total,
-      issuedAt: new Date()
-    }
-  });
+    const platformInfo = platformSettings ? {
+      name: platformSettings.platformName || 'Stockship',
+      email: platformSettings.platformEmail || null,
+      phone: platformSettings.platformPhone || null,
+      address: platformSettings.platformAddress || null
+    } : null;
 
-  // Generate PDF invoice using PDFKit (if available)
-  if (PDFDocument) {
-    try {
-      const doc = new PDFDocument();
-      const invoicePath = path.join(__dirname, '../../uploads/invoices', `${invoiceData.invoiceNumber}.pdf`);
-      const writeStream = fs.createWriteStream(invoicePath);
-      doc.pipe(writeStream);
-      
-      // Add invoice content
-      doc.fontSize(20).text('INVOICE', { align: 'center' });
-      doc.moveDown();
-      doc.fontSize(12).text(`Invoice Number: ${invoiceData.invoiceNumber}`);
-      doc.text(`Deal Number: ${invoiceData.dealNumber}`);
-      doc.text(`Date: ${invoiceData.date.toLocaleDateString()}`);
-      doc.moveDown();
-      doc.text(`Trader: ${invoiceData.trader.companyName}`);
-      doc.text(`Client: ${invoiceData.client.name}`);
-      doc.moveDown();
-      doc.text(`Subtotal: $${invoiceData.subtotal}`);
-      doc.text(`Platform Commission: $${invoiceData.platformCommission}`);
-      doc.text(`Employee Commission: $${invoiceData.employeeCommission}`);
-      doc.fontSize(14).text(`Total: $${invoiceData.total}`, { align: 'right' });
-      
-      doc.end();
-      
-      // Update invoice URL
-      await prisma.invoice.update({
-        where: { id: invoice.id },
-        data: { invoiceUrl: `/uploads/invoices/${invoiceData.invoiceNumber}.pdf` }
-      });
-    } catch (error) {
-      console.error('Error generating PDF invoice:', error);
-      // Continue without PDF
+    // Generate invoice number if not exists
+    const invoiceNumber = deal.invoiceNumber || (() => {
+      const year = new Date().getFullYear();
+      return `INV-${year}-${String(Date.now()).slice(-6)}`;
+    })();
+
+    // Calculate shipping commission from platform settings (already fetched above)
+    const shippingCommissionRate = platformSettings?.shippingCommissionRate || 5.0;
+    const dealAmount = parseFloat(deal.negotiatedAmount) || parseFloat(payment.amount);
+    const shippingCommission = (dealAmount * shippingCommissionRate) / 100;
+
+    // Create invoice record first
+    const invoice = await prisma.invoice.create({
+      data: {
+        dealId: deal.id,
+        invoiceNumber,
+        invoiceUrl: `/uploads/invoices/${invoiceNumber}.pdf`, // Will be updated
+        status: 'SENT',
+        subtotal: dealAmount, // Deal amount (product price)
+        platformCommission: transaction.platformCommission,
+        shippingCommission: shippingCommission, // Shipping commission (paid by buyer)
+        employeeCommission: transaction.employeeCommission,
+        traderAmount: transaction.traderAmount,
+        total: payment.amount, // Total amount paid by buyer (including all commissions)
+        issuedAt: new Date()
+      }
+    });
+
+    // Get deal with all relations for invoice generation
+    const dealWithRelations = await prisma.deal.findUnique({
+      where: { id: deal.id },
+      include: {
+        trader: true,
+        client: true,
+        items: {
+          include: {
+            offerItem: true
+          }
+        }
+      }
+    });
+
+    // Generate invoice PDF with QR code
+    const invoiceResult = await generateInvoiceWithQRCode(invoice, dealWithRelations, platformInfo);
+
+    // Update invoice with QR code URL and correct PDF URL
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: {
+        qrCodeUrl: invoiceResult.qrCodeUrl,
+        invoiceUrl: invoiceResult.pdfUrl
+      }
+    });
+
+    return updatedInvoice;
+  } catch (error) {
+    console.error('Error generating invoice:', error);
+    // Return invoice even if PDF generation fails
+    // But invoice might not be defined if error occurred before creation
+    if (typeof invoice !== 'undefined') {
+      return invoice;
     }
+    throw error;
   }
-
-  return invoice;
 }
 
 /**

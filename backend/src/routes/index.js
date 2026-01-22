@@ -41,6 +41,7 @@ const activityLogRoutes = require('./activityLog.routes');
 const securityRoutes = require('./security.routes');
 const realtimeRoutes = require('./realtime.routes');
 const mediationRoutes = require('./mediation.routes');
+const sliderRoutes = require('./slider.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -76,14 +77,15 @@ router.use('/listings', listingRoutes);
 router.use('/home', homepageRoutes);
 router.use('/companies', companyRoutes);
 router.use('/content', contentRoutes);
+// Mediation platform routes - mount before contentPageRoutes to ensure proper matching
+router.use('/', mediationRoutes);
 router.use('/', contentPageRoutes); // Content pages and activity logs routes
 router.use('/translations', translationRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/audit', activityLogRoutes);
 router.use('/security', securityRoutes);
 router.use('/realtime', realtimeRoutes);
-// Mediation platform routes - mount before catch-all to ensure proper matching
-router.use('/', mediationRoutes);
+router.use('/sliders', sliderRoutes);
 
 module.exports = router;
 

@@ -35,9 +35,23 @@ export const AuthProvider = ({ children }) => {
           try {
             const response = await authService.getMe();
             if (response.data.success) {
-              setUser(response.data.data);
-              setUserType(response.data.data.userType);
-              authService.setUser(response.data.data, response.data.data.userType);
+              const userData = response.data.data;
+              
+              // Normalize preferredCategories (backend may return it as JSON string)
+              const normalizedUser = { ...userData };
+              if (normalizedUser && typeof normalizedUser.preferredCategories === 'string') {
+                try {
+                  normalizedUser.preferredCategories = JSON.parse(normalizedUser.preferredCategories);
+                } catch (e) {
+                  normalizedUser.preferredCategories = [];
+                }
+              } else if (normalizedUser && !Array.isArray(normalizedUser.preferredCategories)) {
+                normalizedUser.preferredCategories = normalizedUser.preferredCategories ? [normalizedUser.preferredCategories] : [];
+              }
+              
+              setUser(normalizedUser);
+              setUserType(normalizedUser.userType);
+              authService.setUser(normalizedUser, normalizedUser.userType);
             }
           } catch (error) {
             // Token invalid, clear auth
@@ -91,17 +105,29 @@ export const AuthProvider = ({ children }) => {
       
       if (response.data.success) {
         const { user, token, refreshToken } = response.data.data;
+
+        // Normalize preferredCategories (backend may return it as JSON string)
+        const normalizedUser = { ...user };
+        if (normalizedUser && typeof normalizedUser.preferredCategories === 'string') {
+          try {
+            normalizedUser.preferredCategories = JSON.parse(normalizedUser.preferredCategories);
+          } catch (e) {
+            normalizedUser.preferredCategories = [];
+          }
+        } else if (normalizedUser && !Array.isArray(normalizedUser.preferredCategories)) {
+          normalizedUser.preferredCategories = normalizedUser.preferredCategories ? [normalizedUser.preferredCategories] : [];
+        }
         
         // Store token
         authService.setToken(token, refreshToken);
         
         // Store user data
-        authService.setUser(user, 'CLIENT');
+        authService.setUser(normalizedUser, 'CLIENT');
         
-        setUser(user);
+        setUser(normalizedUser);
         setUserType('CLIENT');
         
-        return { success: true, user };
+        return { success: true, user: normalizedUser };
       }
       
       return { success: false, message: response.data.message };
@@ -188,10 +214,23 @@ export const AuthProvider = ({ children }) => {
       try {
         const response = await authService.getMe();
         if (response.data.success) {
-          const updatedUser = response.data.data;
-          authService.setUser(updatedUser, updatedUser.userType || userType);
-          setUser(updatedUser);
-          setUserType(updatedUser.userType || userType);
+          const userData = response.data.data;
+          
+          // Normalize preferredCategories (backend may return it as JSON string)
+          const normalizedUser = { ...userData };
+          if (normalizedUser && typeof normalizedUser.preferredCategories === 'string') {
+            try {
+              normalizedUser.preferredCategories = JSON.parse(normalizedUser.preferredCategories);
+            } catch (e) {
+              normalizedUser.preferredCategories = [];
+            }
+          } else if (normalizedUser && !Array.isArray(normalizedUser.preferredCategories)) {
+            normalizedUser.preferredCategories = normalizedUser.preferredCategories ? [normalizedUser.preferredCategories] : [];
+          }
+          
+          authService.setUser(normalizedUser, normalizedUser.userType || userType);
+          setUser(normalizedUser);
+          setUserType(normalizedUser.userType || userType);
         }
       } catch (error) {
         console.error('Error refreshing user:', error);
@@ -201,6 +240,7 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+
 
 
 

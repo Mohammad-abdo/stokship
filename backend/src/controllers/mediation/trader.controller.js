@@ -1,7 +1,7 @@
 const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
-const QRCode = require('qrcode');
+const { generateTraderQRCode } = require('../../services/qrcode.service');
 
 /**
  * @desc    Create Trader (Employee only)
@@ -54,13 +54,20 @@ const createTrader = asyncHandler(async (req, res) => {
   // Generate barcode (simple numeric for now)
   const barcode = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
-  // Generate QR code
-  const qrCodeData = JSON.stringify({
-    type: 'TRADER',
-    traderCode,
-    barcode
-  });
-  const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
+  // Generate QR code using service
+  let qrCodeUrl = null;
+  try {
+    const traderForQR = {
+      id: null, // Will be set after creation
+      traderCode,
+      barcode,
+      companyName
+    };
+    qrCodeUrl = await generateTraderQRCode(traderForQR);
+  } catch (qrError) {
+    console.error('Error generating QR code for trader:', qrError);
+    // Continue without QR code - it's not critical
+  }
 
   // Hash password
   const bcrypt = require('bcryptjs');
@@ -156,8 +163,19 @@ const registerTrader = asyncHandler(async (req, res) => {
   // Generate codes
   const traderCode = `TRD-${Date.now().toString().slice(-6)}`;
   const barcode = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const qrCodeData = JSON.stringify({ type: 'TRADER', traderCode, barcode });
-  const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
+  let qrCodeUrl = null;
+  try {
+    const traderForQR = {
+      id: null, // Will be set after creation
+      traderCode,
+      barcode,
+      companyName: bankAccountName || client.name
+    };
+    qrCodeUrl = await generateTraderQRCode(traderForQR);
+  } catch (qrError) {
+    console.error('Error generating QR code for trader:', qrError);
+    // Continue without QR code - it's not critical
+  }
 
   const clientPassword = client.password; // This is the hash
 

@@ -179,7 +179,10 @@
     "shortcuts": "اختصارات",
     "sections": "الأقسام",
     "smartphones": "الهواتف الذكيه",
-    "clothing": "الملابس"
+    "clothing": "الملابس",
+    "food": "أطعمة",
+    "home": "منزل",
+    "automotive": "سيارات"
   },
   "product": {
     "viewDetails": "عرض التفاصيل",
@@ -453,6 +456,31 @@
     "agreeTerms": "موافقة علي الشروط و الاحكام",
     "done": "تم",
     "createAd": "إنشاء إعلان"
+  },
+  "orderTracking": {
+    "title": "تتبع الطلب",
+    "statusLabel": "في انتظار الشحن",
+    "trackingNumber": "رقم التتبع",
+    "shippingCompany": "شركة الشحن",
+    "shippingDuration": "مدة الشحن",
+    "shippingDurationText": "خلال 5 - 7 أيام عمل",
+    "steps": {
+      "orderReceived": "رفع استلام الطلب",
+      "orderReceivedDesc": "تم استلام الطلب بنجاح",
+      "paymentConfirmed": "تأكيد الدفع",
+      "paymentConfirmedDesc": "تم تأكيد عملية الدفع",
+      "orderPreparing": "رفع تجهيز الطلب",
+      "orderPreparingDesc": "جاري تجهيز الطلب",
+      "shippingRequested": "طلب شركة الشحن",
+      "shippingRequestedDesc": "تم طلب شركة الشحن",
+      "readyForPickup": "جاهز لاستلام الشحن",
+      "readyForPickupDesc": "الطلب جاهز للاستلام"
+    },
+    "refresh": "تحديث"
+  },
+  "termsPolicies": {
+    "title": "الشروط و الاحكام",
+    "content": "لوريم إيبسوم دولار سيت أميت، كونسيكتيتور أديبيسينج إليت. سِد دو إيوسمد تمبور إنكيديدنت يو لابوري إت دولوري ماجنا أليكا. يوت إنيم أد مينيم فينيام، كيوس نوسترود إكسرسيتاشن أولامكو لابوريس نيسي أوت أليكيب إكس إيا كومودو كونسيكوات. ديويس أيوتي إيروري دولور إن ريبريهينديريت إن فولوبتاتي فيليت إسي سيليوم دولوري إيو فيوجيات نولا باريتور."
   }
 }
 

@@ -2,21 +2,45 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { dealApi } from '@/lib/mediationApi';
+import { dealApi, employeeApi, negotiationApi } from '@/lib/mediationApi';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Building2, User, Calendar, DollarSign, Package, CheckCircle, MessageSquare, CreditCard } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Building2, User, Calendar, DollarSign, Package, CheckCircle, MessageSquare, CreditCard, Truck, Edit2, X, MapPin, Clock, CheckCircle2, AlertCircle, Eye, Send, Loader2 } from 'lucide-react';
 import showToast from '@/lib/toast';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const ViewDeal = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t, language } = useLanguage();
+  const { t, language, isRTL } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [deal, setDeal] = useState(null);
+  const [shippingCompanies, setShippingCompanies] = useState([]);
+  const [assigningShipping, setAssigningShipping] = useState(false);
+  const [showShippingModal, setShowShippingModal] = useState(false);
+  const [selectedShippingCompanyId, setSelectedShippingCompanyId] = useState('');
+  const [shippingTracking, setShippingTracking] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [proposedPrice, setProposedPrice] = useState('');
+  const [proposedQuantity, setProposedQuantity] = useState('');
+  const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState('details'); // 'details' or 'negotiation'
 
   useEffect(() => {
     fetchDeal();
+    fetchShippingCompanies();
+    fetchShippingTracking();
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 10000); // Polling for messages
+    return () => clearInterval(interval);
   }, [id]);
+
+  useEffect(() => {
+    if (deal?.shippingCompanyId) {
+      setSelectedShippingCompanyId(deal.shippingCompanyId);
+    }
+  }, [deal]);
 
   const fetchDeal = async () => {
     try {
@@ -34,6 +58,136 @@ const ViewDeal = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchShippingCompanies = async () => {
+    try {
+      const response = await employeeApi.getActiveShippingCompanies();
+      const data = response.data.data || response.data || [];
+      setShippingCompanies(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching shipping companies:', error);
+    }
+  };
+
+  const fetchShippingTracking = async () => {
+    try {
+      const response = await employeeApi.getShippingTracking(id);
+      const data = response.data.data || response.data;
+      setShippingTracking(data);
+    } catch (error) {
+      // It's okay if tracking doesn't exist yet
+      if (error.response?.status !== 404) {
+        console.error('Error fetching shipping tracking:', error);
+      }
+    }
+  };
+
+  const fetchMessages = async () => {
+    try {
+      const res = await negotiationApi.getMessages(id);
+      setMessages(res.data?.data || res.data || []);
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() && !proposedPrice && !proposedQuantity) {
+      showToast.error(
+        t('mediation.deals.negotiationForm.required') || 'Required',
+        t('mediation.deals.negotiationForm.provideMessageOrProposal') || 'Please provide a message, price, or quantity'
+      );
+      return;
+    }
+
+    try {
+      setSending(true);
+      const payload = {
+        content: newMessage.trim() || undefined,
+        proposedPrice: proposedPrice ? parseFloat(proposedPrice) : undefined,
+        proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : undefined,
+        messageType: proposedPrice || proposedQuantity ? 'PRICE_PROPOSAL' : 'TEXT'
+      };
+      await negotiationApi.sendMessage(id, payload);
+      setNewMessage('');
+      setProposedPrice('');
+      setProposedQuantity('');
+      await fetchMessages();
+      showToast.success(
+        t('mediation.deals.negotiationForm.messageSent') || 'Message Sent',
+        t('mediation.deals.negotiationForm.messageSentSuccess') || 'Your message has been sent successfully'
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+      showToast.error(
+        t('admin.support.sendFailed') || t('chat.sendFailed') || "Failed to send message",
+        error.response?.data?.message || t('common.errorOccurred') || 'An error occurred'
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleAssignShipping = async () => {
+    if (!selectedShippingCompanyId && deal?.shippingCompanyId) {
+      // Removing assignment
+      if (!window.confirm('Are you sure you want to remove the shipping company assignment?')) {
+        return;
+      }
+    } else if (selectedShippingCompanyId && selectedShippingCompanyId === deal?.shippingCompanyId) {
+      // No change
+      setShowShippingModal(false);
+      return;
+    }
+
+    try {
+      setAssigningShipping(true);
+      await employeeApi.assignShippingCompany(id, selectedShippingCompanyId || null);
+      showToast.success(
+        t('mediation.deals.shippingCompanyUpdated') || 'Shipping Company Updated', 
+        t('mediation.deals.shippingCompanyUpdatedDesc') || 'Shipping company assignment has been updated successfully'
+      );
+      setShowShippingModal(false);
+      fetchDeal();
+    } catch (error) {
+      console.error('Error assigning shipping company:', error);
+      showToast.error(
+        t('mediation.deals.failedToAssignShipping') || 'Failed to assign shipping company', 
+        error.response?.data?.message || t('common.tryAgain') || 'Please try again'
+      );
+    } finally {
+      setAssigningShipping(false);
+    }
+  };
+
+  const getShippingStatusIcon = (status) => {
+    const icons = {
+      PENDING: <Clock className="w-4 h-4 text-gray-500" />,
+      PREPARING: <Package className="w-4 h-4 text-blue-500" />,
+      PICKED_UP: <Package className="w-4 h-4 text-purple-500" />,
+      IN_TRANSIT: <Truck className="w-4 h-4 text-blue-500" />,
+      OUT_FOR_DELIVERY: <Truck className="w-4 h-4 text-orange-500" />,
+      DELIVERED: <CheckCircle2 className="w-4 h-4 text-green-500" />,
+      RETURNED: <AlertCircle className="w-4 h-4 text-red-500" />,
+      CANCELLED: <X className="w-4 h-4 text-red-500" />
+    };
+    return icons[status] || <Clock className="w-4 h-4 text-gray-500" />;
+  };
+
+  const getShippingStatusColor = (status) => {
+    const colors = {
+      PENDING: 'bg-gray-100 text-gray-800',
+      PREPARING: 'bg-blue-100 text-blue-800',
+      PICKED_UP: 'bg-purple-100 text-purple-800',
+      IN_TRANSIT: 'bg-blue-100 text-blue-800',
+      OUT_FOR_DELIVERY: 'bg-orange-100 text-orange-800',
+      DELIVERED: 'bg-green-100 text-green-800',
+      RETURNED: 'bg-red-100 text-red-800',
+      CANCELLED: 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   const getStatusBadge = (status) => {
@@ -95,6 +249,174 @@ const ViewDeal = () => {
         {getStatusBadge(deal.status)}
       </div>
 
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
+              activeTab === 'details'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t('mediation.deals.dealInfo') || 'Deal Information'}
+          </button>
+          <button
+            onClick={() => setActiveTab('negotiation')}
+            className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === 'negotiation'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <MessageSquare className="w-4 h-4" />
+            {t('mediation.deals.negotiation') || 'Negotiation'}
+            {messages.length > 0 && (
+              <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full">
+                {messages.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'negotiation' ? (
+        <div className="flex flex-col h-[calc(100vh-300px)] bg-white rounded-lg border border-gray-200 shadow-sm">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-400 mt-10">
+                <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>{t('mediation.deals.noMessages') || 'No messages yet. Start the conversation.'}</p>
+              </div>
+            ) : (
+              messages.map((msg, idx) => {
+                // Employees can see all messages
+                const messageContent = msg.content || msg.message || '';
+                const isFromClient = msg.senderType === 'CLIENT';
+                const isFromTrader = msg.senderType === 'TRADER';
+                const isFromEmployee = msg.senderType === 'EMPLOYEE';
+                const isMe = isFromEmployee; // Employee's own messages
+                const hasPrice = msg.proposedPrice !== null && msg.proposedPrice !== undefined;
+                const hasQuantity = msg.proposedQuantity !== null && msg.proposedQuantity !== undefined;
+                
+                const formatCurrency = (amount) => {
+                  if (!amount) return '0.00';
+                  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+                  return new Intl.NumberFormat(isRTL ? 'ar-SA' : 'en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  }).format(num);
+                };
+                
+                return (
+                  <div key={idx} className={`flex ${(isFromClient || isFromEmployee) ? 'justify-start' : 'justify-end'}`}>
+                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm ${
+                      (isFromClient || isFromEmployee) ? 'bg-gray-100 text-gray-800 rounded-bl-none' : 'bg-blue-600 text-white rounded-br-none'
+                    }`}>
+                      <div className={`text-xs font-medium mb-1 ${(isFromClient || isFromEmployee) ? 'text-gray-600' : 'text-blue-100'}`}>
+                        {isFromClient ? (t('mediation.deals.client') || 'Client') : 
+                         isFromEmployee ? (t('mediation.deals.employee') || 'Employee') : 
+                         (t('mediation.deals.trader') || 'Trader')}
+                      </div>
+                      {(hasPrice || hasQuantity) && (
+                        <div className={`mb-2 pb-2 border-b ${(isFromClient || isFromEmployee) ? 'border-gray-300' : 'border-blue-400'}`}>
+                          {hasPrice && (
+                            <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                              <DollarSign className={`w-4 h-4 ${(isFromClient || isFromEmployee) ? 'text-gray-600' : 'text-blue-100'}`} />
+                              <span className="font-semibold">
+                                {t('mediation.deals.negotiationForm.proposedPrice') || 'Proposed Price'}: ${formatCurrency(msg.proposedPrice)}
+                              </span>
+                            </div>
+                          )}
+                          {hasQuantity && (
+                            <div className={`flex items-center gap-2 mt-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                              <Package className={`w-4 h-4 ${(isFromClient || isFromEmployee) ? 'text-gray-600' : 'text-blue-100'}`} />
+                              <span className="font-semibold">
+                                {t('mediation.deals.negotiationForm.proposedQuantity') || 'Proposed Quantity'}: {msg.proposedQuantity?.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {messageContent && (
+                        <p className="text-sm whitespace-pre-wrap">{messageContent}</p>
+                      )}
+                      <p className={`text-[10px] mt-2 ${isFromClient ? 'text-gray-500' : 'text-blue-100'}`}>
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Message Input */}
+          <div className="bg-gray-50 p-4 border-t border-gray-200">
+            <form onSubmit={handleSendMessage} className="space-y-3">
+              {/* Price and Quantity Proposals */}
+              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    {t('mediation.deals.negotiationForm.proposedPrice') || 'Proposed Price (Optional)'}
+                  </label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input 
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={proposedPrice}
+                      onChange={(e) => setProposedPrice(e.target.value)}
+                      placeholder={t('mediation.deals.negotiationForm.pricePlaceholder') || "0.00"}
+                      className={`pl-10 ${isRTL ? 'text-right' : 'text-left'}`}
+                      dir={isRTL ? 'rtl' : 'ltr'}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    {t('mediation.deals.negotiationForm.proposedQuantity') || 'Proposed Quantity (Optional)'}
+                  </label>
+                  <div className="relative">
+                    <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input 
+                      type="number"
+                      min="1"
+                      value={proposedQuantity}
+                      onChange={(e) => setProposedQuantity(e.target.value)}
+                      placeholder={t('mediation.deals.negotiationForm.quantityPlaceholder') || "0"}
+                      className={`pl-10 ${isRTL ? 'text-right' : 'text-left'}`}
+                      dir={isRTL ? 'rtl' : 'ltr'}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Message Input */}
+              <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <Input 
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder={t('mediation.deals.negotiationForm.messagePlaceholder') || "Type your message or proposal..."}
+                  className="flex-1"
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                />
+                <Button 
+                  type="submit" 
+                  disabled={sending || (!newMessage.trim() && !proposedPrice && !proposedQuantity)} 
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Information */}
         <div className="lg:col-span-2 space-y-6">
@@ -191,6 +513,148 @@ const ViewDeal = () => {
             </Card>
           </div>
 
+          {/* Shipping Company Assignment */}
+          <Card className="border-gray-200 shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-gray-600" />
+                  Shipping Company
+                </CardTitle>
+                <button
+                  onClick={() => {
+                    setSelectedShippingCompanyId(deal?.shippingCompanyId || '');
+                    setShowShippingModal(true);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                  {deal?.shippingCompany ? (t('mediation.deals.change') || 'Change') : (t('mediation.deals.assign') || 'Assign')}
+                </button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {deal?.shippingCompany ? (
+                <div className="space-y-3">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                          <span className="font-semibold text-green-900">{t('mediation.deals.assigned') || 'Assigned'}</span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex items-center gap-2">
+                            {deal.shippingCompany.avatar && (
+                              <img 
+                                src={deal.shippingCompany.avatar} 
+                                alt={deal.shippingCompany.nameEn || deal.shippingCompany.nameAr} 
+                                className="w-8 h-8 rounded-full object-cover"
+                              />
+                            )}
+                            <div>
+                              <p className="font-medium text-gray-900">{deal.shippingCompany.nameEn || deal.shippingCompany.nameAr}</p>
+                              {deal.shippingCompany.nameAr && deal.shippingCompany.nameEn && (
+                                <p className="text-xs text-gray-500" dir="rtl">{deal.shippingCompany.nameAr}</p>
+                              )}
+                            </div>
+                          </div>
+                          {deal.shippingCompany.contactName && (
+                            <p className="text-gray-600">{t('shippingCompanies.contactPerson') || 'Contact'}: {deal.shippingCompany.contactName}</p>
+                          )}
+                          {deal.shippingCompany.phone && (
+                            <p className="text-gray-600">{t('common.phone') || 'Phone'}: {deal.shippingCompany.phone}</p>
+                          )}
+                          {deal.shippingCompany.email && (
+                            <p className="text-gray-600">{t('common.email') || 'Email'}: {deal.shippingCompany.email}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <X className="w-5 h-5" />
+                    <span>{t('mediation.deals.noShippingCompanyAssigned') || 'No shipping company assigned'}</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">{t('mediation.deals.clickToAssignShipping') || 'Click "Assign" to assign a shipping company to this deal'}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Shipping Tracking */}
+          {deal?.shippingCompany && (
+            <Card className="border-gray-200 shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-gray-600" />
+                    Shipping Tracking
+                  </CardTitle>
+                  {shippingTracking && (
+                    <button
+                      onClick={() => navigate(`/stockship/employee/shipping-tracking/${id}/view`)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                      View Details
+                    </button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {shippingTracking ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          {getShippingStatusIcon(shippingTracking.status)}
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getShippingStatusColor(shippingTracking.status)}`}>
+                            {shippingTracking.status.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      </div>
+                      {shippingTracking.trackingNumber && (
+                        <div className="mb-2">
+                          <label className="text-sm font-medium text-gray-700">Tracking Number:</label>
+                          <p className="mt-1 font-mono text-sm">{shippingTracking.trackingNumber}</p>
+                        </div>
+                      )}
+                      {shippingTracking.currentLocation && (
+                        <div className="mb-2">
+                          <label className="text-sm font-medium text-gray-700">Current Location:</label>
+                          <div className="flex items-center gap-1 mt-1">
+                            <MapPin className="w-3 h-3 text-gray-400" />
+                            <p className="text-sm">{shippingTracking.currentLocation}</p>
+                          </div>
+                        </div>
+                      )}
+                      {shippingTracking.estimatedDelivery && (
+                        <div>
+                          <label className="text-sm font-medium text-gray-700">Estimated Delivery:</label>
+                          <p className="mt-1 text-sm">
+                            {new Date(shippingTracking.estimatedDelivery).toLocaleDateString()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <AlertCircle className="w-5 h-5" />
+                      <span>No tracking information available yet</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-2">Tracking will be available once shipping starts</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Payment Info */}
           {deal.payments && deal.payments.length > 0 && (
             <Card className="border-gray-200 shadow-sm">
@@ -274,6 +738,60 @@ const ViewDeal = () => {
           </Card>
         </div>
       </div>
+      )}
+
+      {/* Shipping Company Modal */}
+      {showShippingModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Assign Shipping Company</h2>
+              <button
+                onClick={() => setShowShippingModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Select Shipping Company</label>
+                <select
+                  value={selectedShippingCompanyId}
+                  onChange={(e) => setSelectedShippingCompanyId(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">None (Remove Assignment)</option>
+                  {shippingCompanies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.nameEn || company.nameAr}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setShowShippingModal(false)}
+                  className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAssignShipping}
+                  disabled={assigningShipping}
+                  className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {assigningShipping ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 };

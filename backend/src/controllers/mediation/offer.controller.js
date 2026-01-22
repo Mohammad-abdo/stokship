@@ -171,11 +171,11 @@ const createOffer = asyncHandler(async (req, res) => {
   try {
     await prisma.activityLog.create({
       data: {
-        userId: req.user.id,
+        traderId: req.user.id,
         userType: 'TRADER',
         action: 'OFFER_CREATED',
         entityType: 'OFFER',
-        entityId: offer.id,
+        offerId: offer.id,
         description: `Trader created offer: ${offerTitle} with ${items ? items.length : 0} items`,
         ipAddress: req.ip,
         userAgent: req.get('user-agent')
@@ -211,7 +211,7 @@ const uploadOfferExcel = asyncHandler(async (req, res) => {
 
   const offer = await prisma.offer.findFirst({
     where: {
-      id: parseInt(id),
+      id: id,
       traderId: req.user.id
     }
   });
@@ -414,11 +414,11 @@ const uploadOfferExcel = asyncHandler(async (req, res) => {
     // Log activity
     await prisma.activityLog.create({
       data: {
-        userId: req.user.id,
+        traderId: req.user.id,
         userType: 'TRADER',
         action: 'OFFER_EXCEL_UPLOADED',
         entityType: 'OFFER',
-        entityId: offer.id,
+        offerId: offer.id,
         description: `Trader uploaded Excel file with ${items.length} items`,
         metadata: JSON.stringify({
           itemCount: items.length,
@@ -454,7 +454,7 @@ const validateOffer = asyncHandler(async (req, res) => {
   const { approved, validationNotes } = req.body;
 
   const offer = await prisma.offer.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: id },
     include: {
       trader: true
     }
@@ -504,11 +504,11 @@ const validateOffer = asyncHandler(async (req, res) => {
   // Log activity
   await prisma.activityLog.create({
     data: {
-      userId: req.user.id,
+      employeeId: req.user.id,
       userType: 'EMPLOYEE',
       action: approved ? 'OFFER_APPROVED' : 'OFFER_REJECTED',
       entityType: 'OFFER',
-      entityId: offer.id,
+      offerId: offer.id,
       description: `Employee ${approved ? 'approved' : 'rejected'} offer: ${offer.title}`,
       metadata: JSON.stringify({
         validationNotes,
@@ -610,11 +610,11 @@ const updateOffer = asyncHandler(async (req, res) => {
   // Log activity
   await prisma.activityLog.create({
     data: {
-      userId: req.user.id,
+      employeeId: req.user.id,
       userType: 'EMPLOYEE',
       action: 'OFFER_UPDATED',
       entityType: 'OFFER',
-      entityId: offer.id,
+      offerId: offer.id,
       description: `Employee updated offer: ${offer.title}`,
       metadata: JSON.stringify(updateData),
       ipAddress: req.ip,
@@ -762,14 +762,30 @@ const uploadOfferExcelEmployee = asyncHandler(async (req, res) => {
       
       items.push({
         offerId: offer.id,
+        itemNo: itemNo || null,
         productName: productName || itemNo || `Item ${items.length + 1}`,
         description: description || null,
+        colour: colour || null,
+        spec: spec || null,
         quantity,
-        cartons: packageQuantity || 0, // Use cartons field instead of packageQuantity
+        unit: unit || 'SET',
+        unitPrice: unitPrice || null,
+        currency: currency || 'USD',
+        amount: amount || (quantity * unitPrice) || null,
+        packing: packing || null,
+        packageQuantity: packageQuantity || 0,
+        unitGW: unitGW || null,
+        totalGW: totalGW || null,
+        cartonLength: length || null,
+        cartonWidth: width || null,
+        cartonHeight: height || null,
+        totalCBM: finalCBM || 0,
+        // Legacy fields for backward compatibility
+        cartons: packageQuantity || 0,
         length: length || null,
         width: width || null,
         height: height || null,
-        cbm: finalCBM.toFixed(4),
+        cbm: finalCBM || 0, // This is Decimal(10, 3) in schema
         weight: totalGW || null,
         displayOrder: items.length + 1,
         images: allImages.length > 0 ? JSON.stringify(allImages) : null,
@@ -830,11 +846,11 @@ const uploadOfferExcelEmployee = asyncHandler(async (req, res) => {
     // Log activity
     await prisma.activityLog.create({
       data: {
-        userId: req.user.id,
+        employeeId: req.user.id,
         userType: 'EMPLOYEE',
         action: 'OFFER_EXCEL_UPLOADED',
         entityType: 'OFFER',
-        entityId: offer.id,
+        offerId: offer.id,
         description: `Employee uploaded Excel file with ${items.length} items`,
         metadata: JSON.stringify({
           itemCount: items.length,
@@ -1008,11 +1024,26 @@ const getActiveOffers = asyncHandler(async (req, res) => {
     ];
   }
 
-  const [offers, total] = await Promise.all([
+  // Get user's preferred categories if authenticated
+  let preferredCategoryIds = [];
+  if (req.user && req.userType === 'CLIENT') {
+    try {
+      const client = await prisma.client.findUnique({
+        where: { id: req.user.id },
+        select: { preferredCategories: true }
+      });
+      if (client && client.preferredCategories) {
+        preferredCategoryIds = JSON.parse(client.preferredCategories);
+      }
+    } catch (error) {
+      console.error('Error fetching preferred categories:', error);
+    }
+  }
+
+  // Fetch all offers (we'll sort them after)
+  const [allOffers, total] = await Promise.all([
     prisma.offer.findMany({
       where,
-      skip,
-      take: parseInt(limit),
       include: {
         trader: {
           select: {
@@ -1024,15 +1055,14 @@ const getActiveOffers = asyncHandler(async (req, res) => {
             city: true
           }
         },
-        // Note: categoryRelation may not exist in schema-mediation.prisma
-        // categoryRelation: {
-        //   select: {
-        //     id: true,
-        //     nameKey: true,
-        //     slug: true,
-        //     isFeatured: true
-        //   }
-        // },
+        categoryRelation: {
+          select: {
+            id: true,
+            nameKey: true,
+            slug: true,
+            isFeatured: true
+          }
+        },
         _count: {
           select: {
             items: true,
@@ -1045,7 +1075,47 @@ const getActiveOffers = asyncHandler(async (req, res) => {
     prisma.offer.count({ where })
   ]);
 
-  paginatedResponse(res, offers, {
+  // Sort offers: preferred category offers first, then others
+  let sortedOffers = allOffers;
+  if (preferredCategoryIds.length > 0) {
+    const preferredSet = new Set(preferredCategoryIds.map(id => String(id)));
+    sortedOffers = [...allOffers].sort((a, b) => {
+      const aCategoryId = a.categoryId ? String(a.categoryId) : null;
+      const bCategoryId = b.categoryId ? String(b.categoryId) : null;
+      
+      const aIsPreferred = aCategoryId && preferredSet.has(aCategoryId);
+      const bIsPreferred = bCategoryId && preferredSet.has(bCategoryId);
+      
+      if (aIsPreferred && !bIsPreferred) return -1;
+      if (!aIsPreferred && bIsPreferred) return 1;
+      
+      // If both preferred or both not preferred, maintain original order (createdAt desc)
+      return 0;
+    });
+
+    // Add isPreferred flag to each offer
+    sortedOffers = sortedOffers.map(offer => ({
+      ...offer,
+      isPreferred: offer.categoryId && preferredSet.has(String(offer.categoryId))
+    }));
+  }
+
+  // Apply pagination after sorting
+  const paginatedOffers = sortedOffers.slice(skip, skip + parseInt(limit));
+
+  // Parse JSON fields
+  const parsedOffers = paginatedOffers.map(offer => {
+    if (offer.images) {
+      try {
+        offer.images = typeof offer.images === 'string' ? JSON.parse(offer.images) : offer.images;
+      } catch (e) {
+        offer.images = [];
+      }
+    }
+    return offer;
+  });
+
+  paginatedResponse(res, parsedOffers, {
     page: parseInt(page),
     limit: parseInt(limit),
     total,

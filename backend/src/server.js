@@ -233,6 +233,16 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api', routes);
 
+// Debug: Log all registered routes (development only)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api', (req, res, next) => {
+    if (req.path.includes('negotiations')) {
+      console.log('DEBUG: Request to negotiations route:', req.method, req.path);
+    }
+    next();
+  });
+}
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({

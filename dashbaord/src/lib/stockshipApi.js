@@ -212,6 +212,13 @@ export const adminApi = {
   updateCategory: (id, data) => stockshipApi.put(`/categories/${id}`, data),
   deleteCategory: (id) => stockshipApi.delete(`/categories/${id}`),
   
+  // Sliders
+  getSliders: (params) => stockshipApi.get("/sliders", { params }),
+  getSlider: (id) => stockshipApi.get(`/sliders/${id}`),
+  createSlider: (data) => stockshipApi.post("/sliders", data),
+  updateSlider: (id, data) => stockshipApi.put(`/sliders/${id}`, data),
+  deleteSlider: (id) => stockshipApi.delete(`/sliders/${id}`),
+  
   // Orders
   getOrders: (params) => stockshipApi.get("/orders/admin", { params }),
   getOrder: (id) => stockshipApi.get(`/orders/admin/${id}`),
@@ -238,6 +245,26 @@ export const adminApi = {
   updateCoupon: (id, data) => stockshipApi.put(`/coupons/admin/${id}`, data),
   deleteCoupon: (id) => stockshipApi.delete(`/coupons/admin/${id}`),
   getCouponUsage: (id) => stockshipApi.get(`/coupons/admin/${id}/usage`),
+  
+  // Shipping Companies
+  getShippingCompanies: (params) => stockshipApi.get("/admin/shipping-companies", { params }),
+  getActiveShippingCompanies: () => stockshipApi.get("/admin/shipping-companies/active"),
+  getShippingCompany: (id) => stockshipApi.get(`/admin/shipping-companies/${id}`),
+  createShippingCompany: (data) => stockshipApi.post("/admin/shipping-companies", data),
+  updateShippingCompany: (id, data) => stockshipApi.put(`/admin/shipping-companies/${id}`, data),
+  deleteShippingCompany: (id) => stockshipApi.delete(`/admin/shipping-companies/${id}`),
+  
+  // Deals - Shipping Assignment
+  assignShippingCompany: (dealId, shippingCompanyId) => stockshipApi.put(`/deals/${dealId}/assign-shipping`, { shippingCompanyId }),
+  
+  // Shipping Tracking
+  getShippingTracking: (dealId) => stockshipApi.get(`/deals/${dealId}/shipping-tracking`),
+  createOrUpdateShippingTracking: (dealId, data) => stockshipApi.post(`/deals/${dealId}/shipping-tracking`, data),
+  updateShippingStatus: (dealId, data) => stockshipApi.put(`/deals/${dealId}/shipping-tracking/status`, data),
+  
+  // Admin Shipping Tracking
+  getAllShippingTracking: (params) => stockshipApi.get("/admin/shipping-tracking", { params }),
+  getShippingTrackingStats: (params) => stockshipApi.get("/admin/shipping-tracking/stats", { params }),
   
   // Offers (Legacy - kept for backward compatibility, but mediation platform uses the one above)
   

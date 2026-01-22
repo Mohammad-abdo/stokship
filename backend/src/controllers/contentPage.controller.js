@@ -510,10 +510,22 @@ const getActivityLogs = asyncHandler(async (req, res) => {
   const where = {};
 
   if (userType) where.userType = userType.toUpperCase();
-  if (userId) where.userId = parseInt(userId);
+  // ActivityLog uses separate fields for different user types (adminId, employeeId, traderId, clientId)
+  if (userId && userType) {
+    const userTypeUpper = userType.toUpperCase();
+    if (userTypeUpper === 'ADMIN') where.adminId = userId;
+    else if (userTypeUpper === 'EMPLOYEE') where.employeeId = userId;
+    else if (userTypeUpper === 'TRADER') where.traderId = userId;
+    else if (userTypeUpper === 'CLIENT') where.clientId = userId;
+  }
   if (action) where.action = { contains: action, mode: 'insensitive' };
   if (entityType) where.entityType = entityType.toUpperCase();
-  if (entityId) where.entityId = parseInt(entityId);
+  // ActivityLog uses separate fields for different entity types (dealId, offerId)
+  if (entityId && entityType) {
+    const entityTypeUpper = entityType.toUpperCase();
+    if (entityTypeUpper === 'DEAL') where.dealId = entityId;
+    else if (entityTypeUpper === 'OFFER') where.offerId = entityId;
+  }
   
   if (startDate || endDate) {
     where.createdAt = {};
@@ -588,7 +600,7 @@ const getActivityLogById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const log = await prisma.activityLog.findUnique({
-    where: { id: parseInt(id) },
+    where: { id: id }, // ActivityLog.id is String (UUID), not Int
     include: {
       admin: {
         select: {
@@ -675,10 +687,19 @@ const getActivityLogsByUser = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
+  const userTypeUpper = userType.toUpperCase();
   const where = {
-    userId: parseInt(userId),
-    userType: userType.toUpperCase()
+    userType: userTypeUpper
   };
+  
+  // ActivityLog uses separate fields for different user types
+  if (userTypeUpper === 'ADMIN') where.adminId = userId;
+  else if (userTypeUpper === 'EMPLOYEE') where.employeeId = userId;
+  else if (userTypeUpper === 'TRADER') where.traderId = userId;
+  else if (userTypeUpper === 'CLIENT') where.clientId = userId;
+  else {
+    return errorResponse(res, 'Invalid user type', 400);
+  }
 
   const [logs, total] = await Promise.all([
     prisma.activityLog.findMany({
@@ -709,10 +730,17 @@ const getActivityLogsByEntity = asyncHandler(async (req, res) => {
 
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
+  const entityTypeUpper = entityType.toUpperCase();
   const where = {
-    entityType: entityType.toUpperCase(),
-    entityId: parseInt(entityId)
+    entityType: entityTypeUpper
   };
+  
+  // ActivityLog uses separate fields for different entity types
+  if (entityTypeUpper === 'DEAL') where.dealId = entityId;
+  else if (entityTypeUpper === 'OFFER') where.offerId = entityId;
+  else {
+    return errorResponse(res, 'Invalid entity type. Supported types: DEAL, OFFER', 400);
+  }
 
   const [logs, total] = await Promise.all([
     prisma.activityLog.findMany({

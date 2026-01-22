@@ -66,7 +66,7 @@ const EditCategory = () => {
       setCategories(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching categories:', error);
-      showToast.error('Failed to load categories', 'Please refresh the page');
+      showToast.error(t('mediation.categories.loadFailed') || 'Failed to load categories', t('mediation.categories.refreshPage') || 'Please refresh the page');
     }
   };
 
@@ -117,7 +117,7 @@ const EditCategory = () => {
       });
     } catch (error) {
       console.error('Error fetching category:', error);
-      showToast.error('Failed to load category', error.response?.data?.message || 'Category not found');
+      showToast.error(t('mediation.categories.loadCategoryFailed') || 'Failed to load category', error.response?.data?.message || t('mediation.categories.categoryNotFound') || 'Category not found');
       navigate('/stockship/admin/categories');
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ const EditCategory = () => {
     
     // Validation
     if (!formData.nameAr || !formData.nameEn) {
-      showToast.error('Name is required', 'Please provide category name in both Arabic and English');
+      showToast.error(t('mediation.categories.nameRequired') || 'Name is required', t('mediation.categories.nameRequiredDesc') || 'Please provide category name in both Arabic and English');
       setActiveTab('translations');
       return;
     }
@@ -140,7 +140,7 @@ const EditCategory = () => {
     }
 
     if (!formData.slug) {
-      showToast.error('Slug is required', 'Please provide a slug for the category');
+      showToast.error(t('mediation.categories.slugRequired') || 'Slug is required', t('mediation.categories.slugRequiredDesc') || 'Please provide a slug for the category');
       setActiveTab('basic');
       return;
     }
@@ -163,21 +163,21 @@ const EditCategory = () => {
       console.log('Updating category with data:', data);
       await adminApi.updateCategory(id, data);
       
-      showToast.success('Category updated successfully', 'The category has been updated');
+      showToast.success(t('mediation.categories.updatedSuccess') || 'Category updated successfully', t('mediation.categories.categoryUpdated') || 'The category has been updated');
       navigate('/stockship/admin/categories');
     } catch (error) {
       console.error('Error updating category:', error);
-      showToast.error('Failed to update category', error.response?.data?.message || 'Please try again');
+      showToast.error(t('mediation.categories.updateFailed') || 'Failed to update category', error.response?.data?.message || t('common.tryAgain') || 'Please try again');
     } finally {
       setSaving(false);
     }
   };
 
   const tabs = [
-    { id: 'basic', label: 'Basic Info', labelAr: 'المعلومات الأساسية', icon: FolderTree },
-    { id: 'translations', label: 'Translations', labelAr: 'الترجمات', icon: Languages },
-    { id: 'seo', label: 'SEO', labelAr: 'تحسين محركات البحث', icon: Search },
-    { id: 'social', label: 'Social Media', labelAr: 'وسائل التواصل', icon: Settings }
+    { id: 'basic', label: t('mediation.categories.basicInfo') || 'Basic Info', labelAr: 'المعلومات الأساسية', icon: FolderTree },
+    { id: 'translations', label: t('mediation.categories.translations') || 'Translations', labelAr: 'الترجمات', icon: Languages },
+    { id: 'seo', label: t('mediation.categories.seo') || 'SEO', labelAr: 'تحسين محركات البحث', icon: Search },
+    { id: 'social', label: t('mediation.categories.socialMedia') || 'Social Media', labelAr: 'وسائل التواصل', icon: Settings }
   ];
 
   if (loading) {
@@ -185,7 +185,7 @@ const EditCategory = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading category...</p>
+          <p className="text-muted-foreground">{t('mediation.categories.loadingCategory') || 'Loading category...'}</p>
         </div>
       </div>
     );
@@ -206,8 +206,8 @@ const EditCategory = () => {
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold">Edit Category</h1>
-          <p className="text-muted-foreground mt-1">Update category information</p>
+          <h1 className="text-3xl font-bold">{t('mediation.categories.editCategory') || 'Edit Category'}</h1>
+          <p className="text-muted-foreground mt-1">{t('mediation.categories.updateCategoryInfo') || 'Update category information'}</p>
         </div>
       </div>
 
@@ -239,7 +239,7 @@ const EditCategory = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Slug *</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.slug') || 'Slug'} *</label>
                     <input
                       type="text"
                       value={formData.slug}
@@ -250,13 +250,13 @@ const EditCategory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Parent Category</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.parentCategory') || 'Parent Category'}</label>
                     <select
                       value={formData.parentId}
                       onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
                       className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     >
-                      <option value="">Root Category</option>
+                      <option value="">{t('mediation.categories.rootCategory') || 'Root Category'}</option>
                       {categories
                         .filter(cat => cat.id !== parseInt(id))
                         .map((cat) => (
@@ -267,7 +267,7 @@ const EditCategory = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Display Order</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.displayOrder') || 'Display Order'}</label>
                     <input
                       type="number"
                       value={formData.displayOrder}
@@ -277,7 +277,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Icon</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.icon') || 'Icon'}</label>
                     <input
                       type="text"
                       value={formData.icon}
@@ -287,7 +287,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Image URL</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.imageUrl') || 'Image URL'}</label>
                     <input
                       type="text"
                       value={formData.imageUrl}
@@ -305,7 +305,7 @@ const EditCategory = () => {
                     onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                     className="w-4 h-4"
                   />
-                  <label htmlFor="isActive" className="text-sm font-medium">Active</label>
+                  <label htmlFor="isActive" className="text-sm font-medium">{t('mediation.categories.active') || 'Active'}</label>
                 </div>
               </div>
             )}
@@ -315,7 +315,7 @@ const EditCategory = () => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Category Name (Arabic) *
+                    {t('mediation.categories.categoryNameAr') || 'Category Name (Arabic)'} *
                   </label>
                   <input
                     type="text"
@@ -328,7 +328,7 @@ const EditCategory = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Category Name (English) *
+                    {t('mediation.categories.categoryNameEn') || 'Category Name (English)'} *
                   </label>
                   <input
                     type="text"
@@ -341,7 +341,7 @@ const EditCategory = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Description (Arabic)
+                    {t('mediation.categories.descriptionAr') || 'Description (Arabic)'}
                   </label>
                   <textarea
                     value={formData.descriptionAr}
@@ -353,7 +353,7 @@ const EditCategory = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Description (English)
+                    {t('mediation.categories.descriptionEn') || 'Description (English)'}
                   </label>
                   <textarea
                     value={formData.descriptionEn}
@@ -370,7 +370,7 @@ const EditCategory = () => {
             {activeTab === 'seo' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Meta Keywords</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.metaKeywords') || 'Meta Keywords'}</label>
                   <input
                     type="text"
                     value={formData.metaKeywords}
@@ -380,7 +380,7 @@ const EditCategory = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Canonical URL</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.canonicalUrl') || 'Canonical URL'}</label>
                   <input
                     type="text"
                     value={formData.canonicalUrl}
@@ -390,7 +390,7 @@ const EditCategory = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Structured Data (JSON-LD)</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.structuredData') || 'Structured Data (JSON-LD)'}</label>
                   <textarea
                     value={formData.structuredData}
                     onChange={(e) => setFormData({ ...formData, structuredData: e.target.value })}
@@ -407,7 +407,7 @@ const EditCategory = () => {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">OG Title (Arabic)</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.ogTitleAr') || 'OG Title (Arabic)'}</label>
                     <input
                       type="text"
                       value={formData.ogTitleAr}
@@ -416,7 +416,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">OG Title (English)</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.ogTitleEn') || 'OG Title (English)'}</label>
                     <input
                       type="text"
                       value={formData.ogTitleEn}
@@ -425,7 +425,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">OG Description (Arabic)</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.ogDescriptionAr') || 'OG Description (Arabic)'}</label>
                     <textarea
                       value={formData.ogDescriptionAr}
                       onChange={(e) => setFormData({ ...formData, ogDescriptionAr: e.target.value })}
@@ -434,7 +434,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium mb-1">OG Description (English)</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.ogDescriptionEn') || 'OG Description (English)'}</label>
                     <textarea
                       value={formData.ogDescriptionEn}
                       onChange={(e) => setFormData({ ...formData, ogDescriptionEn: e.target.value })}
@@ -443,7 +443,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">OG Image URL</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.ogImage') || 'OG Image URL'}</label>
                     <input
                       type="text"
                       value={formData.ogImage}
@@ -453,7 +453,7 @@ const EditCategory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Twitter Card Image URL</label>
+                    <label className="block text-sm font-medium mb-1">{t('mediation.categories.twitterCardImage') || 'Twitter Card Image URL'}</label>
                     <input
                       type="text"
                       value={formData.twitterCardImage}
@@ -475,7 +475,7 @@ const EditCategory = () => {
             onClick={() => navigate('/stockship/admin/categories')}
             className="px-6 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
           >
-            Cancel
+            {t('common.cancel') || 'Cancel'}
           </button>
           <button
             type="submit"
@@ -483,7 +483,7 @@ const EditCategory = () => {
             className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
           >
             <Save className="w-4 h-4" />
-            {saving ? 'Updating...' : 'Update Category'}
+            {saving ? (t('mediation.categories.updating') || 'Updating...') : (t('mediation.categories.updateCategory') || 'Update Category')}
           </button>
         </div>
       </form>

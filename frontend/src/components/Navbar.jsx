@@ -6,6 +6,7 @@ import logo from "../assets/imgs/Group20.png";
 import camera from "../assets/imgs/camera.png";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { categoryService } from "../services/categoryService";
 
 import hugeicons from "../assets/imgs/hugeicons_notification-01.png";
 import lucide_box from "../assets/imgs/lucide_box.png";
@@ -28,8 +29,79 @@ export default function Navbar() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [userDropdown, setUserDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   const rootRef = useRef(null);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await categoryService.getCategoryTree();
+        if (response.data && response.data.success) {
+          const categoriesData = response.data.data || [];
+          // Transform categories to match the expected format
+          const transformedCategories = categoriesData.map((cat, index) => {
+            // Convert "category.electronics" to "categories.electronics" for translation
+            const translationKey = cat.nameKey 
+              ? cat.nameKey.replace(/^category\./, 'categories.') 
+              : "categories.unknown";
+            const translatedLabel = t(translationKey);
+            // Check if translation exists (if t() returns the key, translation doesn't exist)
+            const label = translatedLabel !== translationKey ? translatedLabel : (cat.nameKey || t("categories.unknown"));
+            
+            return {
+              key: cat.id || `cat-${index}`,
+              label: label,
+              icon: cat.icon || Vector, // Use default icon if not available
+              arrow: dropdown,
+              children: (cat.children || []).map((child, childIndex) => {
+                if (!child.nameKey) {
+                  return {
+                    label: `Subcategory ${childIndex + 1}`,
+                    to: `${ROUTES.PRODUCTS_LIST}?categoryId=${child.id}`
+                  };
+                }
+                const childTranslationKey = child.nameKey.replace(/^category\./, 'categories.');
+                const childTranslatedLabel = t(childTranslationKey);
+                const childLabel = childTranslatedLabel !== childTranslationKey ? childTranslatedLabel : child.nameKey;
+                
+                return {
+                  label: childLabel,
+                  to: `${ROUTES.PRODUCTS_LIST}?categoryId=${child.id}`
+                };
+              }),
+              id: cat.id,
+              slug: cat.slug
+            };
+          });
+          setCategories(transformedCategories);
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        // Fallback to default categories if API fails
+        setCategories([
+          {
+            key: "all",
+            label: t("categories.allCategories"),
+            icon: textalign,
+            arrow: dropdown,
+            children: [
+              { label: t("categories.all"), to: ROUTES.PRODUCTS_LIST },
+              { label: t("categories.latest"), to: ROUTES.PRODUCTS_LIST },
+              { label: t("categories.bestseller"), to: ROUTES.PRODUCTS_LIST },
+            ],
+          },
+        ]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, [t]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -53,73 +125,7 @@ export default function Navbar() {
     [t]
   );
 
-  const categories = useMemo(
-    () => [
-      {
-        key: "beds",
-        label: t("categories.furniture"),
-        icon: Vector,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.bedrooms"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.kidsFurniture"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "decor",
-        label: t("categories.decor"),
-        icon: lamp,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.lighting"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.paintings"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "electronics",
-        label: t("categories.electronics"),
-        icon: smartphone,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.mobiles"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.headphones"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.accessories"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "shoes",
-        label: t("categories.shoes"),
-        icon: shoes,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.menShoes"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.womenShoes"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "clothes",
-        label: t("categories.clothes"),
-        icon: shirt,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.menClothes"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.womenClothes"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "all",
-        label: t("categories.allCategories"),
-        icon: textalign,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.all"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.latest"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.bestseller"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-    ],
-    [t]
-  );
+  // Categories are now fetched from API in useEffect above
 
   useEffect(() => {
     const onDown = (e) => {
@@ -359,7 +365,10 @@ export default function Navbar() {
                 <div className="font-['Tajawal'] font-bold text-sm opacity-70">{t("categories.sections")}</div>
 
                 <div className="grid gap-2">
-                  {categories.map((item) => (
+                  {loadingCategories ? (
+                    <div className="text-sm text-slate-500 px-4 py-2">جاري التحميل...</div>
+                  ) : categories.length > 0 ? (
+                    categories.map((item) => (
                     <div key={item.key} className="w-full">
                       <button
                         type="button"
@@ -379,12 +388,12 @@ export default function Navbar() {
                         />
                       </button>
 
-                      {item.children && openDropdown === item.key && (
+                      {item.children && item.children.length > 0 && openDropdown === item.key && (
                         <div className="mt-1 ms-3 rounded-xl border border-slate-100 bg-slate-50 overflow-hidden">
                           {item.children.map((c, i) => (
                             <Link
                               key={i}
-                              to={c.to}
+                              to={c.to || `${ROUTES.PRODUCTS_LIST}?categoryId=${item.id}`}
                               className="block px-4 py-3 text-sm text-slate-700 hover:bg-white"
                               onClick={closeSidebar}
                             >
@@ -394,7 +403,8 @@ export default function Navbar() {
                         </div>
                       )}
                     </div>
-                  ))}
+                  ))
+                  ) : null}
                 </div>
               </div>
 

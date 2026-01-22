@@ -47,9 +47,43 @@ export default function OrderCheckoutComponent() {
     fetchFullOffer();
   }, [currentOffer?.id]); 
 
+  // Helper function to get full image URL
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    if (imagePath.startsWith('/uploads')) {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const BASE_URL = API_URL.replace('/api', '');
+      return `${BASE_URL}${imagePath}`;
+    }
+    if (!imagePath.startsWith('/')) {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const BASE_URL = API_URL.replace('/api', '');
+      return `${BASE_URL}/uploads/${imagePath}`;
+    }
+    return imagePath;
+  };
+
   // Transform offer items to products format
   const products = useMemo(() => {
     if (!currentOffer || !currentOffer.items) return [];
+    
+    // Parse images from offer
+    let offerImages = [];
+    if (currentOffer.images) {
+      try {
+        const parsedImages = typeof currentOffer.images === 'string' 
+          ? JSON.parse(currentOffer.images) 
+          : currentOffer.images;
+        offerImages = Array.isArray(parsedImages) 
+          ? parsedImages.map(img => getImageUrl(img)).filter(img => img !== null)
+          : [];
+      } catch {
+        offerImages = [];
+      }
+    }
     
     return [{
         id: currentOffer.id,
@@ -60,8 +94,8 @@ export default function OrderCheckoutComponent() {
         cbmTotal: currentOffer.totalCBM || 0,
         totalPrice: 0, 
         currency: "USD",
-        mainImg: (currentOffer.images && currentOffer.images.length > 0) ? currentOffer.images[0] : "https://placehold.co/600x400?text=No+Image",
-        thumbs: currentOffer.images || [],
+        mainImg: offerImages.length > 0 ? offerImages[0] : "https://placehold.co/600x400?text=No+Image",
+        thumbs: offerImages,
     }];
   }, [currentOffer, t]);
 

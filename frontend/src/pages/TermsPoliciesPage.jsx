@@ -1,14 +1,11 @@
 import React from 'react'
-import Header from '../components/Header'
-import FooterArabic from '../components/FooterArabic'
 import TermsPolicies from '../components/TermsPolicies'
+import { MainLayout } from '../components/Layout'
 
 export default function TermsPoliciesPage() {
   return (
-    <div>
-      <Header/>
+    <MainLayout>
       <TermsPolicies/>
-      <FooterArabic/>
-    </div>
+    </MainLayout>
   )
 }

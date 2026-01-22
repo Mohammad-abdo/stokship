@@ -25,7 +25,7 @@ const ViewOffer = () => {
       setOffer(response.data.data || response.data);
     } catch (error) {
       console.error('Error fetching offer:', error);
-      showToast.error('Failed to load offer', error.response?.data?.message || 'Offer not found');
+      showToast.error(t('mediation.offers.loadFailed') || 'Failed to load offer', error.response?.data?.message || t('common.notFound') || 'Offer not found');
       navigate('/stockship/admin/offers');
     } finally {
       setLoading(false);
@@ -43,7 +43,7 @@ const ViewOffer = () => {
     };
     return (
       <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColors[status] || 'bg-gray-100 text-gray-800'}`}>
-        {status || 'Unknown'}
+        {status || t('common.unknown') || 'Unknown'}
       </span>
     );
   };

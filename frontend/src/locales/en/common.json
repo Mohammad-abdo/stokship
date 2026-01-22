@@ -223,6 +223,9 @@
     "sections": "Sections",
     "smartphones": "Smartphones",
     "clothing": "Clothing",
+    "food": "Food",
+    "home": "Home",
+    "automotive": "Automotive",
     "homeAppliances": "Home Appliances",
     "electronicScreens": "Electronic Screens",
     "bagsWomenProducts": "Bags and All Women's Products",
@@ -455,6 +458,31 @@
     "agreeTerms": "I agree to the terms and conditions",
     "done": "Done",
     "createAd": "Create Ad"
+  },
+  "orderTracking": {
+    "title": "Track Order",
+    "statusLabel": "Awaiting Shipment",
+    "trackingNumber": "Tracking Number",
+    "shippingCompany": "Shipping Company",
+    "shippingDuration": "Shipping Duration",
+    "shippingDurationText": "Within 5 - 7 business days",
+    "steps": {
+      "orderReceived": "Order Received",
+      "orderReceivedDesc": "Order has been received successfully",
+      "paymentConfirmed": "Payment Confirmed",
+      "paymentConfirmedDesc": "Payment has been confirmed",
+      "orderPreparing": "Order Preparing",
+      "orderPreparingDesc": "Order is being prepared",
+      "shippingRequested": "Shipping Requested",
+      "shippingRequestedDesc": "Shipping company has been requested",
+      "readyForPickup": "Ready for Pickup",
+      "readyForPickupDesc": "Order is ready for pickup"
+    },
+    "refresh": "Refresh"
+  },
+  "termsPolicies": {
+    "title": "Terms and Conditions",
+    "content": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
   }
 }
 

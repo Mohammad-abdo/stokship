@@ -26,6 +26,7 @@ const getPlatformSettings = asyncHandler(async (req, res) => {
     settings = {
       id: null,
       platformCommissionRate: 2.5,
+      shippingCommissionRate: 5.00,
       cbmRate: null,
       taxRate: 0,
       currency: 'SAR',
@@ -54,6 +55,7 @@ const getPlatformSettings = asyncHandler(async (req, res) => {
 const updatePlatformSettings = asyncHandler(async (req, res) => {
   const {
     platformCommissionRate,
+    shippingCommissionRate,
     cbmRate,
     taxRate,
     currency,
@@ -83,6 +85,9 @@ const updatePlatformSettings = asyncHandler(async (req, res) => {
   const data = {};
   if (platformCommissionRate !== undefined) {
     data.platformCommissionRate = parseFloat(platformCommissionRate);
+  }
+  if (shippingCommissionRate !== undefined) {
+    data.shippingCommissionRate = parseFloat(shippingCommissionRate);
   }
   if (cbmRate !== undefined) {
     data.cbmRate = parseFloat(cbmRate) || null;
@@ -138,6 +143,7 @@ const updatePlatformSettings = asyncHandler(async (req, res) => {
       data: {
         ...data,
         platformCommissionRate: data.platformCommissionRate || 2.5,
+        shippingCommissionRate: data.shippingCommissionRate || 5.00,
         currency: data.currency || 'SAR',
         platformName: data.platformName || 'Stockship',
         defaultLanguage: data.defaultLanguage || 'ar',
@@ -178,6 +184,8 @@ module.exports = {
   getPlatformSettings,
   updatePlatformSettings
 };
+
+
 
 
 

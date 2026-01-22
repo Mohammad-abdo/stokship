@@ -10,18 +10,22 @@ const { notifyNegotiationMessage } = require('../../utils/notificationHelper');
  */
 const sendNegotiationMessage = asyncHandler(async (req, res) => {
   const { dealId } = req.params;
-  const { message, messageType, proposedPrice, proposedQuantity } = req.body;
+  const { message, content, messageType, proposedPrice, proposedQuantity } = req.body;
 
-  if (!message && !proposedPrice && !proposedQuantity) {
+  // Support both 'message' and 'content' for backward compatibility
+  const messageContent = message || content;
+
+  if (!messageContent && !proposedPrice && !proposedQuantity) {
     return errorResponse(res, 'Please provide message, price, or quantity', 400);
   }
 
   const deal = await prisma.deal.findFirst({
     where: {
-      id: parseInt(dealId),
+      id: dealId, // Deal.id is String (UUID), not Int
       OR: [
         { clientId: req.user.id },
-        { traderId: req.user.id }
+        { traderId: req.user.id },
+        { employeeId: req.user.id } // Allow employee to send messages
       ],
       status: { in: ['NEGOTIATION', 'APPROVED'] } // Can negotiate even after approval
     },
@@ -38,8 +42,9 @@ const sendNegotiationMessage = asyncHandler(async (req, res) => {
 
   // Determine sender
   const isClient = req.user.id === deal.clientId;
-  const senderId = isClient ? deal.clientId : deal.traderId;
-  const senderType = isClient ? 'CLIENT' : 'TRADER';
+  const isEmployee = req.user.id === deal.employeeId;
+  const senderId = isClient ? deal.clientId : (isEmployee ? deal.employeeId : deal.traderId);
+  const senderType = isClient ? 'CLIENT' : (isEmployee ? 'EMPLOYEE' : 'TRADER');
 
   // Create negotiation message
   const negotiation = await prisma.dealNegotiation.create({
@@ -47,8 +52,10 @@ const sendNegotiationMessage = asyncHandler(async (req, res) => {
       dealId: deal.id,
       traderId: deal.traderId,
       clientId: deal.clientId,
+      senderId: senderId, // ID of the user who sent the message
+      senderType: senderType, // 'CLIENT' or 'TRADER'
       messageType: messageType || 'TEXT',
-      message: message || null,
+      message: messageContent || null,
       proposedPrice: proposedPrice ? parseFloat(proposedPrice) : null,
       proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : null,
       isRead: false
@@ -113,7 +120,7 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
 
   const deal = await prisma.deal.findFirst({
     where: {
-      id: parseInt(dealId),
+      id: dealId, // Deal.id is String (UUID), not Int
       OR: [
         { clientId: req.user.id },
         { traderId: req.user.id },
@@ -128,7 +135,7 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
 
   const [messages, total] = await Promise.all([
     prisma.dealNegotiation.findMany({
-      where: { dealId: parseInt(dealId) },
+      where: { dealId: dealId }, // Deal.id is String (UUID), not Int
       skip,
       take: parseInt(limit),
       include: {
@@ -149,7 +156,7 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
       orderBy: { createdAt: 'desc' }
     }),
     prisma.dealNegotiation.count({
-      where: { dealId: parseInt(dealId) }
+      where: { dealId: dealId } // Deal.id is String (UUID), not Int
     })
   ]);
 
@@ -157,7 +164,7 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
   if (req.userType === 'CLIENT' || req.userType === 'TRADER') {
     await prisma.dealNegotiation.updateMany({
       where: {
-        dealId: parseInt(dealId),
+        dealId: dealId, // Deal.id is String (UUID), not Int
         isRead: false,
         ...(req.userType === 'CLIENT' 
           ? { clientId: req.user.id }
@@ -171,7 +178,13 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
     });
   }
 
-  paginatedResponse(res, messages.reverse(), { // Reverse to show oldest first
+  // Transform messages to include content for frontend compatibility
+  const transformedMessages = messages.reverse().map(msg => ({
+    ...msg,
+    content: msg.message || '' // Add content field for frontend compatibility (use message field)
+  }));
+
+  paginatedResponse(res, transformedMessages, { // Reverse to show oldest first
     page: parseInt(page),
     limit: parseInt(limit),
     total,
@@ -189,7 +202,7 @@ const markMessagesAsRead = asyncHandler(async (req, res) => {
 
   const deal = await prisma.deal.findFirst({
     where: {
-      id: parseInt(dealId),
+      id: dealId, // Deal.id is String (UUID), not Int
       OR: [
         { clientId: req.user.id },
         { traderId: req.user.id }
@@ -202,7 +215,7 @@ const markMessagesAsRead = asyncHandler(async (req, res) => {
   }
 
   const where = {
-    dealId: parseInt(dealId),
+    dealId: dealId, // Deal.id is String (UUID), not Int
     isRead: false
   };
 

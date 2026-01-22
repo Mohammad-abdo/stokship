@@ -1,14 +1,11 @@
 import React from 'react'
-import Header from '../components/Header'
-import FooterArabic from '../components/FooterArabic'
 import Orders from '../components/Orders'
+import { MainLayout } from '../components/Layout'
 
 export default function OrdersPage() {
   return (
-    <div>
-      <Header/>
+    <MainLayout>
       <Orders/>
-      <FooterArabic/>
-    </div>
+    </MainLayout>
   )
 }

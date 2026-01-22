@@ -69,7 +69,7 @@ export default function ClientDeals() {
                       </div>
                       <p className="text-sm text-gray-500 flex items-center gap-4">
                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(deal.createdAt).toLocaleDateString()}</span>
-                         <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> {deal.finalPrice ? deal.finalPrice : 'Negotiating'}</span>
+                         <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> {deal.finalPrice ? deal.finalPrice : (t('mediation.deals.negotiation') || 'Negotiating')}</span>
                       </p>
                    </div>
                    <Button variant="ghost" size="sm">

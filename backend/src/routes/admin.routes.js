@@ -30,6 +30,18 @@ const {
   getPlatformSettings,
   updatePlatformSettings
 } = require('../controllers/platformSettings.controller');
+const {
+  getShippingCompanies,
+  getActiveShippingCompanies,
+  getShippingCompanyById,
+  createShippingCompany,
+  updateShippingCompany,
+  deleteShippingCompany
+} = require('../controllers/shippingCompany.controller');
+const {
+  getAllShippingTracking,
+  getShippingTrackingStats
+} = require('../controllers/admin/shippingTracking.controller');
 
 // Dashboard routes
 router.get('/dashboard/stats', protect, isAdmin, getDashboardStats);
@@ -69,5 +81,18 @@ router.post('/support/tickets/:id/messages', protect, isAdmin, addAdminMessage);
 // Platform settings routes
 router.get('/platform-settings', protect, isAdmin, getPlatformSettings);
 router.put('/platform-settings', protect, isAdmin, updatePlatformSettings);
+
+// Shipping companies management routes
+// IMPORTANT: More specific routes must come BEFORE parameterized routes
+router.get('/shipping-companies/active', protect, getActiveShippingCompanies);
+router.get('/shipping-companies', protect, isAdmin, getShippingCompanies);
+router.get('/shipping-companies/:id', protect, isAdmin, getShippingCompanyById);
+router.post('/shipping-companies', protect, isAdmin, createShippingCompany);
+router.put('/shipping-companies/:id', protect, isAdmin, updateShippingCompany);
+router.delete('/shipping-companies/:id', protect, isAdmin, deleteShippingCompany);
+
+// Shipping tracking management routes
+router.get('/shipping-tracking', protect, isAdmin, getAllShippingTracking);
+router.get('/shipping-tracking/stats', protect, isAdmin, getShippingTrackingStats);
 
 module.exports = router;

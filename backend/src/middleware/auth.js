@@ -2,6 +2,26 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/database');
 const { logger } = require('../utils/logger');
 
+// Get JWT secret with validation
+// Use a constant default secret for development to avoid "invalid signature" errors
+const DEFAULT_DEV_SECRET = 'stockship-dev-secret-DO-NOT-USE-IN-PRODUCTION-change-this-immediately';
+
+const getJWTSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    logger.error('JWT_SECRET is not set in environment variables!');
+    logger.error('Please create a .env file in the backend directory with JWT_SECRET set');
+    // Use a constant default secret for development only (NOT for production!)
+    if (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV) {
+      logger.warn('Using default JWT_SECRET for development. This is INSECURE for production!');
+      logger.warn('Please create a .env file with: JWT_SECRET="your-secure-random-string-here"');
+      return DEFAULT_DEV_SECRET;
+    }
+    throw new Error('JWT_SECRET must be set in environment variables');
+  }
+  return secret;
+};
+
 // Protect routes - require authentication
 const protect = async (req, res, next) => {
   try {
@@ -21,7 +41,8 @@ const protect = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = getJWTSecret();
+      const decoded = jwt.verify(token, secret);
 
       // Get user from token
       let user;
@@ -142,12 +163,15 @@ const protect = async (req, res, next) => {
 // Grant access to specific roles
 const authorize = (...roles) => {
   return (req, res, next) => {
+    console.log('🔐 Authorize check - UserType:', req.userType, 'Allowed roles:', roles);
     if (!roles.includes(req.userType)) {
+      console.log('❌ Authorization failed - UserType:', req.userType, 'not in allowed roles:', roles);
       return res.status(403).json({
         success: false,
         message: `User role '${req.userType}' is not authorized to access this route`
       });
     }
+    console.log('✅ Authorization passed');
     next();
   };
 };
@@ -202,7 +226,8 @@ const protectOptional = async (req, res, next) => {
 
     try {
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const secret = getJWTSecret();
+      const decoded = jwt.verify(token, secret);
 
       // Get user from token
       let user;

@@ -139,6 +139,48 @@ export const employeeApi = {
   // Update employee (Admin)
   updateEmployee: (id, data) => {
     return api.put(`${BASE_URL}/admin/employees/${id}`, data);
+  },
+
+  // Get active shipping companies
+  getActiveShippingCompanies: () => {
+    return api.get(`${BASE_URL}/admin/shipping-companies/active`);
+  },
+
+  // Get employee shipping tracking
+  getEmployeeShippingTracking: (params = {}) => {
+    return api.get(`${BASE_URL}/employees/shipping-tracking`, { params });
+  },
+
+  // Assign shipping company to deal
+  assignShippingCompany: (dealId, shippingCompanyId) => {
+    return api.put(`${BASE_URL}/deals/${dealId}/assign-shipping`, { shippingCompanyId });
+  },
+
+  // Get shipping tracking for deal
+  getShippingTracking: (dealId) => {
+    return api.get(`${BASE_URL}/deals/${dealId}/shipping-tracking`);
+  },
+
+  // Create or update shipping tracking
+  createOrUpdateShippingTracking: (dealId, data) => {
+    return api.post(`${BASE_URL}/deals/${dealId}/shipping-tracking`, data);
+  },
+
+  // Trader update request functions (Employee/Admin)
+  getAllTraderUpdateRequests: (params = {}) => {
+    return api.get(`${BASE_URL}/admin/trader-update-requests`, { params });
+  },
+
+  getTraderUpdateRequestById: (id) => {
+    return api.get(`${BASE_URL}/admin/trader-update-requests/${id}`);
+  },
+
+  approveTraderUpdateRequest: (id, data) => {
+    return api.put(`${BASE_URL}/admin/trader-update-requests/${id}/approve`, data);
+  },
+
+  rejectTraderUpdateRequest: (id, data) => {
+    return api.put(`${BASE_URL}/admin/trader-update-requests/${id}/reject`, data);
   }
 };
 
@@ -165,6 +207,19 @@ export const traderApi = {
   // Update trader (Employee/Admin)
   updateTrader: (id, data) => {
     return api.put(`${BASE_URL}/traders/${id}`, data);
+  },
+
+  // Update request functions
+  createUpdateRequest: (data) => {
+    return api.post(`${BASE_URL}/traders/update-request`, data);
+  },
+
+  getUpdateRequests: () => {
+    return api.get(`${BASE_URL}/traders/update-requests`);
+  },
+
+  cancelUpdateRequest: (id) => {
+    return api.put(`${BASE_URL}/traders/update-requests/${id}/cancel`);
   }
 };
 
@@ -268,6 +323,10 @@ export const uploadApi = {
 // ============================================
 // DEAL API
 // ============================================
+
+export const shippingTrackingApi = {
+  getShippingTracking: (dealId) => api.get(`/deals/${dealId}/shipping-tracking`),
+};
 
 export const dealApi = {
   // Request negotiation (Client)
@@ -389,6 +448,7 @@ export default {
   trader: traderApi,
   offer: offerApi,
   deal: dealApi,
+  shippingTracking: shippingTrackingApi,
   negotiation: negotiationApi,
   financial: financialApi,
   categories: categoriesApi,

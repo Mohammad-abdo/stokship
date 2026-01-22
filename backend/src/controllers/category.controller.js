@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const asyncHandler = require('../utils/asyncHandler');
 const { successResponse, errorResponse } = require('../utils/response');
+const { createIdWhereClause } = require('../utils/validation');
 const fs = require('fs');
 const path = require('path');
 
@@ -140,7 +141,44 @@ const getCategories = asyncHandler(async (req, res) => {
     orderBy: featured === 'true' ? [{ isFeatured: 'desc' }, { displayOrder: 'asc' }] : { displayOrder: 'asc' }
   });
 
-  successResponse(res, categories, 'Categories retrieved successfully');
+  // Prioritize preferred categories if user is authenticated and has preferences
+  let sortedCategories = categories;
+  if (req.user && req.userType === 'CLIENT') {
+    try {
+      const client = await prisma.client.findUnique({
+        where: { id: req.user.id },
+        select: { preferredCategories: true }
+      });
+
+      if (client && client.preferredCategories) {
+        const preferredIds = JSON.parse(client.preferredCategories);
+        const preferredSet = new Set(preferredIds.map(id => String(id)));
+        
+        // Sort: preferred categories first, then others
+        sortedCategories = [...categories].sort((a, b) => {
+          const aIsPreferred = preferredSet.has(String(a.id));
+          const bIsPreferred = preferredSet.has(String(b.id));
+          
+          if (aIsPreferred && !bIsPreferred) return -1;
+          if (!aIsPreferred && bIsPreferred) return 1;
+          
+          // If both preferred or both not preferred, maintain original order
+          return 0;
+        });
+
+        // Add isPreferred flag to each category
+        sortedCategories = sortedCategories.map(cat => ({
+          ...cat,
+          isPreferred: preferredSet.has(String(cat.id))
+        }));
+      }
+    } catch (error) {
+      console.error('Error prioritizing preferred categories:', error);
+      // Continue with original order if error occurs
+    }
+  }
+
+  successResponse(res, sortedCategories, 'Categories retrieved successfully');
 });
 
 // @desc    Get category tree
@@ -170,7 +208,56 @@ const getCategoryTree = asyncHandler(async (req, res) => {
     orderBy: { displayOrder: 'asc' }
   });
 
-  successResponse(res, categories, 'Category tree retrieved successfully');
+  // Prioritize preferred categories if user is authenticated and has preferences
+  let sortedCategories = categories;
+  if (req.user && req.userType === 'CLIENT') {
+    try {
+      const client = await prisma.client.findUnique({
+        where: { id: req.user.id },
+        select: { preferredCategories: true }
+      });
+
+      if (client && client.preferredCategories) {
+        const preferredIds = JSON.parse(client.preferredCategories);
+        const preferredSet = new Set(preferredIds.map(id => String(id)));
+        
+        // Helper function to recursively add isPreferred flag and sort
+        const processCategory = (cat) => {
+          const isPreferred = preferredSet.has(String(cat.id));
+          const processed = {
+            ...cat,
+            isPreferred
+          };
+          
+          if (cat.children && cat.children.length > 0) {
+            processed.children = cat.children.map(processCategory).sort((a, b) => {
+              const aIsPreferred = a.isPreferred;
+              const bIsPreferred = b.isPreferred;
+              if (aIsPreferred && !bIsPreferred) return -1;
+              if (!aIsPreferred && bIsPreferred) return 1;
+              return 0;
+            });
+          }
+          
+          return processed;
+        };
+
+        // Sort root categories: preferred first
+        sortedCategories = categories.map(processCategory).sort((a, b) => {
+          const aIsPreferred = a.isPreferred;
+          const bIsPreferred = b.isPreferred;
+          if (aIsPreferred && !bIsPreferred) return -1;
+          if (!aIsPreferred && bIsPreferred) return 1;
+          return 0;
+        });
+      }
+    } catch (error) {
+      console.error('Error prioritizing preferred categories:', error);
+      // Continue with original order if error occurs
+    }
+  }
+
+  successResponse(res, sortedCategories, 'Category tree retrieved successfully');
 });
 
 // @desc    Get category by ID
@@ -180,7 +267,7 @@ const getCategoryById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const category = await prisma.category.findUnique({
-    where: { id: parseInt(id) },
+    where: createIdWhereClause(id),
     include: {
       parent: true,
       children: {

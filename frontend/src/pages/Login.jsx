@@ -1,12 +1,11 @@
 import React from 'react'
 import LoginCard from '../components/LoginCard'
-import FooterArabic from '../components/FooterArabic'
+import { SimpleLayout } from '../components/Layout'
 
 export default function Login() {
   return (
-    <div>
+    <SimpleLayout>
       <LoginCard/>
-      <FooterArabic/>
-    </div>
+    </SimpleLayout>
   )
 }

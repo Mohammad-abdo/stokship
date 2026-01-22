@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMultiAuth } from '@/contexts/MultiAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -19,12 +20,16 @@ import {
   QrCode,
   Download,
   UserCheck,
-  ScanLine
+  ScanLine,
+  FileText,
+  AlertCircle,
+  CreditCard
 } from 'lucide-react';
 import { traderApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
 
 const TraderSettings = () => {
+  const navigate = useNavigate();
   const { getAuth } = useMultiAuth();
   const { t, language } = useLanguage();
   const { user } = getAuth('trader');
@@ -96,42 +101,11 @@ const TraderSettings = () => {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    
-    if (!profileData.name || !profileData.companyName) {
-      showToast.error(
-        t('mediation.trader.validationError') || 'Validation Error',
-        t('mediation.trader.requiredFields') || 'Please fill in all required fields'
-      );
-      return;
-    }
-
-    try {
-      setSaving(true);
-      // Use auth updateProfile endpoint which supports traders and companyName
-      const { authApi } = await import('@/lib/stockshipApi');
-      await authApi.updateProfile({
-        name: profileData.name,
-        phone: profileData.phone,
-        country: profileData.country,
-        city: profileData.city,
-        companyName: profileData.companyName
-      });
-      
-      showToast.success(
-        t('mediation.trader.profileUpdated') || 'Profile Updated',
-        t('mediation.trader.profileUpdatedSuccess') || 'Your profile has been updated successfully'
-      );
-      // Update user in context
-      loadProfile();
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      showToast.error(
-        t('mediation.trader.updateFailed') || 'Failed to update profile',
-        error.response?.data?.message || 'Please try again'
-      );
-    } finally {
-      setSaving(false);
-    }
+    // Profile is read-only - show message
+    showToast.info(
+      t('mediation.trader.profileReadOnly') || 'Profile is Read-Only',
+      t('mediation.trader.profileReadOnlyDesc') || 'All profile information is managed by the system administrator. Please contact support if you need to update any information.'
+    );
   };
 
   const handleChangePassword = async (e) => {
@@ -292,7 +266,7 @@ const TraderSettings = () => {
               {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('mediation.common.name') || 'Name'} <span className="text-red-500">*</span>
+                  {t('mediation.common.name') || 'Name'}
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -300,18 +274,20 @@ const TraderSettings = () => {
                     type="text"
                     name="name"
                     value={profileData.name}
-                    onChange={handleProfileChange}
-                    required
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300"
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     placeholder={t('mediation.trader.namePlaceholder') || 'Enter your name'}
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('mediation.trader.nameCannotBeChanged') || 'Name cannot be changed. Please contact support if you need to update it.'}
+                </p>
               </div>
 
               {/* Company Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('mediation.traders.companyName') || 'Company Name'} <span className="text-red-500">*</span>
+                  {t('mediation.traders.companyName') || 'Company Name'}
                 </label>
                 <div className="relative">
                   <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -319,12 +295,14 @@ const TraderSettings = () => {
                     type="text"
                     name="companyName"
                     value={profileData.companyName}
-                    onChange={handleProfileChange}
-                    required
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300"
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     placeholder={t('mediation.trader.companyNamePlaceholder') || 'Enter your company name'}
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('mediation.trader.companyNameCannotBeChanged') || 'Company name cannot be changed. Please contact support if you need to update it.'}
+                </p>
               </div>
 
               {/* Email */}
@@ -361,11 +339,14 @@ const TraderSettings = () => {
                     type="tel"
                     name="phone"
                     value={profileData.phone}
-                    onChange={handleProfileChange}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300"
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     placeholder={t('mediation.common.phonePlaceholder') || 'Enter your phone number'}
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('mediation.trader.phoneCannotBeChanged') || 'Phone cannot be changed. Please contact support if you need to update it.'}
+                </p>
               </div>
 
               {/* Country */}
@@ -379,11 +360,14 @@ const TraderSettings = () => {
                     type="text"
                     name="country"
                     value={profileData.country}
-                    onChange={handleProfileChange}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300"
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     placeholder={t('mediation.common.countryPlaceholder') || 'Enter your country'}
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('mediation.trader.countryCannotBeChanged') || 'Country cannot be changed. Please contact support if you need to update it.'}
+                </p>
               </div>
 
               {/* City */}
@@ -397,12 +381,145 @@ const TraderSettings = () => {
                     type="text"
                     name="city"
                     value={profileData.city}
-                    onChange={handleProfileChange}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300"
+                    disabled
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
                     placeholder={t('mediation.common.cityPlaceholder') || 'Enter your city'}
                   />
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('mediation.trader.cityCannotBeChanged') || 'City cannot be changed. Please contact support if you need to update it.'}
+                </p>
               </div>
+
+              {/* Company Address */}
+              {traderDetails?.companyAddress && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('mediation.trader.updateRequest.companyAddress') || 'Company Address'}
+                  </label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                    <textarea
+                      value={traderDetails.companyAddress}
+                      disabled
+                      rows={3}
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed resize-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Bank Information Section */}
+              {(traderDetails?.bankAccountName || traderDetails?.bankAccountNumber || traderDetails?.bankName) && (
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    {t('mediation.trader.updateRequest.bankInfo') || 'Bank Information'}
+                  </h3>
+                  
+                  {traderDetails?.bankAccountName && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('mediation.trader.updateRequest.bankAccountName') || 'Bank Account Name'}
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={traderDetails.bankAccountName}
+                          disabled
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {traderDetails?.bankAccountNumber && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('mediation.trader.updateRequest.bankAccountNumber') || 'Bank Account Number'}
+                      </label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={traderDetails.bankAccountNumber}
+                          disabled
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {traderDetails?.bankName && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('mediation.trader.updateRequest.bankName') || 'Bank Name'}
+                      </label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={traderDetails.bankName}
+                          disabled
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {traderDetails?.bankCode && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('mediation.trader.updateRequest.bankCode') || 'Bank Code'}
+                      </label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={traderDetails.bankCode}
+                          disabled
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {traderDetails?.swiftCode && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('mediation.trader.updateRequest.swiftCode') || 'SWIFT Code'}
+                      </label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                          type="text"
+                          value={traderDetails.swiftCode}
+                          disabled
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed font-mono"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {traderDetails?.bankAddress && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('mediation.trader.updateRequest.bankAddress') || 'Bank Address'}
+                      </label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-3 text-gray-400 w-5 h-5" />
+                        <textarea
+                          value={traderDetails.bankAddress}
+                          disabled
+                          rows={3}
+                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed resize-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Employee Information (Read-only) */}
               {traderDetails?.employee && (
@@ -449,27 +566,30 @@ const TraderSettings = () => {
                 </div>
               )}
 
-              {/* Save Button */}
-              <div className="flex items-center justify-end gap-4 pt-4 border-t border-gray-200">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-primary-900 text-white rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      {t('mediation.trader.saving') || 'Saving...'}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {t('common.save') || 'Save Changes'}
-                    </>
-                  )}
-                </motion.button>
+              {/* Info Message */}
+              <div className="pt-4 border-t border-gray-200">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-blue-900 mb-1">
+                        {t('mediation.trader.profileReadOnly') || 'Profile Information is Read-Only'}
+                      </p>
+                      <p className="text-xs text-blue-700 mb-3">
+                        {t('mediation.trader.profileReadOnlyDesc') || 'All profile information is managed by the system administrator. Please contact support if you need to update any information.'}
+                      </p>
+                      <motion.button
+                        onClick={() => navigate('/stockship/trader/update-request')}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        <FileText className="w-4 h-4" />
+                        {t('mediation.trader.requestUpdate') || 'Request Profile Update'}
+                      </motion.button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </form>
           </CardContent>

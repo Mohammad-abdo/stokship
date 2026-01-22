@@ -1,12 +1,11 @@
 import React from 'react'
 import SignUpCard from '../components/SignUpCard'
-import FooterArabic from '../components/FooterArabic'
+import { SimpleLayout } from '../components/Layout'
 
 export default function SignUp() {
   return (
-    <div>
+    <SimpleLayout>
       <SignUpCard/>
-      <FooterArabic/>
-    </div>
+    </SimpleLayout>
   )
 }

@@ -2,7 +2,7 @@ const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
 const { notifyDealCreated, notifyDealStatusChanged } = require('../../utils/notificationHelper');
-const QRCode = require('qrcode');
+const { generateDealQRCode } = require('../../services/qrcode.service');
 
 /**
  * @desc    Request Negotiation (Create Deal) - Client
@@ -159,13 +159,21 @@ const approveDeal = asyncHandler(async (req, res) => {
 
   // Generate barcode and QR code
   const barcode = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
-  const qrCodeData = JSON.stringify({
-    type: 'DEAL',
-    dealNumber: deal.dealNumber,
-    invoiceNumber,
-    barcode
-  });
-  const qrCodeUrl = await QRCode.toDataURL(qrCodeData);
+  let qrCodeUrl = null;
+  try {
+    // Use QR code service
+    const dealForQR = {
+      id: deal.id,
+      dealNumber: deal.dealNumber,
+      invoiceNumber,
+      barcode,
+      status: 'APPROVED'
+    };
+    qrCodeUrl = await generateDealQRCode(dealForQR);
+  } catch (qrError) {
+    console.error('Error generating QR code for deal:', qrError);
+    // Continue without QR code - it's not critical
+  }
 
   // Update deal
   const updatedDeal = await prisma.deal.update({
@@ -261,6 +269,18 @@ const getDealById = asyncHandler(async (req, res) => {
           id: true,
           name: true,
           employeeCode: true
+        }
+      },
+      shippingCompany: {
+        select: {
+          id: true,
+          nameAr: true,
+          nameEn: true,
+          avatar: true,
+          address: true,
+          contactName: true,
+          phone: true,
+          email: true
         }
       },
       offer: {
@@ -616,12 +636,109 @@ const settleDeal = asyncHandler(async (req, res) => {
   successResponse(res, settledDeal, 'Deal settled successfully');
 });
 
+/**
+ * @desc    Assign Shipping Company to Deal - Admin/Employee
+ * @route   PUT /api/deals/:id/assign-shipping
+ * @access  Private (Admin, Employee)
+ */
+const assignShippingCompany = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { shippingCompanyId } = req.body;
+
+  console.log('🚢 Assign Shipping Company - Deal ID:', id, 'Shipping Company ID:', shippingCompanyId);
+
+  const deal = await prisma.deal.findUnique({
+    where: { id: id }
+  });
+
+  if (!deal) {
+    console.log('❌ Deal not found:', id);
+    return errorResponse(res, 'Deal not found', 404);
+  }
+
+  // If shippingCompanyId is provided, validate it exists
+  if (shippingCompanyId) {
+    const shippingCompany = await prisma.shippingCompany.findUnique({
+      where: { id: shippingCompanyId }
+    });
+
+    if (!shippingCompany) {
+      console.log('❌ Shipping company not found:', shippingCompanyId);
+      return errorResponse(res, 'Shipping company not found', 404);
+    }
+
+    if (shippingCompany.status !== 'ACTIVE') {
+      console.log('❌ Shipping company is not active:', shippingCompanyId, 'Status:', shippingCompany.status);
+      return errorResponse(res, 'Cannot assign inactive shipping company', 400);
+    }
+  }
+
+  // Update deal with shipping company assignment
+  try {
+    const updatedDeal = await prisma.deal.update({
+      where: { id: id },
+      data: {
+        shippingCompanyId: shippingCompanyId || null
+      },
+      include: {
+        shippingCompany: {
+          select: {
+            id: true,
+            nameAr: true,
+            nameEn: true,
+            avatar: true,
+            address: true,
+            contactName: true,
+            phone: true,
+            email: true
+          }
+        }
+      }
+    });
+    console.log('✅ Deal updated successfully with shipping company');
+
+    // Log activity
+    try {
+      await prisma.activityLog.create({
+    data: {
+      userId: req.user.id,
+      userType: req.userType,
+      action: 'DEAL_SHIPPING_ASSIGNED',
+      entityType: 'DEAL',
+      entityId: deal.id,
+      description: shippingCompanyId 
+        ? `${req.userType} assigned shipping company to deal ${deal.dealNumber}`
+        : `${req.userType} removed shipping company assignment from deal ${deal.dealNumber}`,
+      metadata: JSON.stringify({
+        dealNumber: deal.dealNumber,
+        shippingCompanyId: shippingCompanyId || null
+      }),
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    }
+    });
+      console.log('✅ Activity log created successfully');
+    } catch (logError) {
+      console.error('⚠️ Failed to create activity log:', logError);
+      // Don't fail the request if logging fails
+    }
+
+    successResponse(res, updatedDeal, shippingCompanyId 
+      ? 'Shipping company assigned successfully' 
+      : 'Shipping company assignment removed successfully');
+  } catch (updateError) {
+    console.error('❌ Error updating deal:', updateError);
+    throw updateError; // Let asyncHandler handle it
+  }
+});
+
 module.exports = {
   requestNegotiation,
   approveDeal,
   getDealById,
   getDeals,
   addDealItems,
-  settleDeal
+  settleDeal,
+  assignShippingCompany
 };
 

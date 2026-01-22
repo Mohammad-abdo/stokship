@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, ChevronDown } from "lucide-react";
 import logo from "../assets/imgs/Group20.png";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
 import { useAuth } from "../contexts/AuthContext";
+import { categoryService } from "../services/categoryService";
 
 export default function SignUpCard() {
   const { i18n } = useTranslation();
@@ -24,9 +25,53 @@ export default function SignUpCard() {
   const [country, setCountry] = useState({ code: "+966", flag: "🇸🇦" });
   const [countryName, setCountryName] = useState("السعودية");
   const [city, setCity] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const { register } = useAuth();
   const navigate = useNavigate();
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCategoryDropdown && !event.target.closest('.category-dropdown')) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCategoryDropdown]);
+
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      const response = await categoryService.getCategories();
+      if (response.data.success) {
+        setCategories(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const toggleCategory = (categoryId) => {
+    setSelectedCategories((prev) => {
+      if (prev.includes(categoryId)) {
+        return prev.filter((id) => id !== categoryId);
+      } else {
+        return [...prev, categoryId];
+      }
+    });
+  };
 
   return (
     <div className="min-h-screen bg-white mb-10 flex items-center justify-center p-4">
@@ -62,6 +107,11 @@ export default function SignUpCard() {
                     return;
                   }
 
+                  if (selectedCategories.length === 0) {
+                    setError("يجب اختيار قسم واحد على الأقل");
+                    return;
+                  }
+
                   setLoading(true);
 
                   try {
@@ -72,7 +122,8 @@ export default function SignUpCard() {
                       countryCode: country.code,
                       country: countryName,
                       city,
-                      password
+                      password,
+                      preferredCategories: selectedCategories
                     });
 
                     if (result.success) {
@@ -213,6 +264,81 @@ export default function SignUpCard() {
                       {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                </div>
+
+                {/* Preferred Categories */}
+                <div>
+                  <label className="block text-sm text-slate-700 mb-1">
+                    الأقسام المفضلة* <span className="text-xs text-slate-500">(اختر على الأقل قسم واحد)</span>
+                  </label>
+                  <div className="relative category-dropdown">
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      disabled={loading || loadingCategories}
+                      className={`w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-right outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 flex items-center justify-between ${error ? 'border-red-500' : ''}`}
+                    >
+                      <span className="text-slate-500">
+                        {selectedCategories.length === 0
+                          ? "اختر الأقسام المفضلة"
+                          : `${selectedCategories.length} قسم محدد`}
+                      </span>
+                      <ChevronDown className={`h-4 w-4 text-slate-500 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {showCategoryDropdown && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-y-auto category-dropdown">
+                        {loadingCategories ? (
+                          <div className="p-3 text-sm text-slate-500 text-center">جاري التحميل...</div>
+                        ) : categories.length === 0 ? (
+                          <div className="p-3 text-sm text-slate-500 text-center">لا توجد أقسام متاحة</div>
+                        ) : (
+                          <div className="p-2">
+                            {categories.map((category) => (
+                              <label
+                                key={category.id}
+                                className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedCategories.includes(category.id)}
+                                  onChange={() => toggleCategory(category.id)}
+                                  disabled={loading}
+                                  className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-200"
+                                />
+                                <span className="text-sm text-slate-700">
+                                  {category.nameKey || `Category ${category.id}`}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedCategories.map((catId) => {
+                        const category = categories.find((c) => c.id === catId);
+                        return category ? (
+                          <span
+                            key={catId}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                          >
+                            {category.nameKey || `Category ${catId}`}
+                            <button
+                              type="button"
+                              onClick={() => toggleCategory(catId)}
+                              disabled={loading}
+                              className="hover:text-blue-900"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Terms */}

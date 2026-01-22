@@ -1,8 +1,7 @@
 import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ProductsListComponent from '../components/ProductsListComponent'
-import Header from '../components/Header'
-import FooterArabic from '../components/FooterArabic'
+import { MainLayout } from '../components/Layout'
 
 export default function ProductsListPage() {
   const [searchParams] = useSearchParams();
@@ -11,10 +10,8 @@ export default function ProductsListPage() {
   const search = searchParams.get('q') || searchParams.get('search');
 
   return (
-    <div>
-      <Header/>
+    <MainLayout>
       <ProductsListComponent categoryId={categoryId} categorySlug={categorySlug} search={search}/>
-      <FooterArabic/>
-    </div>
+    </MainLayout>
   )
 }

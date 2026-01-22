@@ -9,6 +9,7 @@ import AdminUsers from "@/pages/stockship/admin/AdminUsers";
 import AdminVendors from "@/pages/stockship/admin/AdminVendors";
 import AdminProducts from "@/pages/stockship/admin/AdminProducts";
 import AdminCategories from "@/pages/stockship/admin/AdminCategories";
+import AdminSliders from "@/pages/stockship/admin/AdminSliders";
 import AdminOrders from "@/pages/stockship/admin/AdminOrders";
 import AdminPayments from "@/pages/stockship/admin/AdminPayments";
 import AdminWallets from "@/pages/stockship/admin/AdminWallets";
@@ -85,6 +86,16 @@ export const StockshipRoutes = () => {
           <ProtectedRoute requireAdmin>
             <StockshipAdminLayout>
               <AdminCategories />
+            </StockshipAdminLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/sliders"
+        element={
+          <ProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <AdminSliders />
             </StockshipAdminLayout>
           </ProtectedRoute>
         }

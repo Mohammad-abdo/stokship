@@ -28,6 +28,9 @@ import {
   ShoppingCart,
   FileText,
   FolderTree,
+  Image as ImageIcon,
+  Truck,
+  MapPin,
 } from "lucide-react";
 
 const StockshipAdminLayout = ({ children }) => {
@@ -57,9 +60,12 @@ const StockshipAdminLayout = ({ children }) => {
     { icon: Briefcase, label: t('mediation.employees.title'), path: "/stockship/admin/employees" },
     { icon: Store, label: t('mediation.traders.title'), path: "/stockship/admin/traders" },
     { icon: FolderTree, label: t('sidebar.categories') || 'Categories', path: "/stockship/admin/categories" },
+    { icon: ImageIcon, label: t('sidebar.sliders') || 'Sliders', path: "/stockship/admin/sliders" },
     { icon: Users, label: t('admin.users'), path: "/stockship/admin/users" },
     { icon: Gift, label: t('mediation.offers.title'), path: "/stockship/admin/offers" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/admin/deals" },
+    { icon: Truck, label: t('sidebar.shippingCompanies') || 'Shipping Companies', path: "/stockship/admin/shipping-companies" },
+    { icon: MapPin, label: t('sidebar.shippingTracking') || 'Shipping Tracking', path: "/stockship/admin/shipping-tracking" },
     { icon: CreditCard, label: t('sidebar.wallet'), path: "/stockship/admin/payments" },
     { icon: MessageSquare, label: t('sidebar.support'), path: "/stockship/admin/support-tickets" },
     { icon: Download, label: t('sidebar.reports'), path: "/stockship/admin/reports" },

@@ -7,6 +7,7 @@ const { PrismaClient } = require('@prisma/client');
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const QRCode = require('qrcode');
+const { v4: uuidv4 } = require('uuid');
 
 const prisma = new PrismaClient();
 
@@ -416,7 +417,12 @@ async function main() {
           traderCode: traderCode,
           barcode: barcode
         });
-        const qrCodeDataUrl = await QRCode.toDataURL(qrCodeData);
+        const qrCodeDataUrl = await QRCode.toDataURL(qrCodeData, {
+          errorCorrectionLevel: 'M',
+          type: 'image/png',
+          quality: 0.92,
+          margin: 1
+        });
         qrCodeUrl = qrCodeDataUrl;
       } catch (error) {
         console.warn(`Failed to generate QR code for ${traderCode}:`, error.message);
@@ -1052,30 +1058,30 @@ async function main() {
   await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
   
   await prisma.$executeRaw`
-    INSERT INTO ActivityLog (userId, userType, action, entityType, entityId, description, ipAddress, userAgent, createdAt)
-    VALUES (${clients[0].id}, 'CLIENT', 'DEAL_CREATED', 'DEAL', ${deals[0].id}, 'Client requested negotiation', '192.168.1.1', 'Mozilla/5.0', NOW())
+    INSERT INTO ActivityLog (id, clientId, userType, action, entityType, dealId, description, ipAddress, userAgent, createdAt)
+    VALUES (UUID(), ${clients[0].id}, 'CLIENT', 'DEAL_CREATED', 'DEAL', ${deals[0].id}, 'Client requested negotiation', '192.168.1.1', 'Mozilla/5.0', NOW())
   `;
   
   await prisma.$executeRaw`
-    INSERT INTO ActivityLog (userId, userType, action, entityType, entityId, description, ipAddress, userAgent, createdAt)
-    VALUES (${traders[2].id}, 'TRADER', 'DEAL_APPROVED', 'DEAL', ${deals[1].id}, 'Trader approved deal', '192.168.1.2', 'Mozilla/5.0', NOW())
+    INSERT INTO ActivityLog (id, traderId, userType, action, entityType, dealId, description, ipAddress, userAgent, createdAt)
+    VALUES (UUID(), ${traders[2].id}, 'TRADER', 'DEAL_APPROVED', 'DEAL', ${deals[1].id}, 'Trader approved deal', '192.168.1.2', 'Mozilla/5.0', NOW())
   `;
   
   await prisma.$executeRaw`
-    INSERT INTO ActivityLog (userId, userType, action, entityType, entityId, description, ipAddress, userAgent, createdAt)
-    VALUES (${employees[0].id}, 'EMPLOYEE', 'OFFER_VALIDATED', 'OFFER', ${offers[0].id}, 'Employee validated offer', '192.168.1.3', 'Mozilla/5.0', NOW())
+    INSERT INTO ActivityLog (id, employeeId, userType, action, entityType, offerId, description, ipAddress, userAgent, createdAt)
+    VALUES (UUID(), ${employees[0].id}, 'EMPLOYEE', 'OFFER_VALIDATED', 'OFFER', ${offers[0].id}, 'Employee validated offer', '192.168.1.3', 'Mozilla/5.0', NOW())
   `;
   
   // Add activity logs for linked profile deal (dual profile example - same user as Client & Trader)
   await prisma.$executeRaw`
-    INSERT INTO ActivityLog (userId, userType, action, entityType, entityId, description, ipAddress, userAgent, createdAt)
-    VALUES (${linkedClient1.id}, 'CLIENT', 'DEAL_CREATED', 'DEAL', ${deals[2].id}, 'Client with linked trader profile (dual profile) created deal - same user as trader', '192.168.1.4', 'Mozilla/5.0', NOW())
+    INSERT INTO ActivityLog (id, clientId, userType, action, entityType, dealId, description, ipAddress, userAgent, createdAt)
+    VALUES (UUID(), ${linkedClient1.id}, 'CLIENT', 'DEAL_CREATED', 'DEAL', ${deals[2].id}, 'Client with linked trader profile (dual profile) created deal - same user as trader', '192.168.1.4', 'Mozilla/5.0', NOW())
   `;
   
   // Add activity log as trader for the same user (dual profile - demonstrates switching between roles)
   await prisma.$executeRaw`
-    INSERT INTO ActivityLog (userId, userType, action, entityType, entityId, description, ipAddress, userAgent, createdAt)
-    VALUES (${traders[0].id}, 'TRADER', 'DEAL_CREATED', 'DEAL', ${deals[2].id}, 'Trader with linked client profile (dual profile) - same user as client, different role', '192.168.1.4', 'Mozilla/5.0', NOW())
+    INSERT INTO ActivityLog (id, traderId, userType, action, entityType, dealId, description, ipAddress, userAgent, createdAt)
+    VALUES (UUID(), ${traders[0].id}, 'TRADER', 'DEAL_CREATED', 'DEAL', ${deals[2].id}, 'Trader with linked client profile (dual profile) - same user as client, different role', '192.168.1.4', 'Mozilla/5.0', NOW())
   `;
   
   await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
@@ -1085,22 +1091,44 @@ async function main() {
   // 13. CREATE AUDIT TRAILS
   // ============================================
   console.log('🔍 Creating audit trails...');
-  // Temporarily disable foreign key checks due to polymorphic relations
-  await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 0`;
   
   const deal1Json = JSON.stringify({ dealNumber: deals[0].dealNumber, offerId: offers[0].id });
   const oldValueJson = JSON.stringify({ status: 'NEGOTIATION' });
   const newValueJson = JSON.stringify({ status: 'APPROVED', negotiatedAmount: 50000.00 });
   
-  await prisma.$executeRawUnsafe(`
-    INSERT INTO AuditTrail (userId, userType, action, entityType, entityId, oldValue, newValue, reason, ipAddress, userAgent, success, createdAt)
-    VALUES (${clients[0].id}, 'CLIENT', 'DEAL_CREATED', 'DEAL', ${deals[0].id}, NULL, ?, 'Deal created by client', '192.168.1.1', 'Mozilla/5.0', TRUE, NOW())
-  `, deal1Json);
+  await prisma.auditTrail.create({
+    data: {
+      id: uuidv4(),
+      clientId: clients[0].id,
+      userType: 'CLIENT',
+      action: 'DEAL_CREATED',
+      entityType: 'DEAL',
+      dealId: deals[0].id,
+      oldValue: null,
+      newValue: deal1Json,
+      reason: 'Deal created by client',
+      ipAddress: '192.168.1.1',
+      userAgent: 'Mozilla/5.0',
+      success: true
+    }
+  });
   
-  await prisma.$executeRawUnsafe(`
-    INSERT INTO AuditTrail (userId, userType, action, entityType, entityId, oldValue, newValue, reason, ipAddress, userAgent, success, createdAt)
-    VALUES (${traders[2].id}, 'TRADER', 'DEAL_APPROVED', 'DEAL', ${deals[1].id}, ?, ?, 'Deal approved by trader', '192.168.1.2', 'Mozilla/5.0', TRUE, NOW())
-  `, oldValueJson, newValueJson);
+  await prisma.auditTrail.create({
+    data: {
+      id: uuidv4(),
+      traderId: traders[2].id,
+      userType: 'TRADER',
+      action: 'DEAL_APPROVED',
+      entityType: 'DEAL',
+      dealId: deals[1].id,
+      oldValue: oldValueJson,
+      newValue: newValueJson,
+      reason: 'Deal approved by trader',
+      ipAddress: '192.168.1.2',
+      userAgent: 'Mozilla/5.0',
+      success: true
+    }
+  });
   
   // Add audit trail for linked profile deal (dual profile example)
   const deal3Json = JSON.stringify({ 
@@ -1110,13 +1138,376 @@ async function main() {
     clientId: deals[2].clientId,
     note: 'Dual profile deal - same user as both Client and Trader'
   });
-  await prisma.$executeRawUnsafe(`
-    INSERT INTO AuditTrail (userId, userType, action, entityType, entityId, oldValue, newValue, reason, ipAddress, userAgent, success, createdAt)
-    VALUES (${linkedClient1.id}, 'CLIENT', 'DEAL_CREATED', 'DEAL', ${deals[2].id}, NULL, ?, 'Deal created by client with linked trader profile (dual profile feature)', '192.168.1.4', 'Mozilla/5.0', TRUE, NOW())
-  `, deal3Json);
+  await prisma.auditTrail.create({
+    data: {
+      id: uuidv4(),
+      clientId: linkedClient1.id,
+      userType: 'CLIENT',
+      action: 'DEAL_CREATED',
+      entityType: 'DEAL',
+      dealId: deals[2].id,
+      oldValue: null,
+      newValue: deal3Json,
+      reason: 'Deal created by client with linked trader profile (dual profile feature)',
+      ipAddress: '192.168.1.4',
+      userAgent: 'Mozilla/5.0',
+      success: true
+    }
+  });
   
-  await prisma.$executeRaw`SET FOREIGN_KEY_CHECKS = 1`;
   console.log('✅ Created audit trails');
+
+  // ============================================
+  // 12. CREATE SHIPPING COMPANIES
+  // ============================================
+  console.log('\n🚚 Creating shipping companies...');
+  
+  // Delete existing shipping companies if they exist (to avoid conflicts)
+  await prisma.shippingTracking.deleteMany({});
+  await prisma.shippingCompany.deleteMany({});
+  
+  const shippingCompanies = await Promise.all([
+    prisma.shippingCompany.create({
+      data: {
+        id: 'shipping-company-1',
+        nameAr: 'شركة أرامكس للشحن',
+        nameEn: 'Aramex Shipping Company',
+        avatar: 'https://images.unsplash.com/photo-1566576912321-58f03b6c64f6?w=400&h=400&fit=crop',
+        address: 'King Fahd Road, Al Olaya, Riyadh 12211, Saudi Arabia',
+        contactName: 'Ahmed Al-Saud',
+        phone: '+966112345678',
+        email: 'info@aramex.sa',
+        notes: 'Leading express delivery and logistics company in the Middle East',
+        status: 'ACTIVE'
+      }
+    }),
+    prisma.shippingCompany.create({
+      data: {
+        id: 'shipping-company-2',
+        nameAr: 'شركة دي إتش إل للشحن السريع',
+        nameEn: 'DHL Express Saudi Arabia',
+        avatar: 'https://images.unsplash.com/photo-1601581875208-fdb989cc0e2a?w=400&h=400&fit=crop',
+        address: 'Al Khobar Road, Dammam 32245, Saudi Arabia',
+        contactName: 'Mohammed Al-Rashid',
+        phone: '+966133456789',
+        email: 'contact@dhl.sa',
+        notes: 'International express shipping and logistics services',
+        status: 'ACTIVE'
+      }
+    }),
+    prisma.shippingCompany.create({
+      data: {
+        id: 'shipping-company-3',
+        nameAr: 'شركة فيديكس للشحن',
+        nameEn: 'FedEx Express Saudi Arabia',
+        avatar: 'https://images.unsplash.com/photo-1606761568499-6d2451b23c66?w=400&h=400&fit=crop',
+        address: 'Prince Sultan Street, Jeddah 21432, Saudi Arabia',
+        contactName: 'Khalid Al-Mansouri',
+        phone: '+966126789012',
+        email: 'support@fedex.sa',
+        notes: 'Reliable express shipping and freight services',
+        status: 'ACTIVE'
+      }
+    }),
+    prisma.shippingCompany.create({
+      data: {
+        id: 'shipping-company-4',
+        nameAr: 'شركة البريد السعودي',
+        nameEn: 'Saudi Post',
+        avatar: 'https://images.unsplash.com/photo-1596524430615-b46475ddff6e?w=400&h=400&fit=crop',
+        address: 'King Abdulaziz Road, Riyadh 11177, Saudi Arabia',
+        contactName: 'Fahad Al-Zahrani',
+        phone: '+966112001122',
+        email: 'info@sp.com.sa',
+        notes: 'National postal service provider with extensive network',
+        status: 'ACTIVE'
+      }
+    }),
+    prisma.shippingCompany.create({
+      data: {
+        id: 'shipping-company-5',
+        nameAr: 'شركة الشحن السريع',
+        nameEn: 'Fast Shipping Co.',
+        avatar: 'https://images.unsplash.com/photo-1607082349566-187342175e2f?w=400&h=400&fit=crop',
+        address: 'Al Madinah Road, Riyadh 11564, Saudi Arabia',
+        contactName: 'Salem Al-Otaibi',
+        phone: '+966112345678',
+        email: 'info@fastship.sa',
+        notes: 'Local express delivery service specializing in same-day delivery',
+        status: 'ACTIVE'
+      }
+    }),
+    prisma.shippingCompany.create({
+      data: {
+        id: 'shipping-company-6',
+        nameAr: 'شركة النقل والخدمات اللوجستية',
+        nameEn: 'Transport & Logistics Co.',
+        avatar: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=400&fit=crop',
+        address: 'King Faisal Road, Jeddah 21421, Saudi Arabia',
+        contactName: 'Yousef Al-Ghamdi',
+        phone: '+966126543210',
+        email: 'contact@tlc.sa',
+        notes: 'Comprehensive logistics and freight forwarding services',
+        status: 'ACTIVE'
+      }
+    })
+  ]);
+  console.log(`✅ Created ${shippingCompanies.length} shipping companies`);
+
+  // ============================================
+  // 13. ASSIGN SHIPPING COMPANIES TO DEALS
+  // ============================================
+  console.log('\n📦 Assigning shipping companies to deals...');
+  if (deals.length > 0) {
+    // Assign shipping companies to some deals
+    await prisma.deal.update({
+      where: { id: deals[0].id },
+      data: { shippingCompanyId: shippingCompanies[0].id }
+    });
+    
+    if (deals.length > 1) {
+      await prisma.deal.update({
+        where: { id: deals[1].id },
+        data: { shippingCompanyId: shippingCompanies[1].id }
+      });
+    }
+    
+    if (deals.length > 2) {
+      await prisma.deal.update({
+        where: { id: deals[2].id },
+        data: { shippingCompanyId: shippingCompanies[2].id }
+      });
+    }
+    console.log('✅ Assigned shipping companies to deals');
+  }
+
+  // ============================================
+  // 14. CREATE SHIPPING TRACKING RECORDS
+  // ============================================
+  console.log('\n📮 Creating shipping tracking records...');
+  const trackingRecords = [];
+  
+  if (deals.length > 0) {
+    // Tracking for first deal - IN_TRANSIT
+    // Delete existing tracking if exists
+    await prisma.shippingTracking.deleteMany({
+      where: { dealId: deals[0].id }
+    });
+    const tracking1 = await prisma.shippingTracking.create({
+      data: {
+        dealId: deals[0].id,
+        shippingCompanyId: shippingCompanies[0].id,
+        trackingNumber: 'ARX' + Date.now().toString().slice(-8),
+        status: 'IN_TRANSIT',
+        currentLocation: 'Riyadh Distribution Center',
+        estimatedDelivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+        notes: 'Package is in transit to destination',
+        updatedBy: admin.id,
+        updatedByType: 'ADMIN'
+      }
+    });
+    trackingRecords.push(tracking1);
+
+    // Add status history for tracking1
+    await prisma.shippingStatusHistory.createMany({
+      data: [
+        {
+          shippingTrackingId: tracking1.id,
+          status: 'PENDING',
+          location: 'Trader Warehouse',
+          description: 'Order received, preparing for pickup',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking1.id,
+          status: 'PREPARING',
+          location: 'Trader Warehouse',
+          description: 'Package is being prepared',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking1.id,
+          status: 'PICKED_UP',
+          location: 'Riyadh Hub',
+          description: 'Package picked up by shipping company',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking1.id,
+          status: 'IN_TRANSIT',
+          location: 'Riyadh Distribution Center',
+          description: 'Package is in transit',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        }
+      ]
+    });
+  }
+
+  if (deals.length > 1) {
+    // Tracking for second deal - DELIVERED
+    // Delete existing tracking if exists
+    await prisma.shippingTracking.deleteMany({
+      where: { dealId: deals[1].id }
+    });
+    const tracking2 = await prisma.shippingTracking.create({
+      data: {
+        dealId: deals[1].id,
+        shippingCompanyId: shippingCompanies[1].id,
+        trackingNumber: 'DHL' + Date.now().toString().slice(-8),
+        status: 'DELIVERED',
+        currentLocation: 'Client Address - Delivered',
+        estimatedDelivery: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        actualDelivery: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        notes: 'Package successfully delivered to client',
+        updatedBy: admin.id,
+        updatedByType: 'ADMIN'
+      }
+    });
+    trackingRecords.push(tracking2);
+
+    // Add status history for tracking2
+    await prisma.shippingStatusHistory.createMany({
+      data: [
+        {
+          shippingTrackingId: tracking2.id,
+          status: 'PENDING',
+          location: 'Trader Warehouse',
+          description: 'Order received',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking2.id,
+          status: 'PREPARING',
+          location: 'Trader Warehouse',
+          description: 'Preparing package for shipment',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking2.id,
+          status: 'PICKED_UP',
+          location: 'Dammam Hub',
+          description: 'Package collected by courier',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking2.id,
+          status: 'IN_TRANSIT',
+          location: 'In Transit',
+          description: 'Package is on the way',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking2.id,
+          status: 'OUT_FOR_DELIVERY',
+          location: 'Jeddah Distribution Center',
+          description: 'Out for delivery to client',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking2.id,
+          status: 'DELIVERED',
+          location: 'Client Address',
+          description: 'Package delivered successfully',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+        }
+      ]
+    });
+  }
+
+  if (deals.length > 2) {
+    // Tracking for third deal - OUT_FOR_DELIVERY
+    // Delete existing tracking if exists
+    await prisma.shippingTracking.deleteMany({
+      where: { dealId: deals[2].id }
+    });
+    const tracking3 = await prisma.shippingTracking.create({
+      data: {
+        dealId: deals[2].id,
+        shippingCompanyId: shippingCompanies[2].id,
+        trackingNumber: 'FED' + Date.now().toString().slice(-8),
+        status: 'OUT_FOR_DELIVERY',
+        currentLocation: 'Jeddah - Out for delivery',
+        estimatedDelivery: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // Tomorrow
+        notes: 'Package is out for delivery, expected today',
+        updatedBy: admin.id,
+        updatedByType: 'ADMIN'
+      }
+    });
+    trackingRecords.push(tracking3);
+
+    // Add status history for tracking3
+    await prisma.shippingStatusHistory.createMany({
+      data: [
+        {
+          shippingTrackingId: tracking3.id,
+          status: 'PENDING',
+          location: 'Trader Warehouse',
+          description: 'Order placed',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking3.id,
+          status: 'PREPARING',
+          location: 'Trader Warehouse',
+          description: 'Package preparation in progress',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking3.id,
+          status: 'PICKED_UP',
+          location: 'Jeddah Hub',
+          description: 'Package collected',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking3.id,
+          status: 'IN_TRANSIT',
+          location: 'In Transit',
+          description: 'Package in transit to destination',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+        },
+        {
+          shippingTrackingId: tracking3.id,
+          status: 'OUT_FOR_DELIVERY',
+          location: 'Jeddah - Out for delivery',
+          description: 'Package is out for delivery',
+          updatedBy: admin.id,
+          updatedByType: 'ADMIN',
+          createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000) // 6 hours ago
+        }
+      ]
+    });
+  }
+
+  console.log(`✅ Created ${trackingRecords.length} shipping tracking records with status history`);
 
   console.log('\n🎉 Mediation platform seed completed successfully!');
   console.log('\n📊 Summary:');
@@ -1133,6 +1524,8 @@ async function main() {
   console.log(`   - Ledger Entries: 4`);
   console.log(`   - Activity Logs: 5 (including dual profile deal from both Client and Trader perspectives)`);
   console.log(`   - Audit Trails: 3 (including dual profile deal)`);
+  console.log(`   - Shipping Companies: ${shippingCompanies.length}`);
+  console.log(`   - Shipping Tracking Records: ${trackingRecords.length}`);
   console.log('\n💡 Test Accounts (Dual Profile Feature):');
   console.log(`   ┌─────────────────────────────────────────────────────────────────┐`);
   console.log(`   │ DUAL PROFILE EXAMPLES (Same email, same password, 2 roles)     │`);

@@ -72,13 +72,35 @@ export default function ProductDetailsComponent({ offerId }) {
         const offerData = response.data.data;
         setOffer(offerData);
         
+        // Helper function to get full image URL
+        const getImageUrl = (imagePath) => {
+          if (!imagePath) return null;
+          if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+            return imagePath;
+          }
+          if (imagePath.startsWith('/uploads')) {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const BASE_URL = API_URL.replace('/api', '');
+            return `${BASE_URL}${imagePath}`;
+          }
+          if (!imagePath.startsWith('/')) {
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+            const BASE_URL = API_URL.replace('/api', '');
+            return `${BASE_URL}/uploads/${imagePath}`;
+          }
+          return imagePath;
+        };
+
         // Parse and set images
         let offerImages = [];
         if (offerData.images) {
           try {
-            offerImages = typeof offerData.images === 'string' 
+            const parsedImages = typeof offerData.images === 'string' 
               ? JSON.parse(offerData.images) 
               : offerData.images;
+            offerImages = Array.isArray(parsedImages) 
+              ? parsedImages.map(img => getImageUrl(img)).filter(img => img !== null)
+              : [];
           } catch {
             offerImages = [];
           }
@@ -92,7 +114,10 @@ export default function ProductDetailsComponent({ offerId }) {
                 const itemImages = typeof item.images === 'string' 
                   ? JSON.parse(item.images) 
                   : item.images;
-                offerImages = [...offerImages, ...itemImages];
+                const parsedItemImages = Array.isArray(itemImages) 
+                  ? itemImages.map(img => getImageUrl(img)).filter(img => img !== null)
+                  : [];
+                offerImages = [...offerImages, ...parsedItemImages];
               } catch {
                 // Skip invalid images
               }

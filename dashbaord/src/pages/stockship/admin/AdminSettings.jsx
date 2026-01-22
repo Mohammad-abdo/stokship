@@ -91,6 +91,7 @@ const AdminSettings = () => {
     defaultPaymentMethod: 'credit_card',
     taxRate: 15,
     platformCommissionRate: 2.5, // Percentage based commission
+    shippingCommissionRate: 5.0, // Shipping commission rate (default 5%)
     cbmRate: null, // CBM-based commission rate (SAR per cubic meter)
     commissionMethod: 'PERCENTAGE', // PERCENTAGE, CBM, BOTH
     enableAutoSettlement: false,
@@ -128,6 +129,7 @@ const AdminSettings = () => {
         // Update payment settings
         if (settings.taxRate !== undefined) setPaymentSettings(prev => ({ ...prev, taxRate: parseFloat(settings.taxRate) || 0 }));
         if (settings.platformCommissionRate !== undefined) setPaymentSettings(prev => ({ ...prev, platformCommissionRate: parseFloat(settings.platformCommissionRate) || 2.5 }));
+        if (settings.shippingCommissionRate !== undefined) setPaymentSettings(prev => ({ ...prev, shippingCommissionRate: parseFloat(settings.shippingCommissionRate) || 5.0 }));
         if (settings.cbmRate !== undefined && settings.cbmRate !== null) setPaymentSettings(prev => ({ ...prev, cbmRate: parseFloat(settings.cbmRate) }));
         if (settings.commissionMethod) setPaymentSettings(prev => ({ ...prev, commissionMethod: settings.commissionMethod }));
       }
@@ -158,10 +160,11 @@ const AdminSettings = () => {
           currency: generalSettings.currency
         });
       } else if (section === 'payment') {
-        // Save payment settings (including CBM Rate)
+        // Save payment settings (including CBM Rate and Shipping Commission)
         await adminApi.updatePlatformSettings({
           taxRate: paymentSettings.taxRate,
           platformCommissionRate: paymentSettings.platformCommissionRate,
+          shippingCommissionRate: paymentSettings.shippingCommissionRate,
           cbmRate: paymentSettings.cbmRate || null,
           commissionMethod: paymentSettings.commissionMethod
         });
@@ -780,6 +783,20 @@ const AdminSettings = () => {
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {t('admin.settings.platformCommissionRateDesc') || 'Percentage commission based on deal amount'}
+                </p>
+              </div>
+              <div>
+                <Label>{t('admin.settings.shippingCommissionRate') || 'Shipping Commission Rate (%)'}</Label>
+                <Input
+                  type="number"
+                  value={paymentSettings.shippingCommissionRate}
+                  onChange={(e) => setPaymentSettings({ ...paymentSettings, shippingCommissionRate: parseFloat(e.target.value) })}
+                  min={0}
+                  max={100}
+                  step={0.1}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('admin.settings.shippingCommissionRateDesc') || 'Shipping commission rate (paid by buyer, default 5%)'}
                 </p>
               </div>
               <div>

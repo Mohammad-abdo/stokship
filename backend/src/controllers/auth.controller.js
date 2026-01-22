@@ -9,7 +9,7 @@ const { logger } = require('../utils/logger');
 // @access  Public
 const register = async (req, res) => {
   try {
-    const { email, password, name, phone, countryCode, country, city, userType } = req.body;
+    const { email, password, name, phone, countryCode, country, city, userType, preferredCategories } = req.body;
 
     // Validate input
     if (!email || !password || !name) {
@@ -17,6 +17,47 @@ const register = async (req, res) => {
         success: false,
         message: 'Please provide email, password, and name'
       });
+    }
+
+    // Validate preferredCategories if provided
+    let validatedCategories = null;
+    if (preferredCategories) {
+      try {
+        // Ensure it's an array
+        const categoryIds = Array.isArray(preferredCategories) 
+          ? preferredCategories 
+          : (typeof preferredCategories === 'string' ? JSON.parse(preferredCategories) : []);
+        
+        if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'preferredCategories must be a non-empty array of category IDs'
+          });
+        }
+
+        // Validate that all categories exist and are active
+        const categories = await prisma.category.findMany({
+          where: {
+            id: { in: categoryIds.map(id => String(id)) },
+            isActive: true
+          },
+          select: { id: true }
+        });
+
+        if (categories.length !== categoryIds.length) {
+          return res.status(400).json({
+            success: false,
+            message: 'One or more preferred categories are invalid or inactive'
+          });
+        }
+
+        validatedCategories = JSON.stringify(categoryIds.map(id => String(id)));
+      } catch (error) {
+        logger.error('Error validating preferredCategories:', error);
+        // If validation fails, continue without preferredCategories
+        // This allows registration to work even if categories table has issues
+        validatedCategories = null;
+      }
     }
 
     // Default to CLIENT for mediation platform
@@ -60,27 +101,59 @@ const register = async (req, res) => {
       // Check if trader exists with same email to link them
       const linkedTrader = await prisma.trader.findUnique({ where: { email } });
       
-      user = await prisma.client.create({
-        data: {
-          email,
-          password: hashedPassword,
-          name,
-          phone,
-          countryCode,
-          country,
-          city,
-          language: req.headers['accept-language']?.split(',')[0]?.split('-')[0] || 'ar'
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          country: true,
-          city: true,
-          createdAt: true
+      // Build data object conditionally
+      const clientData = {
+        email,
+        password: hashedPassword,
+        name,
+        phone,
+        countryCode,
+        country,
+        city,
+        language: req.headers['accept-language']?.split(',')[0]?.split('-')[0] || 'ar'
+      };
+
+      // Only add preferredCategories if validatedCategories is not null
+      // This allows registration to work even if migration hasn't been run yet
+      if (validatedCategories !== null) {
+        clientData.preferredCategories = validatedCategories;
+      }
+
+      // Build select object - conditionally include preferredCategories
+      const selectFields = {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        country: true,
+        city: true,
+        createdAt: true
+      };
+
+      // Only include preferredCategories in select if we're trying to set it
+      if (validatedCategories !== null) {
+        selectFields.preferredCategories = true;
+      }
+
+      try {
+        user = await prisma.client.create({
+          data: clientData,
+          select: selectFields
+        });
+      } catch (error) {
+        // If error is about unknown field, try without preferredCategories
+        if (error.message && error.message.includes('preferredCategories')) {
+          logger.warn('preferredCategories field not found in database, creating user without it');
+          delete clientData.preferredCategories;
+          delete selectFields.preferredCategories;
+          user = await prisma.client.create({
+            data: clientData,
+            select: selectFields
+          });
+        } else {
+          throw error;
         }
-      });
+      }
       // If trader exists with same email, link them
       if (linkedTrader && !linkedTrader.clientId) {
         await prisma.trader.update({
@@ -124,7 +197,7 @@ const register = async (req, res) => {
 // @access  Public
 const login = async (req, res) => {
   try {
-    const { email, password, rememberMe } = req.body;
+    const { email, password, rememberMe, role } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -138,14 +211,33 @@ const login = async (req, res) => {
     let userData = null;
     let linkedProfiles = []; // Store all matching profiles
 
-    // Check all user types (admin, moderator, employee, trader, client) simultaneously
-    const [admin, moderator, employee, trader, client] = await Promise.all([
-      prisma.admin.findUnique({ where: { email } }),
-      prisma.moderator.findUnique({ where: { email } }), // Added Moderator
-      prisma.employee.findUnique({ where: { email } }),
-      prisma.trader.findUnique({ where: { email } }),
-      prisma.client.findUnique({ where: { email } })
-    ]);
+    // Normalize role to uppercase if provided
+    const requestedRole = role ? role.toUpperCase() : null;
+
+    // If role is specified, only check that specific user type
+    // Otherwise, check all user types (admin, moderator, employee, trader, client) simultaneously
+    let admin = null, moderator = null, employee = null, trader = null, client = null;
+
+    if (requestedRole === 'ADMIN') {
+      admin = await prisma.admin.findUnique({ where: { email } });
+    } else if (requestedRole === 'MODERATOR') {
+      moderator = await prisma.moderator.findUnique({ where: { email } });
+    } else if (requestedRole === 'EMPLOYEE') {
+      employee = await prisma.employee.findUnique({ where: { email } });
+    } else if (requestedRole === 'TRADER') {
+      trader = await prisma.trader.findUnique({ where: { email } });
+    } else if (requestedRole === 'CLIENT' || requestedRole === 'USER') {
+      client = await prisma.client.findUnique({ where: { email } });
+    } else {
+      // No role specified, check all user types
+      [admin, moderator, employee, trader, client] = await Promise.all([
+        prisma.admin.findUnique({ where: { email } }),
+        prisma.moderator.findUnique({ where: { email } }),
+        prisma.employee.findUnique({ where: { email } }),
+        prisma.trader.findUnique({ where: { email } }),
+        prisma.client.findUnique({ where: { email } })
+      ]);
+    }
 
     // Check if email exists in any table
     if (!admin && !moderator && !employee && !trader && !client) {
@@ -193,13 +285,21 @@ const login = async (req, res) => {
       });
     }
 
+    // If role was specified but no matching profile found, return error
+    if (requestedRole && profileChecks.length === 0) {
+      return res.status(401).json({
+        success: false,
+        message: `No ${requestedRole} account found with this email`
+      });
+    }
+
     // Check passwords for all profiles
     const passwordChecks = await Promise.all(
       profileChecks.map(pc => pc.checkPassword())
     );
 
     // Find profiles with matching password
-    const validProfiles = profileChecks
+    let validProfiles = profileChecks
       .map((pc, index) => ({ ...pc, passwordMatch: passwordChecks[index] }))
       .filter(pc => {
         if (!pc.passwordMatch || !pc.user.isActive) return false;
@@ -207,6 +307,40 @@ const login = async (req, res) => {
         if (pc.userType === 'TRADER' && !pc.user.isVerified) return false;
         return true;
       });
+
+    // If role was specified, filter to only that role
+    if (requestedRole) {
+      const beforeFilter = validProfiles.length;
+      validProfiles = validProfiles.filter(pc => pc.userType === requestedRole);
+      // If no valid profile matches the requested role, return error
+      if (validProfiles.length === 0) {
+        const emailExists = admin || moderator || employee || trader || client;
+        if (emailExists) {
+          // Check if password was wrong or account is inactive/unverified
+          const passwordMatched = profileChecks
+            .map((pc, index) => ({ ...pc, passwordMatch: passwordChecks[index] }))
+            .some(pc => pc.passwordMatch && pc.userType === requestedRole);
+          
+          if (!passwordMatched) {
+            return res.status(401).json({
+              success: false,
+              message: 'Invalid password'
+            });
+          }
+          
+          // Password matched but account is inactive or unverified
+          return res.status(403).json({
+            success: false,
+            message: `You do not have access to ${requestedRole} role, or the account is inactive/unverified`
+          });
+        } else {
+          return res.status(401).json({
+            success: false,
+            message: `No ${requestedRole} account found with this email`
+          });
+        }
+      }
+    }
 
     // Better error messages for debugging
     if (validProfiles.length === 0) {
@@ -263,14 +397,48 @@ const login = async (req, res) => {
       });
     }
 
-    // Priority: ADMIN > EMPLOYEE > TRADER > CLIENT
-    const priority = { ADMIN: 0, EMPLOYEE: 1, TRADER: 2, CLIENT: 3 };
-    validProfiles.sort((a, b) => priority[a.userType] - priority[b.userType]);
+    // Ensure we have valid profiles before proceeding
+    if (!validProfiles || validProfiles.length === 0) {
+      logger.error('Login error: validProfiles is empty after all checks');
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Priority: ADMIN > MODERATOR > EMPLOYEE > TRADER > CLIENT
+    const priority = { ADMIN: 0, MODERATOR: 1, EMPLOYEE: 2, TRADER: 3, CLIENT: 4 };
+    validProfiles.sort((a, b) => {
+      const priorityA = priority[a.userType] !== undefined ? priority[a.userType] : 999;
+      const priorityB = priority[b.userType] !== undefined ? priority[b.userType] : 999;
+      return priorityA - priorityB;
+    });
 
     // Primary profile (highest priority)
     const primaryProfile = validProfiles[0];
+    if (!primaryProfile || !primaryProfile.user || !primaryProfile.userType) {
+      logger.error('Login error: primaryProfile is invalid', { 
+        hasProfile: !!primaryProfile,
+        hasUser: !!primaryProfile?.user,
+        userType: primaryProfile?.userType 
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error: Invalid profile data'
+      });
+    }
+    
     user = primaryProfile.user;
     userType = primaryProfile.userType;
+    
+    // Validate user object
+    if (!user || !user.id) {
+      logger.error('Login error: User object is invalid', { user, userType });
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error: Invalid user data'
+      });
+    }
 
     // Collect all linked profiles (Client and Trader can be linked)
     for (const profile of validProfiles) {
@@ -305,8 +473,15 @@ const login = async (req, res) => {
       }
     }
 
-    // Get primary user data
+    // Get primary user data - use user from primaryProfile instead of separate variables
     if (userType === 'ADMIN') {
+      if (!admin) {
+        logger.error('Login error: ADMIN userType but admin is null');
+        return res.status(500).json({
+          success: false,
+          message: 'Internal server error: Admin data not found'
+        });
+      }
       userData = {
         id: admin.id,
         email: admin.email,
@@ -316,6 +491,13 @@ const login = async (req, res) => {
         isSuperAdmin: admin.isSuperAdmin
       };
     } else if (userType === 'EMPLOYEE') {
+      if (!employee) {
+        logger.error('Login error: EMPLOYEE userType but employee is null');
+        return res.status(500).json({
+          success: false,
+          message: 'Internal server error: Employee data not found'
+        });
+      }
       userData = {
         id: employee.id,
         email: employee.email,
@@ -326,6 +508,13 @@ const login = async (req, res) => {
         isActive: employee.isActive
       };
     } else if (userType === 'MODERATOR') {
+      if (!moderator) {
+        logger.error('Login error: MODERATOR userType but moderator is null');
+        return res.status(500).json({
+          success: false,
+          message: 'Internal server error: Moderator data not found'
+        });
+      }
       userData = {
         id: moderator.id,
         email: moderator.email,
@@ -334,6 +523,13 @@ const login = async (req, res) => {
         isActive: moderator.isActive
       };
     } else if (userType === 'TRADER') {
+      if (!trader) {
+        logger.error('Login error: TRADER userType but trader is null');
+        return res.status(500).json({
+          success: false,
+          message: 'Internal server error: Trader data not found'
+        });
+      }
       userData = {
         id: trader.id,
         email: trader.email,
@@ -350,6 +546,13 @@ const login = async (req, res) => {
         linkedProfiles: linkedProfiles.filter(p => p.userType === 'CLIENT')
       };
     } else if (userType === 'CLIENT') {
+      if (!client) {
+        logger.error('Login error: CLIENT userType but client is null');
+        return res.status(500).json({
+          success: false,
+          message: 'Internal server error: Client data not found'
+        });
+      }
       // Check if client has linked trader (trader that references this client)
       let linkedTraderProfile = null;
       if (trader && trader.clientId === client.id) {
@@ -380,6 +583,12 @@ const login = async (req, res) => {
         isEmailVerified: client.isEmailVerified,
         linkedProfiles: linkedTraderProfile ? [linkedTraderProfile] : linkedProfiles.filter(p => p.userType === 'TRADER')
       };
+    } else {
+      logger.error('Login error: Unknown userType', userType);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error: Unknown user type'
+      });
     }
 
     // Update last login for primary profile
@@ -492,9 +701,11 @@ const login = async (req, res) => {
     });
   } catch (error) {
     logger.error('Login error:', error);
+    logger.error('Login error stack:', error.stack);
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: error.message || 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
@@ -558,9 +769,21 @@ const getMe = async (req, res) => {
           isActive: true,
           isEmailVerified: true,
           language: true,
+          preferredCategories: true,
           createdAt: true
         }
       });
+      
+      // Parse preferredCategories if exists
+      if (user && user.preferredCategories) {
+        try {
+          user.preferredCategories = JSON.parse(user.preferredCategories);
+        } catch (e) {
+          user.preferredCategories = [];
+        }
+      } else if (user) {
+        user.preferredCategories = [];
+      }
     } else if (req.userType === 'EMPLOYEE') {
       user = await prisma.employee.findUnique({
         where: { id: req.user.id },
@@ -652,42 +875,16 @@ const updateProfile = async (req, res) => {
           name: true,
           phone: true,
           country: true,
-          city: true
+          city: true,
+          preferredCategories: true
         }
       });
     } else if (req.userType === 'TRADER') {
-      updatedUser = await prisma.trader.update({
-        where: { id: req.user.id },
-        data: {
-          ...(name && { name }),
-          ...(phone && { phone }),
-          ...(country && { country }),
-          ...(city && { city }),
-          ...(req.body.companyName && { companyName: req.body.companyName }),
-          ...(req.body.companyAddress && { companyAddress: req.body.companyAddress }),
-          ...(req.body.bankAccountName && { bankAccountName: req.body.bankAccountName }),
-          ...(req.body.bankAccountNumber && { bankAccountNumber: req.body.bankAccountNumber }),
-          ...(req.body.bankName && { bankName: req.body.bankName }),
-          ...(req.body.bankAddress && { bankAddress: req.body.bankAddress }),
-          ...(req.body.bankCode && { bankCode: req.body.bankCode }),
-          ...(req.body.swiftCode && { swiftCode: req.body.swiftCode })
-        },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          country: true,
-          city: true,
-          companyName: true,
-          companyAddress: true,
-          bankAccountName: true,
-          bankAccountNumber: true,
-          bankName: true,
-          bankAddress: true,
-          bankCode: true,
-          swiftCode: true
-        }
+      // Traders cannot update their profile directly
+      // They must submit an update request
+      return res.status(403).json({
+        success: false,
+        message: 'Traders cannot update their profile directly. Please submit an update request.'
       });
     } else if (req.userType === 'EMPLOYEE') {
       updatedUser = await prisma.employee.update({
@@ -869,6 +1066,101 @@ const resendVerification = async (req, res) => {
   }
 };
 
+// @desc    Update user preferences (preferredCategories)
+// @route   PUT /api/auth/preferences
+// @access  Private (Client only)
+const updatePreferences = async (req, res) => {
+  try {
+    if (req.userType !== 'CLIENT') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only clients can update preferences'
+      });
+    }
+
+    const { preferredCategories } = req.body;
+
+    // Validate preferredCategories if provided
+    let validatedCategories = null;
+    if (preferredCategories !== undefined) {
+      // If null or empty array, clear preferences
+      if (preferredCategories === null || (Array.isArray(preferredCategories) && preferredCategories.length === 0)) {
+        validatedCategories = null;
+      } else {
+        // Ensure it's an array
+        const categoryIds = Array.isArray(preferredCategories) 
+          ? preferredCategories 
+          : (typeof preferredCategories === 'string' ? JSON.parse(preferredCategories) : []);
+        
+        if (!Array.isArray(categoryIds)) {
+          return res.status(400).json({
+            success: false,
+            message: 'preferredCategories must be an array of category IDs'
+          });
+        }
+
+        // Validate that all categories exist and are active
+        const categories = await prisma.category.findMany({
+          where: {
+            id: { in: categoryIds.map(id => String(id)) },
+            isActive: true
+          },
+          select: { id: true }
+        });
+
+        if (categories.length !== categoryIds.length) {
+          return res.status(400).json({
+            success: false,
+            message: 'One or more preferred categories are invalid or inactive'
+          });
+        }
+
+        validatedCategories = JSON.stringify(categoryIds.map(id => String(id)));
+      }
+    } else {
+      // If not provided, don't update
+      return res.status(400).json({
+        success: false,
+        message: 'preferredCategories is required'
+      });
+    }
+
+    const updatedUser = await prisma.client.update({
+      where: { id: req.user.id },
+      data: {
+        preferredCategories: validatedCategories
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        preferredCategories: true,
+        updatedAt: true
+      }
+    });
+
+    // Parse preferredCategories for response
+    const userResponse = {
+      ...updatedUser,
+      preferredCategories: updatedUser.preferredCategories 
+        ? JSON.parse(updatedUser.preferredCategories) 
+        : []
+    };
+
+    res.json({
+      success: true,
+      data: userResponse,
+      message: 'Preferences updated successfully'
+    });
+  } catch (error) {
+    logger.error('Update preferences error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -877,6 +1169,7 @@ module.exports = {
   resetPassword,
   getMe,
   updateProfile,
+  updatePreferences,
   logout,
   refreshToken,
   verifyEmail,

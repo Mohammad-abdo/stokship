@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const asyncHandler = require('../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/response');
+const { createIdWhereClause } = require('../utils/validation');
 const bcrypt = require('bcryptjs');
 
 // @desc    Get admin dashboard stats
@@ -425,7 +426,7 @@ const getUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const user = await prisma.client.findUnique({
-    where: { id: parseInt(id) },
+    where: createIdWhereClause(id),
     select: {
       id: true,
       email: true,
@@ -499,7 +500,7 @@ const updateUser = asyncHandler(async (req, res) => {
   const { name, email, password, phone, countryCode, country, city, language, isActive } = req.body;
 
   const user = await prisma.client.findUnique({
-    where: { id: parseInt(id) }
+    where: createIdWhereClause(id)
   });
 
   if (!user) {
@@ -532,7 +533,7 @@ const updateUser = asyncHandler(async (req, res) => {
   }
 
   const updated = await prisma.client.update({
-    where: { id: parseInt(id) },
+    where: createIdWhereClause(id),
     data: updateData,
     select: {
       id: true,
@@ -559,7 +560,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const user = await prisma.client.findUnique({
-    where: { id: parseInt(id) }
+    where: createIdWhereClause(id)
   });
 
   if (!user) {
@@ -567,7 +568,7 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 
   await prisma.client.delete({
-    where: { id: parseInt(id) }
+    where: createIdWhereClause(id)
   });
 
   successResponse(res, null, 'User deleted successfully');
@@ -585,7 +586,7 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   }
 
   const user = await prisma.client.findUnique({
-    where: { id: parseInt(id) }
+    where: createIdWhereClause(id)
   });
 
   if (!user) {
@@ -593,7 +594,7 @@ const updateUserStatus = asyncHandler(async (req, res) => {
   }
 
   const updated = await prisma.client.update({
-    where: { id: parseInt(id) },
+    where: createIdWhereClause(id),
     data: { isActive: status === 'active' },
     select: {
       id: true,
@@ -668,7 +669,7 @@ const getPayment = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const payment = await prisma.payment.findUnique({
-    where: { id: parseInt(id) },
+    where: createIdWhereClause(id),
     include: {
       deal: {
         include: {

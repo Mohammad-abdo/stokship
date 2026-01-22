@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ROUTES } from "../routes";
 import LanguageSwitcher from "./LanguageSwitcher";
+import { categoryService } from "../services/categoryService";
 import hugeicons from "../assets/imgs/hugeicons_notification-01.png";
 import lucide_box from "../assets/imgs/lucide_box.png";
 import translate from "../assets/imgs/translate.png";
@@ -100,78 +101,77 @@ export default function NavbarBottom() {
     [t]
   );
 
-  const categories = useMemo(
-    () => [
-      
-      
-      
-      
-      
-      {
-        key: "all",
-        label: t("categories.allCategories"),
-        icon: textalign,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.all"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.latest"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.bestseller"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "clothes",
-        label: t("categories.clothes"),
-        icon: shirt,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.menClothes"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.womenClothes"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "shoes",
-        label: t("categories.shoes"),
-        icon: shoes,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.menShoes"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.womenShoes"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "electronics",
-        label: t("categories.electronics"),
-        icon: smartphone,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.mobiles"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.headphones"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.accessories"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "decor",
-        label: t("categories.decor"),
-        icon: lamp,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.lighting"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.paintings"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-      {
-        key: "beds",
-        label: t("categories.furniture"),
-        icon: Vector,
-        arrow: dropdown,
-        children: [
-          { label: t("categories.bedrooms"), to: ROUTES.PRODUCTS_LIST },
-          { label: t("categories.kidsFurniture"), to: ROUTES.PRODUCTS_LIST },
-        ],
-      },
-    ],
-    [t]
-  );
+  const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const response = await categoryService.getCategoryTree();
+        if (response.data && response.data.success) {
+          const categoriesData = response.data.data || [];
+          // Transform categories to match the expected format
+          const transformedCategories = categoriesData.map((cat, index) => {
+            // Convert "category.electronics" to "categories.electronics" for translation
+            const translationKey = cat.nameKey 
+              ? cat.nameKey.replace(/^category\./, 'categories.') 
+              : "categories.unknown";
+            const translatedLabel = t(translationKey);
+            // Check if translation exists (if t() returns the key, translation doesn't exist)
+            const label = translatedLabel !== translationKey ? translatedLabel : (cat.nameKey || t("categories.unknown"));
+            
+            return {
+              key: cat.id || `cat-${index}`,
+              label: label,
+              icon: cat.icon || Vector, // Use default icon if not available
+              arrow: dropdown,
+              children: (cat.children || []).map((child, childIndex) => {
+                if (!child.nameKey) {
+                  return {
+                    label: `Subcategory ${childIndex + 1}`,
+                    to: `${ROUTES.PRODUCTS_LIST}?categoryId=${child.id}`
+                  };
+                }
+                const childTranslationKey = child.nameKey.replace(/^category\./, 'categories.');
+                const childTranslatedLabel = t(childTranslationKey);
+                const childLabel = childTranslatedLabel !== childTranslationKey ? childTranslatedLabel : child.nameKey;
+                
+                return {
+                  label: childLabel,
+                  to: `${ROUTES.PRODUCTS_LIST}?categoryId=${child.id}`
+                };
+              }),
+              id: cat.id,
+              slug: cat.slug
+            };
+          });
+          setCategories(transformedCategories);
+        }
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        // Fallback to default categories if API fails
+        setCategories([
+          {
+            key: "all",
+            label: t("categories.allCategories"),
+            icon: textalign,
+            arrow: dropdown,
+            children: [
+              { label: t("categories.all"), to: ROUTES.PRODUCTS_LIST },
+              { label: t("categories.latest"), to: ROUTES.PRODUCTS_LIST },
+              { label: t("categories.bestseller"), to: ROUTES.PRODUCTS_LIST },
+            ],
+          },
+        ]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, [t]);
 
   useEffect(() => {
     const onDown = (e) => {
@@ -257,7 +257,7 @@ export default function NavbarBottom() {
           {/* Desktop Layout */}
           <div className="hidden lg:flex items-center justify-between gap-2">
             <div className="flex items-center gap-1 shrink-0">
-            {categories.map((item) => {
+            {categories.length > 0 ? categories.map((item) => {
               const isActive = openDropdown?.key === item.key;
               return (
                 <button
@@ -287,7 +287,9 @@ export default function NavbarBottom() {
                   />
                 </button>
               );
-            })}
+            }) : (
+              <div className="text-sm text-slate-500 px-2">جاري التحميل...</div>
+            )}
             </div>
 
             <div className="flex items-center gap-0 flex-1 justify-end overflow-x-auto">
@@ -357,7 +359,7 @@ export default function NavbarBottom() {
           {/* Mobile/Tablet Layout */}
           <div className="lg:hidden flex items-center justify-between gap-1 overflow-x-auto">
             <div className="flex items-center gap-0.5 shrink-0">
-              {categories.slice(0, 3).map((item) => {
+              {categories.length > 0 ? categories.slice(0, 3).map((item) => {
                 const isActive = openDropdown?.key === item.key;
                 return (
                   <button
@@ -380,7 +382,9 @@ export default function NavbarBottom() {
                     </span>
                   </button>
                 );
-              })}
+              }) : (
+                <div className="text-xs text-slate-500 px-2">جاري التحميل...</div>
+              )}
             </div>
 
             <div className="flex items-center gap-0.5 shrink-0">
