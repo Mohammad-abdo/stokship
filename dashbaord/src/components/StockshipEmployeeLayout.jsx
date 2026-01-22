@@ -47,6 +47,7 @@ export default function StockshipEmployeeLayout({ children }) {
   const menuItems = [
     { icon: LayoutDashboard, label: t('sidebar.dashboard'), path: "/stockship/employee/dashboard" },
     { icon: Users, label: t('mediation.employee.traders') || 'My Traders', path: "/stockship/employee/traders" },
+    { icon: FileText, label: t('mediation.trader.updateRequest.reviewTitle') || 'Update Requests', path: "/stockship/employee/trader-update-requests" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/employee/deals" },
     { icon: Package, label: t('mediation.employee.offersValidation') || 'Offers Validation', path: "/stockship/employee/offers" },
     { icon: MapPin, label: 'Shipping Tracking', path: "/stockship/employee/shipping-tracking" },

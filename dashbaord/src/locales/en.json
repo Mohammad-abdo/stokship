@@ -59,7 +59,11 @@
     "assign": "Assign",
     "reassign": "Reassign",
     "saveChanges": "Save Changes",
-    "tryAgain": "Please try again"
+    "tryAgain": "Please try again",
+    "view": "View",
+    "changed": "Changed",
+    "more": "more",
+    "submittedAt": "Submitted At"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -1106,7 +1110,31 @@
           "approved": "Approved",
           "rejected": "Rejected",
           "cancelled": "Cancelled"
-        }
+        },
+        "reviewTitle": "Trader Update Requests",
+        "reviewSubtitle": "Review and approve or reject trader profile update requests",
+        "allStatus": "All Status",
+        "noRequests": "No update requests found",
+        "requestDetails": "Request Details",
+        "traderInfo": "Trader Information",
+        "requestedChanges": "Requested Changes",
+        "reviewNotes": "Review Notes",
+        "reviewNotesPlaceholder": "Add your review notes...",
+        "reviewNotesRequired": "Please provide rejection reason",
+        "approve": "Approve",
+        "reject": "Reject",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "approveFailed": "Failed to approve request",
+        "rejectFailed": "Failed to reject request",
+        "requestId": "Request ID",
+        "requestInfo": "Request Information",
+        "reviewedAt": "Reviewed At",
+        "confirmApprove": "Confirm Approval",
+        "confirmReject": "Confirm Rejection",
+        "confirmApproveMessage": "Are you sure you want to approve this update request? The trader's profile will be updated with the requested changes.",
+        "confirmRejectMessage": "Are you sure you want to reject this update request? This action cannot be undone.",
+        "noChanges": "No changes requested"
       }
     },
     "items": {

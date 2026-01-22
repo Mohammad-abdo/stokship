@@ -59,7 +59,11 @@
     "assign": "تخصيص",
     "reassign": "إعادة تخصيص",
     "saveChanges": "حفظ التغييرات",
-    "tryAgain": "يرجى المحاولة مرة أخرى"
+    "tryAgain": "يرجى المحاولة مرة أخرى",
+    "view": "عرض",
+    "changed": "تم التغيير",
+    "more": "المزيد",
+    "submittedAt": "تم الإرسال في"
   },
   "sidebar": {
     "dashboard": "لوحة التحكم",
@@ -1110,7 +1114,31 @@
           "approved": "موافق عليه",
           "rejected": "مرفوض",
           "cancelled": "ملغى"
-        }
+        },
+        "reviewTitle": "طلبات تعديل بيانات التجار",
+        "reviewSubtitle": "مراجعة وموافقة أو رفض طلبات تعديل بيانات التجار",
+        "allStatus": "جميع الحالات",
+        "noRequests": "لا توجد طلبات تعديل",
+        "requestDetails": "تفاصيل الطلب",
+        "traderInfo": "معلومات التاجر",
+        "requestedChanges": "التغييرات المطلوبة",
+        "reviewNotes": "ملاحظات المراجعة",
+        "reviewNotesPlaceholder": "أضف ملاحظات المراجعة...",
+        "reviewNotesRequired": "يرجى تقديم سبب الرفض",
+        "approve": "موافقة",
+        "reject": "رفض",
+        "approved": "تمت الموافقة",
+        "rejected": "تم الرفض",
+        "approveFailed": "فشل الموافقة على الطلب",
+        "rejectFailed": "فشل رفض الطلب",
+        "requestId": "رقم الطلب",
+        "requestInfo": "معلومات الطلب",
+        "reviewedAt": "تمت المراجعة في",
+        "confirmApprove": "تأكيد الموافقة",
+        "confirmReject": "تأكيد الرفض",
+        "confirmApproveMessage": "هل أنت متأكد من الموافقة على طلب التعديل هذا؟ سيتم تحديث بيانات التاجر بالتغييرات المطلوبة.",
+        "confirmRejectMessage": "هل أنت متأكد من رفض طلب التعديل هذا؟ لا يمكن التراجع عن هذا الإجراء.",
+        "noChanges": "لا توجد تغييرات مطلوبة"
       }
     },
     "items": {

@@ -105,6 +105,8 @@ import VendorSettings from "./pages/stockship/vendor/VendorSettings";
 import EmployeeDashboard from "./pages/stockship/employee/EmployeeDashboard";
 import EmployeeTraders from "./pages/stockship/employee/EmployeeTraders";
 import EmployeeDeals from "./pages/stockship/employee/EmployeeDeals";
+import EmployeeTraderUpdateRequests from "./pages/stockship/employee/EmployeeTraderUpdateRequests";
+import ViewTraderUpdateRequest from "./pages/stockship/employee/ViewTraderUpdateRequest";
 import CreateTrader from "./pages/stockship/employee/CreateTrader";
 import EmployeeViewTrader from "./pages/stockship/employee/ViewTrader";
 import EmployeeViewDeal from "./pages/stockship/employee/ViewDeal";
@@ -863,6 +865,26 @@ function AppRoutes() {
           <MultiProtectedRoute requireEmployee>
             <StockshipEmployeeLayout>
               <EmployeeTraders />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/trader-update-requests"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeTraderUpdateRequests />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/trader-update-requests/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <ViewTraderUpdateRequest />
             </StockshipEmployeeLayout>
           </MultiProtectedRoute>
         }
