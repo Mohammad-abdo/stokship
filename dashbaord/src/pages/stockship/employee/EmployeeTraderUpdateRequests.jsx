@@ -31,7 +31,7 @@ const EmployeeTraderUpdateRequests = () => {
   const [requests, setRequests] = useState([]);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('PENDING');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useEffect(() => {
     if (user?.id) {

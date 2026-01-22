@@ -18,9 +18,14 @@ import {
   User,
   Calendar,
   X,
-  FileText
+  FileText,
+  Download,
+  Printer,
+  FileSpreadsheet,
+  Share2,
+  Loader2
 } from 'lucide-react';
-import { dealApi } from '@/lib/mediationApi';
+import { dealApi, invoiceApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
 
 const TraderPayments = () => {
@@ -34,6 +39,8 @@ const TraderPayments = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [downloadingInvoice, setDownloadingInvoice] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -147,6 +154,195 @@ const TraderPayments = () => {
     setShowDetailsModal(true);
   };
 
+  const handleDownloadInvoice = async (payment) => {
+    if (!payment.deal?.id) {
+      showToast.error(t('mediation.payments.noDealId') || 'Deal ID not found');
+      return;
+    }
+
+    try {
+      setDownloadingInvoice(true);
+      // First, get invoices for the deal
+      const invoicesResponse = await invoiceApi.getInvoicesByDeal(payment.deal.id);
+      const invoices = invoicesResponse.data?.data || invoicesResponse.data || [];
+      
+      if (invoices.length === 0) {
+        showToast.error(t('mediation.payments.noInvoice') || 'No invoice found for this payment');
+        return;
+      }
+
+      // Get the first invoice (or find the one matching the payment)
+      const invoice = invoices[0];
+      
+      // Download the invoice PDF
+      const response = await invoiceApi.downloadInvoicePDF(invoice.id);
+      
+      // Create blob and download
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoice-${payment.deal.dealNumber || payment.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showToast.success(t('mediation.payments.invoiceDownloaded') || 'Invoice downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      showToast.error(
+        t('mediation.payments.downloadFailed') || 'Failed to download invoice',
+        error.response?.data?.message || 'Please try again'
+      );
+    } finally {
+      setDownloadingInvoice(false);
+    }
+  };
+
+  const handleExportPayments = async () => {
+    try {
+      setExporting(true);
+      
+      // Get all payments (without pagination)
+      const dealsResponse = await dealApi.getDeals({
+        traderId: user.id,
+        page: 1,
+        limit: 10000
+      });
+      
+      let deals = [];
+      if (dealsResponse?.data?.data) {
+        deals = Array.isArray(dealsResponse.data.data) ? dealsResponse.data.data : [];
+      } else if (dealsResponse?.data) {
+        deals = Array.isArray(dealsResponse.data) ? dealsResponse.data : [];
+      }
+      
+      let allPayments = [];
+      deals.forEach(deal => {
+        if (deal.payments && Array.isArray(deal.payments) && deal.payments.length > 0) {
+          deal.payments.forEach(payment => {
+            allPayments.push({
+              ...payment,
+              dealNumber: deal.dealNumber,
+              clientName: deal.client?.name || 'N/A',
+              clientEmail: deal.client?.email || 'N/A'
+            });
+          });
+        }
+      });
+
+      // Filter by status if needed
+      if (statusFilter) {
+        allPayments = allPayments.filter(p => p.status === statusFilter);
+      }
+
+      // Create CSV content
+      const headers = [
+        'Payment ID',
+        'Deal Number',
+        'Client Name',
+        'Client Email',
+        'Amount',
+        'Method',
+        'Status',
+        'Transaction ID',
+        'Created At'
+      ];
+      
+      const rows = allPayments.map(p => [
+        p.id,
+        p.dealNumber || 'N/A',
+        p.clientName,
+        p.clientEmail,
+        (Number(p.amount) || 0).toFixed(2),
+        p.method || 'N/A',
+        p.status || 'N/A',
+        p.transactionId || 'N/A',
+        p.createdAt ? new Date(p.createdAt).toLocaleString() : 'N/A'
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `payments-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      showToast.success(t('mediation.payments.exported') || 'Payments exported successfully');
+    } catch (error) {
+      console.error('Error exporting payments:', error);
+      showToast.error(
+        t('mediation.payments.exportFailed') || 'Failed to export payments',
+        error.response?.data?.message || 'Please try again'
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handlePrintPayment = (payment) => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Payment Receipt - ${payment.deal?.dealNumber || payment.id}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .section { margin-bottom: 20px; }
+            .label { font-weight: bold; color: #666; }
+            .value { margin-top: 5px; font-size: 16px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+            th { background-color: #f5f5f5; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Payment Receipt</h1>
+            <p>Deal Number: ${payment.deal?.dealNumber || payment.id}</p>
+          </div>
+          <div class="section">
+            <div class="label">Amount</div>
+            <div class="value">$${(Number(payment.amount) || 0).toFixed(2)}</div>
+          </div>
+          <div class="section">
+            <div class="label">Payment Method</div>
+            <div class="value">${payment.method || 'N/A'}</div>
+          </div>
+          <div class="section">
+            <div class="label">Status</div>
+            <div class="value">${payment.status || 'N/A'}</div>
+          </div>
+          <div class="section">
+            <div class="label">Transaction ID</div>
+            <div class="value">${payment.transactionId || 'N/A'}</div>
+          </div>
+          <div class="section">
+            <div class="label">Client</div>
+            <div class="value">${payment.deal?.client?.name || payment.client?.name || 'N/A'}</div>
+          </div>
+          <div class="section">
+            <div class="label">Date</div>
+            <div class="value">${formatDate(payment.createdAt)}</div>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+  };
+
   const getStatusBadge = (status) => {
     const statusConfig = {
       PENDING: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: t('mediation.payments.pending') || 'Pending', icon: Clock },
@@ -243,6 +439,33 @@ const TraderPayments = () => {
       >
         <Eye className="w-4 h-4 text-gray-600" />
       </button>
+      {row.deal?.id && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleDownloadInvoice(row);
+          }}
+          disabled={downloadingInvoice}
+          className="p-1.5 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
+          title={t('mediation.payments.downloadInvoice') || 'Download Invoice'}
+        >
+          {downloadingInvoice ? (
+            <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
+          ) : (
+            <Download className="w-4 h-4 text-gray-600" />
+          )}
+        </button>
+      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handlePrintPayment(row);
+        }}
+        className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+        title={t('mediation.payments.print') || 'Print'}
+      >
+        <Printer className="w-4 h-4 text-gray-600" />
+      </button>
     </div>
   );
 
@@ -262,6 +485,22 @@ const TraderPayments = () => {
           <p className="text-muted-foreground mt-2">
             {t('mediation.trader.paymentsDesc') || 'View and track payments from your deals'}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleExportPayments}
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-4 h-4" />
+            )}
+            {t('mediation.payments.export') || 'Export'}
+          </motion.button>
         </div>
       </div>
 
@@ -467,6 +706,27 @@ const TraderPayments = () => {
 
               {/* Modal Footer */}
               <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-2">
+                {selectedPayment.deal?.id && (
+                  <button
+                    onClick={() => handleDownloadInvoice(selectedPayment)}
+                    disabled={downloadingInvoice}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    {downloadingInvoice ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    {t('mediation.payments.downloadInvoice') || 'Download Invoice'}
+                  </button>
+                )}
+                <button
+                  onClick={() => handlePrintPayment(selectedPayment)}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  {t('mediation.payments.print') || 'Print'}
+                </button>
                 <button
                   onClick={() => setShowDetailsModal(false)}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

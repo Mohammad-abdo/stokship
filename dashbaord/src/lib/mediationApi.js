@@ -407,6 +407,29 @@ export const financialApi = {
   }
 };
 
+// ============================================
+// INVOICE API
+// ============================================
+
+export const invoiceApi = {
+  // Get invoices by deal
+  getInvoicesByDeal: (dealId) => {
+    return api.get(`${BASE_URL}/deals/${dealId}/invoices`);
+  },
+
+  // Get invoice by ID
+  getInvoiceById: (id) => {
+    return api.get(`${BASE_URL}/invoices/${id}`);
+  },
+
+  // Download invoice PDF
+  downloadInvoicePDF: (id) => {
+    return api.get(`${BASE_URL}/invoices/${id}/download`, {
+      responseType: 'blob'
+    });
+  }
+};
+
 
 // ============================================
 // CATEGORY API
