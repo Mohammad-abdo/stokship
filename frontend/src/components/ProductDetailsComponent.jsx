@@ -407,7 +407,7 @@ export default function ProductDetailsComponent({ offerId }) {
                     🇨🇳
                   </span>
                   <h1 className="text-base sm:text-lg font-semibold tracking-tight">
-                    {offer.title || (i18n.language === 'ar' ? 'عرض' : 'Offer')}
+                    {offer.title || t("productDetails.offer")}
                   </h1>
                 </div>
                 <div>
@@ -415,9 +415,20 @@ export default function ProductDetailsComponent({ offerId }) {
                     <StarRating value={5} />
                   </div>
                   <p className="text-xs sm:text-sm leading-5 sm:leading-6 text-slate-600">
-                    {offer.description || (i18n.language === 'ar' 
-                      ? 'وصف العرض غير متوفر'
-                      : 'Offer description not available')}
+                    {(() => {
+                      const description = offer.description || '';
+                      // Filter out known static sample text
+                      const staticSampleText = 'This is a sample offer from Dual Profile Trading Co. containing various products for wholesale purchase.';
+                      
+                      if (description && description.trim() !== staticSampleText.trim()) {
+                        return description;
+                      }
+                      
+                      // Show fallback if description is empty or matches static text
+                      return i18n.language === 'ar' 
+                        ? 'وصف العرض غير متوفر'
+                        : 'Offer description not available';
+                    })()}
                   </p>
                   {/* Debug indicator - remove in production */}
                   {process.env.NODE_ENV === 'development' && (
@@ -442,7 +453,7 @@ export default function ProductDetailsComponent({ offerId }) {
                 <div className="flex items-center gap-2 text-slate-700 justify-start">
                   <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="break-words">
-                    {[offer.city || offer.trader?.city, offer.country || offer.trader?.country].filter(Boolean).join('، ') || (i18n.language === 'ar' ? 'الموقع غير محدد' : 'Location not specified')}
+                    {[offer.city || offer.trader?.city, offer.country || offer.trader?.country].filter(Boolean).join('، ') || t("productDetails.locationNotSpecified")}
                   </span>
                 </div>
 
@@ -462,7 +473,7 @@ export default function ProductDetailsComponent({ offerId }) {
                           return `${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
                         }
                       }
-                      return i18n.language === 'ar' ? 'غير محدد' : 'Price on request';
+                      return t("productDetails.priceOnRequest");
                     })()}
                   </div>
                 </div>
@@ -472,7 +483,7 @@ export default function ProductDetailsComponent({ offerId }) {
                   <div className="flex items-center gap-2 text-slate-700 justify-start">
                     <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                     <span className="break-words">
-                      {t("productDetails.sellerLabel")} {offer.trader.companyName || offer.trader.name || (i18n.language === 'ar' ? 'تاجر' : 'Trader')}
+                      {t("productDetails.sellerLabel")} {offer.trader.companyName || offer.trader.name || t("productDetails.trader")}
                     </span>
                   </div>
                 )}
@@ -503,17 +514,6 @@ export default function ProductDetailsComponent({ offerId }) {
                     </div>
                   </div>
                 </Link>
-              )}
-              
-              {/* Make Deal Button */}
-              {/* Make Deal Button - Show for Clients, Unauthenticated, AND Traders (for testing) */}
-              {(!isAuthenticated || user?.userType === 'CLIENT' || user?.userType === 'TRADER') && (
-                <button
-                  onClick={handleMakeDeal}
-                  className="w-full mt-4 rounded-md bg-amber-500 px-4 py-3 text-sm sm:text-base font-bold text-blue-900 hover:bg-amber-600 transition-colors shadow-sm"
-                >
-                  {i18n.language === 'ar' ? 'تقديم طلب' : 'Make Request'}
-                </button>
               )}
             </div>
           </div>
@@ -572,7 +572,7 @@ export default function ProductDetailsComponent({ offerId }) {
                           {t("productDetails.paymentTerms")}
                         </div>
                         <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700 break-words">
-                          {i18n.language === 'ar' ? 'يقبل التفاوض' : 'Accepts Negotiation'}
+                          {t("productDetails.acceptsNegotiation")}
                         </div>
                       </div>
                     )}
@@ -594,7 +594,7 @@ export default function ProductDetailsComponent({ offerId }) {
                         {t("productDetails.mainGoods")}
                       </div>
                       <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700 break-words">
-                        {offer.categoryRelation?.nameKey || offer.category || (i18n.language === 'ar' ? 'عام' : 'General')}
+                        {offer.categoryRelation?.nameKey || offer.category || t("productDetails.general")}
                       </div>
                     </div>
                   </div>
@@ -602,14 +602,25 @@ export default function ProductDetailsComponent({ offerId }) {
               ) : (
                 <div className="p-3 sm:p-4">
                   <div className="text-xs sm:text-sm text-slate-700 whitespace-pre-wrap">
-                    {offer.description || (i18n.language === 'ar' 
-                      ? 'لا يوجد وصف متوفر للبضائع'
-                      : 'No goods description available')}
+                    {(() => {
+                      const description = offer.description || '';
+                      // Filter out known static sample text
+                      const staticSampleText = 'This is a sample offer from Dual Profile Trading Co. containing various products for wholesale purchase.';
+                      
+                      if (description && description.trim() !== staticSampleText.trim()) {
+                        return description;
+                      }
+                      
+                      // Show fallback if description is empty or matches static text
+                      return i18n.language === 'ar' 
+                        ? 'لا يوجد وصف متوفر للبضائع'
+                        : 'No goods description available';
+                    })()}
                   </div>
                   {offer.items && offer.items.length > 0 && (
                     <div className="mt-4 space-y-3">
                       <div className="text-sm font-semibold text-slate-900">
-                        {i18n.language === 'ar' ? 'عناصر العرض:' : 'Offer Items:'}
+                        {t("productDetails.offerItems")}
                       </div>
                       {offer.items.map((item, idx) => (
                         <div key={idx} className="border border-slate-200 rounded-md p-3">
@@ -618,8 +629,8 @@ export default function ProductDetailsComponent({ offerId }) {
                             <div className="text-xs text-slate-600 mt-1">{item.description}</div>
                           )}
                           <div className="text-xs text-slate-500 mt-2">
-                            {item.quantity && `${i18n.language === 'ar' ? 'الكمية' : 'Quantity'}: ${item.quantity} ${item.unit || ''}`}
-                            {item.unitPrice && ` | ${i18n.language === 'ar' ? 'السعر' : 'Price'}: ${item.unitPrice} ${item.currency || ''}`}
+                            {item.quantity && `${t("productDetails.quantity")}: ${item.quantity} ${item.unit || ''}`}
+                            {item.unitPrice && ` | ${t("productDetails.price")}: ${item.unitPrice} ${item.currency || ''}`}
                           </div>
                         </div>
                       ))}

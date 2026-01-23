@@ -21,7 +21,7 @@ export default function SellerProductsPage() {
   const fetchTraderOffers = useCallback(async () => {
     if (!sellerId) {
       console.error("❌ Cannot fetch: sellerId is missing");
-      setError(i18n.language === 'ar' ? 'معرف البائع غير موجود' : 'Seller ID not found');
+      setError(t("sellerProducts.sellerIdNotFound"));
       setLoading(false);
       return;
     }
@@ -155,7 +155,7 @@ export default function SellerProductsPage() {
                 : "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80",
               thumbnails: itemImages.length > 1 ? itemImages.slice(1, 4) : [],
               images: itemImages, // Store all images
-              title: item.productName || item.description || (i18n.language === 'ar' ? 'منتج' : 'Product'),
+              title: item.productName || item.description || t("sellerProducts.product"),
               itemNumber: item.itemNo || item.itemNumber || `#${item.id?.substring(0, 8) || 'N/A'}`,
               country: offer.country || "🇨🇳",
               description: item.description || item.notes || "",
@@ -187,7 +187,7 @@ export default function SellerProductsPage() {
       console.error('Error response:', err.response);
       console.error('Error data:', err.response?.data);
       console.error('Error status:', err.response?.status);
-      setError(err.response?.data?.message || err.message || (i18n.language === 'ar' ? 'فشل تحميل المنتجات' : 'Failed to load products'));
+      setError(err.response?.data?.message || err.message || t("sellerProducts.failedToLoad"));
       setAllItems([]);
     } finally {
       setLoading(false);
@@ -201,7 +201,7 @@ export default function SellerProductsPage() {
       fetchTraderOffers();
     } else {
       console.warn("⚠️ No sellerId provided in URL params");
-      setError(i18n.language === 'ar' ? 'معرف البائع غير موجود' : 'Seller ID not found');
+      setError(t("sellerProducts.sellerIdNotFound"));
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -271,9 +271,7 @@ export default function SellerProductsPage() {
     );
 
     if (selectedItems.length === 0) {
-      alert(i18n.language === 'ar' 
-        ? "يرجى اختيار منتجات للتفاوض عليها" 
-        : "Please select products to negotiate");
+      alert(t("sellerProducts.pleaseSelectProducts"));
       return;
     }
 
@@ -297,9 +295,9 @@ export default function SellerProductsPage() {
       // Send negotiation request for each offer
       const promises = Object.keys(itemsByOffer).map(offerId =>
         offerService.requestNegotiationPublic(offerId, {
-          name: prompt(i18n.language === 'ar' ? "الاسم:" : "Name:") || "Guest",
-          email: prompt(i18n.language === 'ar' ? "البريد الإلكتروني:" : "Email:") || null,
-          phone: prompt(i18n.language === 'ar' ? "رقم الهاتف:" : "Phone:") || null,
+          name: prompt(t("sellerProducts.name")) || "Guest",
+          email: prompt(t("sellerProducts.email")) || null,
+          phone: prompt(t("sellerProducts.phone")) || null,
           notes: notes,
           items: itemsByOffer[offerId]
         })
@@ -307,15 +305,11 @@ export default function SellerProductsPage() {
 
       await Promise.all(promises);
       
-      alert(i18n.language === 'ar' 
-        ? "تم إرسال طلب التفاوض بنجاح! سيتم التواصل معك قريباً." 
-        : "Negotiation request sent successfully! You will be contacted soon.");
+      alert(t("sellerProducts.negotiationSentSuccess"));
       navigate(ROUTES.REQUEST_SENT);
     } catch (error) {
       console.error('Error sending negotiation request:', error);
-      alert(i18n.language === 'ar' 
-        ? "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى." 
-        : "An error occurred while sending the request. Please try again.");
+      alert(t("sellerProducts.errorSendingRequest"));
     } finally {
       setSubmitting(false);
     }
@@ -349,14 +343,14 @@ export default function SellerProductsPage() {
               {/* Debug indicator - remove in production */}
               {process.env.NODE_ENV === 'development' && productState.length > 0 && (
                 <div className="text-xs text-green-600 mt-1">
-                  ✅ {productState.length} {i18n.language === 'ar' ? 'منتج محمل من الخادم' : 'products loaded from backend'}
+                  ✅ {productState.length} {t("sellerProducts.productsLoaded")}
                 </div>
               )}
             </div>
             <Link
               to={ROUTES.HOME}
               className="p-2 hover:bg-white/50 rounded-full transition-colors"
-              aria-label={i18n.language === 'ar' ? 'إغلاق' : 'Close'}
+              aria-label={t("common.close")}
             >
               <X className="h-5 w-5 text-slate-600" />
             </Link>
@@ -367,7 +361,7 @@ export default function SellerProductsPage() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               <span className="ml-3 text-gray-600">
-                {i18n.language === 'ar' ? "جاري التحميل..." : "Loading..."}
+                {t("common.loading")}
               </span>
             </div>
           )}
@@ -378,7 +372,7 @@ export default function SellerProductsPage() {
               <div className="flex items-start gap-3">
                 <div className="flex-1">
                   <h3 className="text-red-800 font-semibold mb-1">
-                    {i18n.language === 'ar' ? 'خطأ في تحميل البيانات' : 'Error Loading Data'}
+                    {t("sellerProducts.errorLoadingData")}
                   </h3>
                   <p className="text-red-700 text-sm">{error}</p>
                   {sellerId && (
@@ -398,7 +392,7 @@ export default function SellerProductsPage() {
                   }}
                   className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
                 >
-                  {i18n.language === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+                  {t("sellerProducts.retry")}
                 </button>
               </div>
             </div>
@@ -411,12 +405,10 @@ export default function SellerProductsPage() {
                 <div className="text-center py-12">
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
                     <p className="text-yellow-800 font-semibold mb-2">
-                      {i18n.language === 'ar' ? "لا توجد منتجات متاحة" : "No products available"}
+                      {t("sellerProducts.noProductsAvailable")}
                     </p>
                     <p className="text-yellow-700 text-sm">
-                      {i18n.language === 'ar' 
-                        ? "لم يتم العثور على منتجات لهذا البائع. يرجى المحاولة لاحقاً." 
-                        : "No products found for this seller. Please try again later."}
+                      {t("sellerProducts.noProductsFound")}
                     </p>
                     {sellerId && (
                       <p className="text-yellow-600 text-xs mt-2">
@@ -682,9 +674,7 @@ export default function SellerProductsPage() {
           {summaryData.length === 0 && productState.length > 0 && !loading && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
               <p className="text-blue-800 text-sm">
-                {i18n.language === 'ar' 
-                  ? 'يرجى إدخال سعر التفاوض و/أو كمية التفاوض للمنتجات أعلاه لعرض ملخص الطلب.' 
-                  : 'Please enter negotiation price and/or quantity for products above to see order summary.'}
+                {t("sellerProducts.enterNegotiationData")}
               </p>
             </div>
           )}
@@ -712,7 +702,7 @@ export default function SellerProductsPage() {
               {submitting ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  {i18n.language === 'ar' ? "جاري الإرسال..." : "Sending..."}
+                  {t("sellerProducts.sending")}
                 </>
               ) : (
                 t("sellerProducts.sendNegotiationRequest")

@@ -232,7 +232,7 @@ export default function CompanyAdsComponent({ traderId }) {
         <div className="w-full px-4 sm:px-8 md:px-12 lg:px-24 pt-30">
           <div className="flex items-center justify-center py-12">
             <div className="text-slate-500">
-              {i18n.language === 'ar' ? 'معرف الشركة غير محدد' : 'Company ID not specified'}
+              {t("seller.companyIdNotSpecified")}
             </div>
           </div>
         </div>
@@ -246,17 +246,13 @@ export default function CompanyAdsComponent({ traderId }) {
         <div className="w-full px-4 sm:px-8 md:px-12 lg:px-24 pt-30">
           <div className="flex flex-col items-center justify-center py-12">
             <div className="text-slate-500 text-lg mb-2">
-              {i18n.language === 'ar' ? 'الشركة غير موجودة' : 'Company not found'}
+              {t("seller.companyNotFound")}
             </div>
             <div className="text-slate-400 text-sm">
-              {i18n.language === 'ar' 
-                ? `معرف الشركة: ${traderId}` 
-                : `Company ID: ${traderId}`}
+              {t("seller.companyId")} {traderId}
             </div>
             <div className="text-slate-400 text-xs mt-2">
-              {i18n.language === 'ar' 
-                ? 'تحقق من وحدة تحكم المتصفح للحصول على مزيد من التفاصيل' 
-                : 'Check browser console for more details'}
+              {t("seller.checkConsole")}
             </div>
           </div>
         </div>
@@ -318,7 +314,7 @@ export default function CompanyAdsComponent({ traderId }) {
         <div className="mt-4 pt-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="text-2xl font-bold">
-              {i18n.language === 'ar' ? 'إعلانات الشركة' : 'Company Ads'}
+              {t("seller.companyAds")}
             </div>
 
             <div className="flex flex-wrap items-center justify-around gap-4 text-lg text-slate-900 w-[70%]">
@@ -349,7 +345,7 @@ export default function CompanyAdsComponent({ traderId }) {
                   onChange={() => toggle("featured")}
                   className="h-4 w-4 rounded border-slate-300"
                 />
-                {i18n.language === 'ar' ? 'مميز' : 'Featured'}
+                {t("seller.featured")}
               </label>
 
               <label className="flex items-center gap-2">
@@ -367,7 +363,7 @@ export default function CompanyAdsComponent({ traderId }) {
 
         {/* Offers */}
         <div className={`mt-4 text-lg font-bold text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-          {i18n.language === 'ar' ? 'العروض' : 'Offers'}
+          {t("seller.offers")}
         </div>
 
         <div className="mt-2 overflow-hidden rounded-md border border-slate-200">
@@ -409,14 +405,14 @@ export default function CompanyAdsComponent({ traderId }) {
                           }}
                         />
                         <div className={`absolute top-1 rounded bg-white/90 px-1 py-0.5 text-[8px] font-bold text-red-600 ${currentDir === 'rtl' ? 'left-1' : 'right-1'}`}>
-                          {o.status === 'ACTIVE' ? (i18n.language === 'ar' ? 'متاح' : 'AVAILABLE') : o.status}
+                          {o.status === 'ACTIVE' ? t("seller.available") : o.status}
                         </div>
                       </div>
 
                       {/* Text */}
                       <div className="flex-1" dir={currentDir}>
                         <div className="text-lg font-semibold text-slate-900">
-                          {o.title || (i18n.language === 'ar' ? 'عرض' : 'Offer')}
+                          {o.title || t("seller.offer")}
                         </div>
                         <p className="mt-1 text-lg sm:text-sm leading-6 text-slate-900">
                           {o.description || (i18n.language === 'ar' 
@@ -428,7 +424,7 @@ export default function CompanyAdsComponent({ traderId }) {
                           <span>
                             {[o.city || trader.city, o.country || trader.country]
                               .filter(Boolean)
-                              .join(' - ') || (i18n.language === 'ar' ? 'الموقع غير محدد' : 'Location not specified')}
+                              .join(' - ') || t("seller.locationNotSpecified")}
                           </span>
                         </div>
                       </div>
@@ -439,7 +435,7 @@ export default function CompanyAdsComponent({ traderId }) {
             })
           ) : (
             <div className="p-4 text-center text-slate-500">
-              {i18n.language === 'ar' ? 'لا توجد عروض متاحة' : 'No offers available'}
+              {t("seller.noOffersAvailable")}
             </div>
           )}
         </div>
@@ -450,11 +446,11 @@ export default function CompanyAdsComponent({ traderId }) {
           dir={currentDir}
         >
           {[
-            [trader.traderCode || trader.id || 'N/A', i18n.language === 'ar' ? "رقم التحقق" : "Verification Number"],
-            [trader.isVerified ? (i18n.language === 'ar' ? 'موثق' : 'Verified') : (i18n.language === 'ar' ? 'غير موثق' : 'Not Verified'), i18n.language === 'ar' ? "حالة التحقق" : "Verification Status"],
-            ["5.0", i18n.language === 'ar' ? "تقييم الشركة" : "Company Rating"],
-            [`${trader._count?.offers || 0} ${i18n.language === 'ar' ? 'عروض' : 'offers'}`, i18n.language === 'ar' ? "عدد العروض" : "Number of Offers"],
-            [`${trader._count?.deals || 0} ${i18n.language === 'ar' ? 'صفقات' : 'deals'}`, i18n.language === 'ar' ? "عدد الصفقات" : "Number of Deals"],
+            [trader.traderCode || trader.id || 'N/A', t("seller.verificationNumber")],
+            [trader.isVerified ? t("seller.verified") : t("seller.notVerified"), t("seller.verificationStatus")],
+            ["5.0", t("productDetails.companyRating")],
+            [`${trader._count?.offers || 0} ${t("seller.offers")}`, t("seller.numberOfOffers")],
+            [`${trader._count?.deals || 0} ${t("seller.deals")}`, t("seller.numberOfDeals")],
           ].map(([val, key], i, arr) => (
             <div
               key={i}
