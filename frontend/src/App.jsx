@@ -52,6 +52,7 @@ function AppContent() {
       <Route path={ROUTES.TERMS_AND_POLICIES} element={<TermsPoliciesPage />} />
       <Route path={ROUTES.NOTIFICATION} element={<Notification />} />
       <Route path={ROUTES.COMPANY_PROFILE} element={<CompanyProfilePage />} />
+      <Route path={`${ROUTES.COMPANY_PROFILE}/:traderId`} element={<CompanyProfilePage />} />
       <Route path={ROUTES.ORDER_CHECKOUT} element={<OrderCheckout />} />
       <Route path={ROUTES.ORDERS} element={<OrdersPage />} />
       <Route path={ROUTES.PRODUCTS_LIST} element={<ProductsListPage />} />

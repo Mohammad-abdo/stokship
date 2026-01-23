@@ -33,6 +33,7 @@ export const ROUTES = {
   // Other pages
   NOTIFICATION: "/Notification",
   COMPANY_PROFILE: "/CompanyProfilePage",
+  COMPANY_PROFILE_WITH_ID: "/CompanyProfilePage/:traderId",
   TERMS_AND_POLICIES: "/TermsAndPolicies",
   
   // Seller page (placeholder - can be created later)
@@ -73,5 +74,12 @@ export function getOrderTrackingUrl(orderId: string | number): string {
  */
 export function getSellerProductsUrl(sellerId: string | number): string {
   return `${ROUTES.SELLER_PRODUCTS}/${sellerId}`;
+}
+
+/**
+ * Helper function to generate company profile URL
+ */
+export function getCompanyProfileUrl(traderId: string | number): string {
+  return `${ROUTES.COMPANY_PROFILE}/${traderId}`;
 }
 

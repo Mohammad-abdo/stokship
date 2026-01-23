@@ -115,11 +115,15 @@ import EmployeeViewOffer from "./pages/stockship/employee/EmployeeViewOffer";
 import EmployeeShippingTracking from "./pages/stockship/employee/EmployeeShippingTracking";
 import EmployeeViewShippingTracking from "./pages/stockship/employee/EmployeeViewShippingTracking";
 import EmployeePayments from "./pages/stockship/employee/EmployeePayments";
+import EmployeeViewPayment from "./pages/stockship/employee/EmployeeViewPayment";
 import EmployeeSettings from "./pages/stockship/employee/EmployeeSettings";
 import EmployeeCategories from "./pages/stockship/employee/EmployeeCategories";
 import EmployeeCreateCategory from "./pages/stockship/employee/CreateCategory";
 import EmployeeEditCategory from "./pages/stockship/employee/EditCategory";
 import EmployeeViewCategory from "./pages/stockship/employee/ViewCategory";
+import NotFound from "./pages/ErrorPages/NotFound";
+import ServerError from "./pages/ErrorPages/ServerError";
+import Forbidden from "./pages/ErrorPages/Forbidden";
 import TraderDashboard from "./pages/stockship/trader/TraderDashboard";
 import TraderOffers from "./pages/stockship/trader/TraderOffers";
 import CreateOffer from "./pages/stockship/trader/CreateOffer";
@@ -960,6 +964,26 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/stockship/employee/payments/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeViewPayment />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/payments/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeViewPayment />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
         path="/stockship/employee/payments"
         element={
           <MultiProtectedRoute requireEmployee>
@@ -1307,22 +1331,16 @@ function AppRoutes() {
         }
       />
 
+      {/* Error Pages */}
+      <Route path="/404" element={<NotFound />} />
+      <Route path="/500" element={<ServerError />} />
+      <Route path="/403" element={<Forbidden />} />
+
       {/* Root Landing Page */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/offers/:id" element={<PublicViewOffer />} />
       {/* <Route path="/" element={<Navigate to="/multi-login" replace />} /> */}
-      <Route 
-        path="*" 
-        element={
-          <div className="flex items-center justify-center min-h-screen bg-background">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold mb-2">404 - Page Not Found</h1>
-              <p className="text-muted-foreground mb-4">The page you're looking for doesn't exist.</p>
-              <Navigate to={getDefaultRoute} replace />
-            </div>
-          </div>
-        } 
-      />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

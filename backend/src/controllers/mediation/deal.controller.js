@@ -732,8 +732,215 @@ const assignShippingCompany = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @desc    Request Negotiation (Public) - For non-authenticated users
+ * @route   POST /api/offers/:offerId/request-negotiation/public
+ * @access  Public
+ */
+const requestNegotiationPublic = asyncHandler(async (req, res) => {
+  const { offerId } = req.params;
+  const { email, phone, name, notes, items } = req.body; // items: [{offerItemId, quantity, negotiatedPrice}]
+
+  if (!email && !phone) {
+    return errorResponse(res, 'Please provide email or phone number', 400);
+  }
+
+  if (!name) {
+    return errorResponse(res, 'Please provide your name', 400);
+  }
+
+  const offer = await prisma.offer.findUnique({
+    where: { id: offerId },
+    include: {
+      trader: {
+        include: {
+          employee: true
+        }
+      }
+    }
+  });
+
+  if (!offer) {
+    return errorResponse(res, 'Offer not found', 404);
+  }
+
+  if (offer.status !== 'ACTIVE') {
+    return errorResponse(res, 'Offer is not active', 400);
+  }
+
+  // Check if client exists, if not create one
+  let client = await prisma.client.findFirst({
+    where: {
+      OR: [
+        { email: email || undefined },
+        { phone: phone || undefined }
+      ]
+    }
+  });
+
+  if (!client) {
+    // Create new client account
+    client = await prisma.client.create({
+      data: {
+        name,
+        email: email || null,
+        phone: phone || null,
+        isActive: true
+      }
+    });
+  } else {
+    // Update client info if provided
+    await prisma.client.update({
+      where: { id: client.id },
+      data: {
+        name: name || client.name,
+        email: email || client.email,
+        phone: phone || client.phone
+      }
+    });
+  }
+
+  if (!offer.trader.employeeId) {
+    return errorResponse(res, 'Employee not found for this trader', 500);
+  }
+
+  // Generate deal number
+  const dealCount = await prisma.deal.count();
+  const dealNumber = `DEAL-${new Date().getFullYear()}-${String(dealCount + 1).padStart(6, '0')}`;
+
+  // Create deal
+  const deal = await prisma.deal.create({
+    data: {
+      dealNumber,
+      offerId: offer.id,
+      traderId: offer.traderId,
+      clientId: client.id,
+      employeeId: offer.trader.employeeId,
+      status: 'NEGOTIATION',
+      notes: notes || null,
+      totalCartons: 0,
+      totalCBM: 0
+    },
+    include: {
+      trader: {
+        select: {
+          id: true,
+          name: true,
+          companyName: true,
+          traderCode: true
+        }
+      },
+      client: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          employeeCode: true
+        }
+      },
+      offer: {
+        select: {
+          id: true,
+          title: true
+        }
+      }
+    }
+  });
+
+  // Add deal items if provided
+  if (items && Array.isArray(items) && items.length > 0) {
+    const dealItems = [];
+    for (const item of items) {
+      const offerItem = await prisma.offerItem.findUnique({
+        where: { id: item.offerItemId }
+      });
+
+      if (offerItem && offerItem.offerId === offer.id) {
+        dealItems.push({
+          dealId: deal.id,
+          offerItemId: item.offerItemId,
+          quantity: parseInt(item.quantity) || offerItem.quantity,
+          cartons: Math.ceil((parseInt(item.quantity) || offerItem.quantity) / (offerItem.packageQuantity || 1)),
+          negotiatedPrice: parseFloat(item.negotiatedPrice) || parseFloat(offerItem.unitPrice) || 0,
+          notes: item.notes || null
+        });
+      }
+    }
+
+    if (dealItems.length > 0) {
+      await prisma.dealItem.createMany({
+        data: dealItems
+      });
+
+      // Calculate totals - fetch all offer items first
+      const offerItemIds = dealItems.map(item => item.offerItemId);
+      const offerItemsData = await prisma.offerItem.findMany({
+        where: { id: { in: offerItemIds } }
+      });
+      const offerItemsMap = new Map(offerItemsData.map(item => [item.id, item]));
+
+      const totalCartons = dealItems.reduce((sum, item) => sum + item.cartons, 0);
+      const totalCBM = dealItems.reduce((sum, item) => {
+        const offerItem = offerItemsMap.get(item.offerItemId);
+        if (!offerItem) return sum;
+        const itemCBM = parseFloat(offerItem.totalCBM || 0);
+        const ratio = item.quantity / (offerItem.quantity || 1);
+        return sum + (itemCBM * ratio);
+      }, 0);
+
+      await prisma.deal.update({
+        where: { id: deal.id },
+        data: {
+          totalCartons,
+          totalCBM: totalCBM
+        }
+      });
+    }
+  }
+
+  // Create initial status history
+  await prisma.dealStatusHistory.create({
+    data: {
+      dealId: deal.id,
+      status: 'NEGOTIATION',
+      description: 'Deal created - negotiation started (public request)',
+      changedBy: client.id,
+      changedByType: 'CLIENT'
+    }
+  });
+
+  // Log activity
+  await prisma.activityLog.create({
+    data: {
+      userId: client.id,
+      userType: 'CLIENT',
+      action: 'DEAL_CREATED',
+      entityType: 'DEAL',
+      entityId: deal.id,
+      description: `Client (${name}) requested negotiation for offer: ${offer.title}`,
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent')
+    }
+  });
+
+  // Notify trader and employee
+  await notifyDealCreated(deal, client, deal.trader, offer.trader.employee);
+
+  successResponse(res, {
+    deal,
+    message: 'Negotiation request created successfully. You will be contacted soon.'
+  }, 'Negotiation request created successfully', 201);
+});
+
 module.exports = {
   requestNegotiation,
+  requestNegotiationPublic,
   approveDeal,
   getDealById,
   getDeals,

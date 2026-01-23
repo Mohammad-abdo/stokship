@@ -12,7 +12,7 @@ import {
   Star,
 } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { ROUTES, getSellerProductsUrl } from "../routes";
+import { ROUTES, getSellerProductsUrl, getCompanyProfileUrl } from "../routes";
 import { offerService } from "../services/offerService";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -65,11 +65,55 @@ export default function ProductDetailsComponent({ offerId }) {
   const fetchOffer = useCallback(async () => {
     try {
       setLoading(true);
+      console.log("🔄 Fetching offer with ID:", offerId);
+      console.log("📡 API URL will be:", `/offers/${offerId}`);
+      
       const response = await offerService.getOfferById(offerId);
       
-      // Backend returns: { success: true, data: {...}, message: "..." }
-      if (response.data && response.data.success && response.data.data) {
-        const offerData = response.data.data;
+      console.log("📦 Full API response object:", response);
+      console.log("📦 Response.data:", response.data);
+      console.log("📦 Response.data.data:", response.data?.data);
+      console.log("📦 Response.data.data?.offer:", response.data?.data?.offer);
+      console.log("📦 Response.data.success:", response.data?.success);
+      
+      // Backend returns: { success: true, data: { offer: {...}, platformSettings: {...} }, message: "..." }
+      // or: { success: true, data: {...}, message: "..." }
+      let offerData = null;
+      
+      if (response && response.data) {
+        // Check for nested structure: response.data.data.offer
+        if (response.data.data?.offer) {
+          offerData = response.data.data.offer;
+          console.log("Found offer in nested structure (data.data.offer)");
+        } 
+        // Check for direct structure: response.data.data (when data is the offer itself)
+        else if (response.data.data && !response.data.data.platformSettings) {
+          offerData = response.data.data;
+          console.log("Found offer in direct structure (data.data)");
+        }
+        // Check if response.data itself is the offer
+        else if (response.data.id || response.data.title) {
+          offerData = response.data;
+          console.log("Found offer in response.data");
+        }
+        // Check for axios response structure: response.data.data.data
+        else if (response.data.data?.data?.offer) {
+          offerData = response.data.data.data.offer;
+          console.log("Found offer in deeply nested structure");
+        }
+      }
+      
+      if (offerData && (offerData.id || offerData.title)) {
+        console.log("✅ Offer data loaded successfully!");
+        console.log("✅ Offer ID:", offerData.id);
+        console.log("✅ Offer title:", offerData.title);
+        console.log("✅ Offer description:", offerData.description);
+        console.log("✅ Trader data:", offerData.trader);
+        console.log("✅ Trader ID:", offerData.trader?.id);
+        console.log("✅ Trader name:", offerData.trader?.name || offerData.trader?.companyName);
+        console.log("✅ Offer images:", offerData.images);
+        console.log("✅ Offer items count:", offerData.items?.length || 0);
+        console.log("✅ Offer status:", offerData.status);
         setOffer(offerData);
         
         // Helper function to get full image URL
@@ -93,69 +137,118 @@ export default function ProductDetailsComponent({ offerId }) {
 
         // Parse and set images
         let offerImages = [];
+        
+        // Parse offer images
         if (offerData.images) {
           try {
             const parsedImages = typeof offerData.images === 'string' 
               ? JSON.parse(offerData.images) 
               : offerData.images;
-            offerImages = Array.isArray(parsedImages) 
-              ? parsedImages.map(img => getImageUrl(img)).filter(img => img !== null)
-              : [];
-          } catch {
+            if (Array.isArray(parsedImages)) {
+              const validImages = parsedImages
+                .map(img => {
+                  // Handle both string URLs and objects with url property
+                  const imageUrl = typeof img === 'string' ? img : (img?.url || img?.src || img);
+                  return getImageUrl(imageUrl);
+                })
+                .filter(img => img !== null && img !== undefined);
+              offerImages = [...offerImages, ...validImages];
+            }
+          } catch (error) {
+            console.warn("Error parsing offer images:", error);
             offerImages = [];
           }
         }
         
         // Add item images
-        if (offerData.items && offerData.items.length > 0) {
+        if (offerData.items && Array.isArray(offerData.items) && offerData.items.length > 0) {
           offerData.items.forEach(item => {
             if (item.images) {
               try {
                 const itemImages = typeof item.images === 'string' 
                   ? JSON.parse(item.images) 
                   : item.images;
-                const parsedItemImages = Array.isArray(itemImages) 
-                  ? itemImages.map(img => getImageUrl(img)).filter(img => img !== null)
-                  : [];
-                offerImages = [...offerImages, ...parsedItemImages];
-              } catch {
+                if (Array.isArray(itemImages)) {
+                  const parsedItemImages = itemImages
+                    .map(img => {
+                      // Handle both string URLs and objects with url property
+                      const imageUrl = typeof img === 'string' ? img : (img?.url || img?.src || img);
+                      return getImageUrl(imageUrl);
+                    })
+                    .filter(img => img !== null && img !== undefined);
+                  offerImages = [...offerImages, ...parsedItemImages];
+                }
+              } catch (error) {
+                console.warn("Error parsing item images:", error);
                 // Skip invalid images
               }
             }
           });
         }
         
+        console.log("Parsed offer images:", offerImages);
+        
         // Set images with IDs
-        const imagesWithIds = offerImages.map((img, idx) => ({
+        let imagesWithIds = offerImages.map((img, idx) => ({
           id: idx === 0 ? "main" : `t${idx}`,
           src: img,
           alt: offerData.title || "صورة العرض"
         }));
         
+        // If no images found, use placeholder
         if (imagesWithIds.length === 0) {
-          imagesWithIds.push({
+          imagesWithIds = [{
             id: "main",
             src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1600&q=80",
-            alt: "صورة العرض"
-          });
+            alt: offerData.title || "صورة العرض"
+          }];
         }
         
+        console.log("Final images array:", imagesWithIds);
         setImages(imagesWithIds);
         setActiveImageId(imagesWithIds[0].id);
       } else {
-        console.warn("Unexpected response format:", response.data);
+        console.error("❌ No offer data found in response!");
+        console.error("Response structure analysis:", {
+          hasResponse: !!response,
+          hasResponseData: !!response?.data,
+          hasResponseDataData: !!response?.data?.data,
+          hasResponseDataDataOffer: !!response?.data?.data?.offer,
+          responseDataType: typeof response?.data?.data,
+          responseDataKeys: response?.data?.data ? Object.keys(response.data.data) : [],
+          fullResponse: JSON.stringify(response, null, 2)
+        });
+        
+        // Try one more time with different structure
+        if (response?.data && typeof response.data === 'object') {
+          // Maybe the response.data itself is the offer
+          if (response.data.id || response.data.title) {
+            console.log("🔄 Trying response.data as offer...");
+            setOffer(response.data);
+            return;
+          }
+        }
+        
+        setOffer(null);
       }
     } catch (error) {
-      console.error("Error fetching offer:", error);
-      console.error("Error details:", error.response?.data || error.message);
+      console.error("❌ Error fetching offer:", error);
+      console.error("Error response:", error.response);
+      console.error("Error data:", error.response?.data);
+      console.error("Error message:", error.message);
+      setOffer(null);
     } finally {
       setLoading(false);
     }
   }, [offerId]);
 
   useEffect(() => {
+    console.log("🔄 useEffect triggered, offerId:", offerId);
     if (offerId) {
+      console.log("✅ Calling fetchOffer with offerId:", offerId);
       fetchOffer();
+    } else {
+      console.warn("⚠️ No offerId provided!");
     }
   }, [offerId, fetchOffer]);
 
@@ -211,6 +304,10 @@ export default function ProductDetailsComponent({ offerId }) {
                   src={activeImage.src}
                   alt={activeImage.alt}
                   className="h-[240px] sm:h-[320px] w-full object-cover"
+                  onError={(e) => {
+                    // Fallback to placeholder if image fails to load
+                    e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1600&q=80";
+                  }}
                 />
 
                 {/* Floating actions (left side inside image) */}
@@ -239,57 +336,67 @@ export default function ProductDetailsComponent({ offerId }) {
                   </button>
                 </div>
 
-                {/* Left arrow */}
-                <button
-                  onClick={() => {
-                    const idx = images.findIndex((i) => i.id === activeImageId);
-                    const next = (idx - 1 + images.length) % images.length;
-                    setActiveImageId(images[next].id);
-                  }}
-                  className={`absolute top-1/2 -translate-y-1/2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition ${currentDir === 'rtl' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}
-                  aria-label={t("productDetails.previousImage")}
-                >
-                  <ChevronLeft className={`h-4 w-4 sm:h-5 sm:w-5 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
-                </button>
+                {/* Left arrow - Only show if more than one image */}
+                {images.length > 1 && (
+                  <button
+                    onClick={() => {
+                      const idx = images.findIndex((i) => i.id === activeImageId);
+                      const next = (idx - 1 + images.length) % images.length;
+                      setActiveImageId(images[next].id);
+                    }}
+                    className={`absolute top-1/2 -translate-y-1/2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition ${currentDir === 'rtl' ? 'left-2 sm:left-3' : 'right-2 sm:right-3'}`}
+                    aria-label={t("productDetails.previousImage")}
+                  >
+                    <ChevronLeft className={`h-4 w-4 sm:h-5 sm:w-5 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
 
-                {/* Right arrow */}
-                <button
-                  onClick={() => {
-                    const idx = images.findIndex((i) => i.id === activeImageId);
-                    const next = (idx + 1) % images.length;
-                    setActiveImageId(images[next].id);
-                  }}
-                  className={`absolute top-1/2 -translate-y-1/2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition ${currentDir === 'rtl' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}
-                  aria-label={t("productDetails.nextImage")}
-                >
-                  <ChevronRight className={`h-4 w-4 sm:h-5 sm:w-5 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
-                </button>
+                {/* Right arrow - Only show if more than one image */}
+                {images.length > 1 && (
+                  <button
+                    onClick={() => {
+                      const idx = images.findIndex((i) => i.id === activeImageId);
+                      const next = (idx + 1) % images.length;
+                      setActiveImageId(images[next].id);
+                    }}
+                    className={`absolute top-1/2 -translate-y-1/2 inline-flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-slate-200 backdrop-blur hover:bg-white transition ${currentDir === 'rtl' ? 'right-2 sm:right-3' : 'left-2 sm:left-3'}`}
+                    aria-label={t("productDetails.nextImage")}
+                  >
+                    <ChevronRight className={`h-4 w-4 sm:h-5 sm:w-5 ${currentDir === 'ltr' ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
               </div>
 
-              {/* Thumbnails */}
-              <div className="flex items-center justify-start gap-1.5 sm:gap-2 overflow-x-auto pb-2">
-                {images.slice(1).map((img) => {
-                  const active = img.id === activeImageId;
-                  return (
-                    <button
-                      key={img.id}
-                      onClick={() => setActiveImageId(img.id)}
-                      className={`relative overflow-hidden rounded-md border bg-white shadow-sm transition flex-shrink-0 ${
-                        active
-                          ? "border-slate-900 ring-2 ring-slate-900"
-                          : "border-slate-200 hover:border-slate-400"
-                      }`}
-                      aria-label={`${t("productDetails.selectImage")}: ${img.alt}`}
-                    >
-                      <img
-                        src={img.src}
-                        alt={img.alt}
-                        className="h-14 w-20 sm:h-16 sm:w-24 object-cover"
-                      />
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Thumbnails - Show all images including the first one */}
+              {images.length > 0 && (
+                <div className="flex items-center justify-start gap-1.5 sm:gap-2 overflow-x-auto pb-2">
+                  {images.map((img) => {
+                    const active = img.id === activeImageId;
+                    return (
+                      <button
+                        key={img.id}
+                        onClick={() => setActiveImageId(img.id)}
+                        className={`relative overflow-hidden rounded-md border bg-white shadow-sm transition flex-shrink-0 ${
+                          active
+                            ? "border-slate-900 ring-2 ring-slate-900"
+                            : "border-slate-200 hover:border-slate-400"
+                        }`}
+                        aria-label={`${t("productDetails.selectImage")}: ${img.alt}`}
+                      >
+                        <img
+                          src={img.src}
+                          alt={img.alt}
+                          className="h-14 w-20 sm:h-16 sm:w-24 object-cover"
+                          onError={(e) => {
+                            // Fallback to placeholder if image fails to load
+                            e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1600&q=80";
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* LEFT: Info */}
@@ -312,10 +419,16 @@ export default function ProductDetailsComponent({ offerId }) {
                       ? 'وصف العرض غير متوفر'
                       : 'Offer description not available')}
                   </p>
+                  {/* Debug indicator - remove in production */}
+                  {process.env.NODE_ENV === 'development' && (
+                    <div className="mt-2 text-xs text-green-600">
+                      ✅ Data loaded from backend (ID: {offer.id})
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {offer.trader && (
+              {offer.trader && offer.trader.id && (
                 <Link
                   to={getSellerProductsUrl(offer.trader.id)}
                   className="block w-full rounded-md bg-blue-900 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
@@ -325,24 +438,36 @@ export default function ProductDetailsComponent({ offerId }) {
               )}
 
               <div className="space-y-2 sm:space-y-2.5 text-xs sm:text-sm">
-                {(offer.city || offer.country) && (
-                  <div className="flex items-center gap-2 text-slate-700 justify-start">
-                    <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
-                    <span className="break-words">
-                      {[offer.city, offer.country].filter(Boolean).join('، ') || (i18n.language === 'ar' ? 'الموقع غير محدد' : 'Location not specified')}
-                    </span>
-                  </div>
-                )}
+                {/* Location */}
+                <div className="flex items-center gap-2 text-slate-700 justify-start">
+                  <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="break-words">
+                    {[offer.city || offer.trader?.city, offer.country || offer.trader?.country].filter(Boolean).join('، ') || (i18n.language === 'ar' ? 'الموقع غير محدد' : 'Location not specified')}
+                  </span>
+                </div>
 
-                {offer.items && offer.items.length > 0 && (
-                  <div className="text-right">
-                    <div className="text-slate-500">{t("products.price")}</div>
-                    <div className="text-sm sm:text-base font-semibold">
-                      {offer.items[0].amount ? `${parseFloat(offer.items[0].amount).toLocaleString()} ${offer.items[0].currency || 'SAR'}` : 'غير محدد'}
-                    </div>
+                {/* Price - Calculate minimum price from items */}
+                <div className={`text-right ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                  <div className="text-slate-500">{t("products.price")}</div>
+                  <div className="text-sm sm:text-base font-semibold">
+                    {(() => {
+                      if (offer.items && offer.items.length > 0) {
+                        // Calculate minimum unit price from all items
+                        const prices = offer.items
+                          .map(item => parseFloat(item.unitPrice || item.amount || 0))
+                          .filter(price => price > 0);
+                        if (prices.length > 0) {
+                          const minPrice = Math.min(...prices);
+                          const currency = offer.items[0].currency || 'SAR';
+                          return `${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+                        }
+                      }
+                      return i18n.language === 'ar' ? 'غير محدد' : 'Price on request';
+                    })()}
                   </div>
-                )}
+                </div>
 
+                {/* Seller */}
                 {offer.trader && (
                   <div className="flex items-center gap-2 text-slate-700 justify-start">
                     <Building2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
@@ -352,15 +477,16 @@ export default function ProductDetailsComponent({ offerId }) {
                   </div>
                 )}
 
+                {/* Availability */}
                 <div className="flex items-center gap-2 text-slate-700 justify-start">
                   <BadgeCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 text-green-600" />
                   <span>{offer.status === 'ACTIVE' ? t("products.available") : offer.status}</span>
                 </div>
               </div>
 
-              {/* Company card */}
-              {offer.trader && (
-                <Link to={getSellerProductsUrl(offer.trader.id)} className="block">
+              {/* Company card - Redirects to Company Profile Page */}
+              {offer.trader && offer.trader.id && (
+                <Link to={getCompanyProfileUrl(offer.trader.id)} className="block">
                   <div className="w-full rounded-md border border-slate-200 bg-slate-50 p-3 sm:p-4 hover:bg-slate-100 transition cursor-pointer">
                     <div className="flex items-start justify-between gap-3">
                       <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-slate-200 flex-shrink-0" aria-hidden />

@@ -999,6 +999,7 @@ const getTraderOffersPublic = asyncHandler(async (req, res) => {
       skip,
       take: parseInt(limit),
       include: {
+        items: true, // Include actual items, not just count
         _count: {
           select: {
             items: true,
@@ -1011,7 +1012,7 @@ const getTraderOffersPublic = asyncHandler(async (req, res) => {
     prisma.offer.count({ where })
   ]);
 
-  // Parse JSON fields
+  // Parse JSON fields and format items
   const parsedOffers = offers.map(offer => {
     if (offer.images) {
       try {
@@ -1020,6 +1021,30 @@ const getTraderOffersPublic = asyncHandler(async (req, res) => {
         offer.images = [];
       }
     }
+    
+    // Parse item images and notes
+    if (offer.items && Array.isArray(offer.items)) {
+      offer.items = offer.items.map(item => {
+        if (item.images) {
+          try {
+            item.images = typeof item.images === 'string' ? JSON.parse(item.images) : item.images;
+          } catch (e) {
+            item.images = [];
+          }
+        }
+        // Parse notes if it's JSON
+        if (item.notes) {
+          try {
+            const parsedNotes = JSON.parse(item.notes);
+            item.notesData = parsedNotes;
+          } catch (e) {
+            // Keep as string if not JSON
+          }
+        }
+        return item;
+      });
+    }
+    
     return offer;
   });
 

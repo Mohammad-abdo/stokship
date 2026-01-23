@@ -146,6 +146,7 @@ router.post('/traders/offers/:id/upload-excel', protect, authorize('TRADER'), up
 
 // Client routes
 router.post('/offers/:offerId/request-negotiation', protect, authorize('CLIENT'), dealController.requestNegotiation);
+router.post('/offers/:offerId/request-negotiation/public', dealController.requestNegotiationPublic);
 router.get('/deals', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'CLIENT'), dealController.getDeals);
 
 // ============================================
