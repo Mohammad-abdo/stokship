@@ -60,3 +60,4 @@ After creating the `.env` file:
 The development fallback secret is **INSECURE** and should **NEVER** be used in production. Always set a proper `JWT_SECRET` in your `.env` file.
 
 
+

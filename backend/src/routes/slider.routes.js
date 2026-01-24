@@ -21,3 +21,4 @@ router.delete('/:id', protect, authorize('ADMIN'), deleteSlider);
 module.exports = router;
 
 
+

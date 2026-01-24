@@ -166,3 +166,4 @@ npx prisma migrate dev --create-only --name add_preferred_categories_to_client
 5. Add category suggestions based on user browsing history
 
 
+
