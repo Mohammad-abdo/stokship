@@ -111,6 +111,7 @@ import ViewTraderUpdateRequest from "./pages/stockship/employee/ViewTraderUpdate
 import EmployeeOfferUpdateRequests from "./pages/stockship/employee/EmployeeOfferUpdateRequests";
 import ViewOfferUpdateRequest from "./pages/stockship/employee/ViewOfferUpdateRequest";
 import EmployeeOfferSupportTickets from "./pages/stockship/employee/EmployeeOfferSupportTickets";
+import CreateOfferSupportTicketEmployee from "./pages/stockship/employee/CreateOfferSupportTicket";
 import ViewOfferSupportTicketEmployee from "./pages/stockship/employee/ViewOfferSupportTicket";
 import CreateTrader from "./pages/stockship/employee/CreateTrader";
 import EmployeeViewTrader from "./pages/stockship/employee/ViewTrader";
@@ -938,6 +939,16 @@ function AppRoutes() {
           <MultiProtectedRoute requireEmployee>
             <StockshipEmployeeLayout>
               <ViewOfferSupportTicketEmployee />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/offers/:offerId/support-tickets/create"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <CreateOfferSupportTicketEmployee />
             </StockshipEmployeeLayout>
           </MultiProtectedRoute>
         }

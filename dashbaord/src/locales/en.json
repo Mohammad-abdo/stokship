@@ -586,6 +586,9 @@
       "tickets": "Support Tickets",
       "ticket": "Support Ticket",
       "ticketsDesc": "Manage and view support tickets for your offers",
+      "ticketsDescEmployee": "Manage and respond to support tickets. You can also create tickets to communicate with traders.",
+      "createTicketDescEmployee": "Create a support ticket for this offer to communicate with the trader",
+      "ticketInfoDescEmployee": "Support tickets allow you to communicate with traders about issues related to their offers. The trader will be notified and can respond to your ticket.",
       "offerTickets": "Support tickets for this offer",
       "createTicket": "Create Support Ticket",
       "createTicketDesc": "Create a support ticket for this offer",
@@ -638,14 +641,15 @@
       "ticketInfo": "About Support Tickets",
       "ticketInfoDesc": "Support tickets allow you to communicate with employees about issues related to this offer. Your assigned employee will respond to your ticket.",
       "selectOffer": "Select Offer to Create Ticket",
+      "goToOffers": "Go to My Offers",
       "howToCreate": "How to Create a Support Ticket",
       "howToCreateDesc": "You can create a support ticket for an offer in the following ways:",
       "method1": "From Offer Details Page",
-      "method1Desc": "Go to your offers list, click on an ACTIVE offer, then click the 'Create Support Ticket' button.",
+      "method1Desc": "Go to your offers list, click on an ACTIVE offer, then click the 'Create Support Ticket' button (green button).",
       "method2": "From Offers List",
-      "method2Desc": "In your offers list, click the support ticket icon next to any ACTIVE offer.",
+      "method2Desc": "In your offers list, click the support ticket icon (green message icon) next to any ACTIVE offer.",
       "method3": "From Support Tickets Page",
-      "method3Desc": "Go to Support Tickets page, click 'Select Offer', choose an offer, then click 'Create Ticket'."
+      "method3Desc": "Go to Support Tickets page, click 'Go to My Offers' button, then select an ACTIVE offer."
     },
     "categories": {
       "title": "Categories Management",

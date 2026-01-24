@@ -17,7 +17,8 @@ import {
   CheckCircle,
   XCircle,
   Circle,
-  Store
+  Store,
+  Plus
 } from 'lucide-react';
 import { employeeApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
@@ -257,9 +258,18 @@ const EmployeeOfferSupportTickets = () => {
             {t('mediation.support.tickets') || 'Offer Support Tickets'}
           </h1>
           <p className="text-muted-foreground mt-2">
-            {t('mediation.support.ticketsDesc') || 'Manage and respond to support tickets from traders'}
+            {t('mediation.support.ticketsDescEmployee') || 'Manage and respond to support tickets. You can also create tickets to communicate with traders.'}
           </p>
         </div>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate('/stockship/employee/offers')}
+          className={`flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${isRTL ? 'flex-row-reverse' : ''}`}
+        >
+          <Plus className="w-5 h-5" />
+          {t('mediation.support.createTicket') || 'Create Ticket'}
+        </motion.button>
       </div>
 
       {/* Filters */}

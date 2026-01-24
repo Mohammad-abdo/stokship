@@ -263,6 +263,92 @@ const addTraderMessage = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Create offer support ticket (Employee)
+ * @route   POST /api/mediation/employees/offers/:offerId/support-tickets
+ * @access  Private (Employee)
+ */
+const createEmployeeTicket = asyncHandler(async (req, res) => {
+  const employeeId = req.user.id;
+  const { offerId } = req.params;
+  const { subject, message, priority } = req.body;
+
+  if (!subject || !message) {
+    return errorResponse(res, 'Subject and message are required', 400);
+  }
+
+  // Check if offer exists and belongs to a trader assigned to this employee
+  const offer = await prisma.offer.findUnique({
+    where: { id: offerId },
+    include: { 
+      trader: {
+        select: {
+          id: true,
+          employeeId: true
+        }
+      }
+    }
+  });
+
+  if (!offer) {
+    return errorResponse(res, 'Offer not found', 404);
+  }
+
+  // Check if trader is assigned to this employee
+  if (offer.trader.employeeId !== employeeId) {
+    return errorResponse(res, 'Not authorized to create ticket for this offer', 403);
+  }
+
+  // Create ticket with first message
+  const ticket = await prisma.offerSupportTicket.create({
+    data: {
+      offerId,
+      traderId: offer.trader.id,
+      employeeId, // Assign to current employee
+      subject,
+      status: 'OPEN',
+      priority: priority || 'MEDIUM',
+      messages: {
+        create: {
+          senderId: employeeId,
+          senderType: 'EMPLOYEE',
+          message
+        }
+      }
+    },
+    include: {
+      offer: {
+        select: {
+          id: true,
+          title: true,
+          status: true
+        }
+      },
+      trader: {
+        select: {
+          id: true,
+          name: true,
+          companyName: true,
+          traderCode: true
+        }
+      },
+      employee: {
+        select: {
+          id: true,
+          name: true,
+          employeeCode: true
+        }
+      },
+      messages: {
+        take: 1,
+        orderBy: { createdAt: 'desc' }
+      }
+    }
+  });
+
+  return successResponse(res, ticket, 'Support ticket created successfully', 201);
+});
+
+/**
  * @desc    Get all offer support tickets (Employee/Admin)
  * @route   GET /api/mediation/admin/offer-support-tickets
  * @access  Private (Admin, Employee)
@@ -672,6 +758,7 @@ const assignTicket = asyncHandler(async (req, res) => {
 
 module.exports = {
   createTicket,
+  createEmployeeTicket,
   getTraderTickets,
   getTraderTicketById,
   addTraderMessage,

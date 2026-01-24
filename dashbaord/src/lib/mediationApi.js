@@ -201,6 +201,10 @@ export const employeeApi = {
   },
 
   // Offer support ticket functions (Employee/Admin)
+  createOfferSupportTicket: (offerId, data) => {
+    return api.post(`${BASE_URL}/employees/offers/${offerId}/support-tickets`, data);
+  },
+
   getAllOfferSupportTickets: (params = {}) => {
     return api.get(`${BASE_URL}/admin/offer-support-tickets`, { params });
   },

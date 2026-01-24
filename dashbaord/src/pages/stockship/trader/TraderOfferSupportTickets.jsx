@@ -292,6 +292,56 @@ const TraderOfferSupportTickets = () => {
         </div>
       </div>
 
+      {/* Info Card - How to Create Ticket */}
+      {!offerId && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-6">
+            <div className={`space-y-4 ${isRTL ? 'text-right' : 'text-left'}`}>
+              <div className={`flex items-start gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-blue-900 mb-2">
+                    {t('mediation.support.howToCreate') || 'How to Create a Support Ticket'}
+                  </h3>
+                  <p className="text-sm text-blue-800 mb-4">
+                    {t('mediation.support.howToCreateDesc') || 'You can create a support ticket for an offer in the following ways:'}
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="font-medium text-blue-900 text-sm mb-1">
+                        {t('mediation.support.method1') || '1. From Offer Details Page'}
+                      </p>
+                      <p className="text-xs text-blue-800">
+                        {t('mediation.support.method1Desc') || 'Go to your offers list, click on an ACTIVE offer, then click the "Create Support Ticket" button.'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-blue-900 text-sm mb-1">
+                        {t('mediation.support.method2') || '2. From Offers List'}
+                      </p>
+                      <p className="text-xs text-blue-800">
+                        {t('mediation.support.method2Desc') || 'In your offers list, click the support ticket icon (green message icon) next to any ACTIVE offer.'}
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => navigate('/stockship/trader/offers')}
+                        className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+                      >
+                        <Gift className="w-4 h-4" />
+                        {t('mediation.support.goToOffers') || 'Go to My Offers'}
+                      </motion.button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
         <CardContent className="pt-6">

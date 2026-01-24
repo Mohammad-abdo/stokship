@@ -71,14 +71,15 @@ router.use('/inventory', inventoryRoutes);
 router.use('/suppliers', supplierRoutes);
 router.use('/checkout', checkoutRoutes);
 router.use('/points', pointRoutes);
-router.use('/offers', offerRoutes); // Using mediation controller for getOfferById
 router.use('/coupons', couponRoutes);
 router.use('/listings', listingRoutes);
 router.use('/home', homepageRoutes);
 router.use('/companies', companyRoutes);
 router.use('/content', contentRoutes);
-// Mediation platform routes - mount before contentPageRoutes to ensure proper matching
+// Mediation platform routes - mount BEFORE /offers to ensure proper matching
+// This ensures /traders/support-tickets is matched before /offers routes
 router.use('/', mediationRoutes);
+router.use('/offers', offerRoutes); // Using mediation controller for getOfferById
 router.use('/', contentPageRoutes); // Content pages and activity logs routes
 router.use('/translations', translationRoutes);
 router.use('/upload', uploadRoutes);
