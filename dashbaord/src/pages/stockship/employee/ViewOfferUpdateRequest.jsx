@@ -161,6 +161,18 @@ const ViewOfferUpdateRequest = () => {
     const Icon = icon;
     const hasChange = currentValue !== newValue;
     
+    // Helper function to translate category keys
+    const translateValue = (value) => {
+      if (!value) return value;
+      if (typeof value === 'string' && value.startsWith('category.')) {
+        return t(value) || value;
+      }
+      return value;
+    };
+    
+    const translatedCurrent = translateValue(currentValue);
+    const translatedNew = translateValue(newValue);
+    
     return (
       <div className={`p-4 rounded-lg border-2 ${hasChange ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
         <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
@@ -180,7 +192,7 @@ const ViewOfferUpdateRequest = () => {
               {t('common.current') || 'Current'}
             </Label>
             <p className="text-sm text-gray-700 break-words">
-              {currentValue || <span className="text-gray-400 italic">N/A</span>}
+              {translatedCurrent || <span className="text-gray-400 italic">N/A</span>}
             </p>
           </div>
           <div>
@@ -188,7 +200,7 @@ const ViewOfferUpdateRequest = () => {
               {t('common.requested') || 'Requested'}
             </Label>
             <p className={`text-sm break-words ${hasChange ? 'text-blue-700 font-medium' : 'text-gray-700'}`}>
-              {newValue || <span className="text-gray-400 italic">N/A</span>}
+              {translatedNew || <span className="text-gray-400 italic">N/A</span>}
             </p>
           </div>
         </div>
@@ -338,7 +350,9 @@ const ViewOfferUpdateRequest = () => {
                     </Label>
                     <p className="text-base text-gray-900 flex items-center gap-2">
                       <Tag className="w-4 h-4 text-gray-400" />
-                      {offer.category}
+                      {offer.category?.startsWith('category.') 
+                        ? t(offer.category) || offer.category 
+                        : offer.category}
                     </p>
                   </div>
                 )}

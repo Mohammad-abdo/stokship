@@ -69,7 +69,12 @@
     "pending": "Pending",
     "unverified": "Unverified",
     "verified": "Verified",
-    "createdAt": "Created At"
+    "createdAt": "Created At",
+    "current": "Current",
+    "requested": "Requested",
+    "images": "images",
+    "reject": "Reject",
+    "none": "None"
   },
   "sidebar": {
     "dashboard": "Dashboard",
@@ -530,6 +535,7 @@
       "unauthorized": "Not authorized",
       "loadFailed": "Failed to load offer",
       "updateRequest": {
+        "title": "Offer Update Request",
         "reviewTitle": "Offer Update Requests",
         "reviewSubtitle": "Review and approve or reject offer update requests",
         "allStatus": "All Status",
@@ -543,10 +549,10 @@
         "loadFailed": "Failed to load update requests",
         "requestedChanges": "Requested Changes",
         "requestDetails": "Request Details",
-        "offerInfo": "Offer Information",
+        "offerInfo": "Current Offer Information",
         "traderInfo": "Trader Information",
         "reviewNotes": "Review Notes",
-        "reviewNotesPlaceholder": "Add your review notes...",
+        "reviewNotesPlaceholder": "Add review notes (required for rejection)...",
         "reviewNotesRequired": "Please provide rejection reason",
         "approve": "Approve",
         "reject": "Reject",
@@ -556,13 +562,17 @@
         "rejectFailed": "Failed to reject request",
         "requestId": "Request ID",
         "requestInfo": "Request Information",
+        "requestedAt": "Requested At",
         "reviewedAt": "Reviewed At",
         "reviewedBy": "Reviewed by",
         "confirmApprove": "Confirm Approval",
         "confirmReject": "Confirm Rejection",
-        "confirmApproveMessage": "Are you sure you want to approve this update request? The offer will be updated with the requested changes.",
-        "confirmRejectMessage": "Are you sure you want to reject this update request? This action cannot be undone.",
-        "noChanges": "No changes requested"
+        "confirmApproveMessage": "Are you sure you want to approve this update request?",
+        "confirmRejectMessage": "Are you sure you want to reject this update request?",
+        "noChanges": "No changes requested",
+        "changes": "Requested Changes",
+        "existingReviewNotes": "Review Notes",
+        "notFound": "Update request not found"
       }
     },
     "categories": {

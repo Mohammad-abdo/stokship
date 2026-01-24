@@ -69,7 +69,12 @@
     "pending": "قيد الانتظار",
     "unverified": "غير موثق",
     "verified": "موثق",
-    "createdAt": "تاريخ الإنشاء"
+    "createdAt": "تاريخ الإنشاء",
+    "current": "الحالي",
+    "requested": "المطلوب",
+    "images": "صور",
+    "reject": "رفض",
+    "none": "لا يوجد"
   },
   "sidebar": {
     "dashboard": "لوحة التحكم",
@@ -531,6 +536,7 @@
       "unauthorized": "غير مصرح",
       "loadFailed": "فشل تحميل العرض",
       "updateRequest": {
+        "title": "طلب تحديث العرض",
         "reviewTitle": "طلبات تحديث العروض",
         "reviewSubtitle": "مراجعة والموافقة أو رفض طلبات تحديث العروض",
         "allStatus": "جميع الحالات",
@@ -544,10 +550,10 @@
         "loadFailed": "فشل تحميل طلبات التحديث",
         "requestedChanges": "التغييرات المطلوبة",
         "requestDetails": "تفاصيل الطلب",
-        "offerInfo": "معلومات العرض",
+        "offerInfo": "معلومات العرض الحالية",
         "traderInfo": "معلومات التاجر",
         "reviewNotes": "ملاحظات المراجعة",
-        "reviewNotesPlaceholder": "أضف ملاحظات المراجعة...",
+        "reviewNotesPlaceholder": "أضف ملاحظات المراجعة (مطلوب للرفض)...",
         "reviewNotesRequired": "يرجى تقديم سبب الرفض",
         "approve": "موافقة",
         "reject": "رفض",
@@ -557,13 +563,17 @@
         "rejectFailed": "فشل رفض الطلب",
         "requestId": "رقم الطلب",
         "requestInfo": "معلومات الطلب",
+        "requestedAt": "تاريخ الطلب",
         "reviewedAt": "تمت المراجعة في",
         "reviewedBy": "تمت المراجعة بواسطة",
         "confirmApprove": "تأكيد الموافقة",
         "confirmReject": "تأكيد الرفض",
-        "confirmApproveMessage": "هل أنت متأكد من الموافقة على طلب التحديث هذا؟ سيتم تحديث العرض بالتغييرات المطلوبة.",
-        "confirmRejectMessage": "هل أنت متأكد من رفض طلب التحديث هذا؟ لا يمكن التراجع عن هذا الإجراء.",
-        "noChanges": "لم يتم طلب أي تغييرات"
+        "confirmApproveMessage": "هل أنت متأكد من الموافقة على طلب التحديث هذا؟",
+        "confirmRejectMessage": "هل أنت متأكد من رفض طلب التحديث هذا؟",
+        "noChanges": "لم يتم طلب أي تغييرات",
+        "changes": "التغييرات المطلوبة",
+        "existingReviewNotes": "ملاحظات المراجعة",
+        "notFound": "طلب التحديث غير موجود"
       }
     },
     "categories": {
