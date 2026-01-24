@@ -107,6 +107,8 @@ import EmployeeTraders from "./pages/stockship/employee/EmployeeTraders";
 import EmployeeDeals from "./pages/stockship/employee/EmployeeDeals";
 import EmployeeTraderUpdateRequests from "./pages/stockship/employee/EmployeeTraderUpdateRequests";
 import ViewTraderUpdateRequest from "./pages/stockship/employee/ViewTraderUpdateRequest";
+import EmployeeOfferUpdateRequests from "./pages/stockship/employee/EmployeeOfferUpdateRequests";
+import ViewOfferUpdateRequest from "./pages/stockship/employee/ViewOfferUpdateRequest";
 import CreateTrader from "./pages/stockship/employee/CreateTrader";
 import EmployeeViewTrader from "./pages/stockship/employee/ViewTrader";
 import EmployeeViewDeal from "./pages/stockship/employee/ViewDeal";
@@ -128,6 +130,7 @@ import TraderDashboard from "./pages/stockship/trader/TraderDashboard";
 import TraderOffers from "./pages/stockship/trader/TraderOffers";
 import CreateOffer from "./pages/stockship/trader/CreateOffer";
 import TraderViewOffer from "./pages/stockship/trader/TraderViewOffer";
+import TraderEditOfferRequest from "./pages/stockship/trader/TraderEditOfferRequest";
 import TraderDeals from "./pages/stockship/trader/TraderDeals";
 import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
 import TraderPayments from "./pages/stockship/trader/TraderPayments";
@@ -894,6 +897,26 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/stockship/employee/offer-update-requests"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeOfferUpdateRequests />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/offer-update-requests/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <ViewOfferUpdateRequest />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
         path="/stockship/employee/traders/create"
         element={
           <MultiProtectedRoute requireEmployee>
@@ -1134,6 +1157,16 @@ function AppRoutes() {
           <MultiProtectedRoute requireTrader>
             <StockshipTraderLayout>
               <CreateOffer />
+            </StockshipTraderLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/trader/offers/:id/request-edit"
+        element={
+          <MultiProtectedRoute requireTrader>
+            <StockshipTraderLayout>
+              <TraderEditOfferRequest />
             </StockshipTraderLayout>
           </MultiProtectedRoute>
         }

@@ -107,6 +107,13 @@ enum TraderUpdateRequestStatus {
   CANCELLED
 }
 
+enum OfferUpdateRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 enum AuditAction {
   DEAL_CREATED
   DEAL_UPDATED
@@ -188,6 +195,7 @@ model Employee {
   activityLogs          ActivityLog[]          @relation("ActivityLogEmployee")
   auditTrails           AuditTrail[]           @relation("AuditTrailEmployee")
   traderUpdateRequests  TraderUpdateRequest[]  @relation("TraderUpdateRequestReviewer")
+  offerUpdateRequests   OfferUpdateRequest[]   @relation("OfferUpdateRequestReviewer")
   financialTransactions FinancialTransaction[] @relation("FinancialTransactionEmployee")
 
   @@index([createdBy])
@@ -309,6 +317,7 @@ model Offer {
   items            OfferItem[]
   deals            Deal[]
   activityLogs     ActivityLog[] @relation("ActivityLogOffer")
+  updateRequests   OfferUpdateRequest[]
 
   @@index([traderId])
   @@index([status])
@@ -959,6 +968,38 @@ model TraderUpdateRequest {
   reviewer Employee? @relation("TraderUpdateRequestReviewer", fields: [reviewedBy], references: [id])
 
   @@index([traderId])
+  @@index([status])
+  @@index([reviewedBy])
+  @@index([createdAt])
+}
+
+// ============================================
+// OFFER UPDATE REQUESTS
+// ============================================
+
+model OfferUpdateRequest {
+  id       String                  @id @default(uuid())
+  offerId String
+  status  OfferUpdateRequestStatus @default(PENDING)
+
+  // Requested changes (JSON to store all fields)
+  requestedData Json @db.Json
+
+  // Review information
+  reviewedBy     String? // Employee or Admin ID
+  reviewedByType UserType? // EMPLOYEE or ADMIN
+  reviewedAt     DateTime?
+  reviewNotes    String?   @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  offer    Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  reviewer Employee? @relation("OfferUpdateRequestReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([offerId])
   @@index([status])
   @@index([reviewedBy])
   @@index([createdAt])
