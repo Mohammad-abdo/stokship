@@ -29,12 +29,24 @@ const requestNegotiation = asyncHandler(async (req, res) => {
   }
 
   // Get trader's employee
-  const employee = await prisma.employee.findUnique({
-    where: { id: offer.trader.employeeId }
-  });
+  let employee = null;
+  if (offer.trader.employeeId) {
+    employee = await prisma.employee.findUnique({
+      where: { id: offer.trader.employeeId }
+    });
+  }
 
+  // If trader doesn't have an employee, try to find a default employee or assign one
   if (!employee) {
-    return errorResponse(res, 'Employee not found for this trader', 500);
+    // Try to find any active employee as fallback
+    employee = await prisma.employee.findFirst({
+      where: { isActive: true }
+    });
+
+    // If still no employee found, return error
+    if (!employee) {
+      return errorResponse(res, 'No employee available to process this deal. Please contact support.', 500);
+    }
   }
 
   // Generate deal number
@@ -98,18 +110,17 @@ const requestNegotiation = asyncHandler(async (req, res) => {
   });
 
   // Log activity
-  await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: 'CLIENT',
-      action: 'DEAL_CREATED',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      description: `Client requested negotiation for offer: ${offer.title}`,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  const activityLogData = {
+    userType: 'CLIENT',
+    action: 'DEAL_CREATED',
+    entityType: 'DEAL',
+    dealId: deal.id,
+    description: `Client requested negotiation for offer: ${offer.title}`,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+  activityLogData.clientId = req.user.id;
+  await prisma.activityLog.create({ data: activityLogData });
 
   // Notify trader and employee
   await notifyDealCreated(deal, req.user, deal.trader, employee);
@@ -214,23 +225,22 @@ const approveDeal = asyncHandler(async (req, res) => {
   });
 
   // Log activity
-  await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: 'TRADER',
-      action: 'DEAL_APPROVED',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      description: `Trader approved deal: ${deal.dealNumber}`,
-      metadata: JSON.stringify({
-        negotiatedAmount,
-        totalCartons,
-        totalCBM
-      }),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  const activityLogData = {
+    userType: 'TRADER',
+    action: 'DEAL_APPROVED',
+    entityType: 'DEAL',
+    dealId: deal.id,
+    description: `Trader approved deal: ${deal.dealNumber}`,
+    metadata: JSON.stringify({
+      negotiatedAmount,
+      totalCartons,
+      totalCBM
+    }),
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+  activityLogData.traderId = req.user.id;
+  await prisma.activityLog.create({ data: activityLogData });
 
   // Notify client and employee about status change
   await notifyDealStatusChanged(deal, 'APPROVED', 'TRADER');
@@ -506,23 +516,33 @@ const addDealItems = asyncHandler(async (req, res) => {
   });
 
   // Log activity
-  await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: req.userType,
-      action: 'DEAL_ITEMS_UPDATED',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      description: `${req.userType} updated deal items`,
-      metadata: JSON.stringify({
-        itemCount: dealItems.length,
-        totalCartons,
-        totalCBM
-      }),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  const activityLogData = {
+    userType: req.userType,
+    action: 'DEAL_ITEMS_UPDATED',
+    entityType: 'DEAL',
+    dealId: deal.id,
+    description: `${req.userType} updated deal items`,
+    metadata: JSON.stringify({
+      itemCount: dealItems.length,
+      totalCartons,
+      totalCBM
+    }),
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+  
+  // Set the appropriate user ID field based on userType
+  if (req.userType === 'CLIENT') {
+    activityLogData.clientId = req.user.id;
+  } else if (req.userType === 'TRADER') {
+    activityLogData.traderId = req.user.id;
+  } else if (req.userType === 'EMPLOYEE') {
+    activityLogData.employeeId = req.user.id;
+  } else if (req.userType === 'ADMIN') {
+    activityLogData.adminId = req.user.id;
+  }
+  
+  await prisma.activityLog.create({ data: activityLogData });
 
   successResponse(res, updatedDeal, 'Deal items updated successfully');
 });
@@ -580,39 +600,59 @@ const settleDeal = asyncHandler(async (req, res) => {
   });
 
   // Log activity
-  await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: req.userType,
-      action: 'DEAL_SETTLED',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      description: `${req.userType} settled deal ${deal.dealNumber}`,
-      metadata: JSON.stringify({
-        dealNumber: deal.dealNumber,
-        amount: deal.negotiatedAmount
-      }),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  const activityLogData = {
+    userType: req.userType,
+    action: 'DEAL_SETTLED',
+    entityType: 'DEAL',
+    dealId: deal.id,
+    description: `${req.userType} settled deal ${deal.dealNumber}`,
+    metadata: JSON.stringify({
+      dealNumber: deal.dealNumber,
+      amount: deal.negotiatedAmount
+    }),
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+  
+  // Set the appropriate user ID field based on userType
+  if (req.userType === 'CLIENT') {
+    activityLogData.clientId = req.user.id;
+  } else if (req.userType === 'TRADER') {
+    activityLogData.traderId = req.user.id;
+  } else if (req.userType === 'EMPLOYEE') {
+    activityLogData.employeeId = req.user.id;
+  } else if (req.userType === 'ADMIN') {
+    activityLogData.adminId = req.user.id;
+  }
+  
+  await prisma.activityLog.create({ data: activityLogData });
 
   // Create audit trail
-  await prisma.auditTrail.create({
-    data: {
-      userId: req.user.id,
-      userType: req.userType,
-      action: 'DEAL_SETTLED',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      oldValue: JSON.stringify({ status: deal.status }),
-      newValue: JSON.stringify({ status: 'SETTLED', settledAt: new Date() }),
-      description: `Deal ${deal.dealNumber} settled by ${req.userType}`,
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent'),
-      success: true
-    }
-  });
+  const auditTrailData = {
+    userType: req.userType,
+    action: 'DEAL_SETTLED',
+    entityType: 'DEAL',
+    dealId: deal.id,
+    oldValue: JSON.stringify({ status: deal.status }),
+    newValue: JSON.stringify({ status: 'SETTLED', settledAt: new Date() }),
+    description: `Deal ${deal.dealNumber} settled by ${req.userType}`,
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+    success: true
+  };
+  
+  // Set the appropriate user ID field based on userType
+  if (req.userType === 'CLIENT') {
+    auditTrailData.clientId = req.user.id;
+  } else if (req.userType === 'TRADER') {
+    auditTrailData.traderId = req.user.id;
+  } else if (req.userType === 'EMPLOYEE') {
+    auditTrailData.employeeId = req.user.id;
+  } else if (req.userType === 'ADMIN') {
+    auditTrailData.adminId = req.user.id;
+  }
+  
+  await prisma.auditTrail.create({ data: auditTrailData });
 
   // Create status history
   await prisma.dealStatusHistory.create({
@@ -699,24 +739,34 @@ const assignShippingCompany = asyncHandler(async (req, res) => {
 
     // Log activity
     try {
-      await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: req.userType,
-      action: 'DEAL_SHIPPING_ASSIGNED',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      description: shippingCompanyId 
-        ? `${req.userType} assigned shipping company to deal ${deal.dealNumber}`
-        : `${req.userType} removed shipping company assignment from deal ${deal.dealNumber}`,
-      metadata: JSON.stringify({
-        dealNumber: deal.dealNumber,
-        shippingCompanyId: shippingCompanyId || null
-      }),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-    });
+      const activityLogData = {
+        userType: req.userType,
+        action: 'DEAL_SHIPPING_ASSIGNED',
+        entityType: 'DEAL',
+        dealId: deal.id,
+        description: shippingCompanyId 
+          ? `${req.userType} assigned shipping company to deal ${deal.dealNumber}`
+          : `${req.userType} removed shipping company assignment from deal ${deal.dealNumber}`,
+        metadata: JSON.stringify({
+          dealNumber: deal.dealNumber,
+          shippingCompanyId: shippingCompanyId || null
+        }),
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent')
+      };
+      
+      // Set the appropriate user ID field based on userType
+      if (req.userType === 'CLIENT') {
+        activityLogData.clientId = req.user.id;
+      } else if (req.userType === 'TRADER') {
+        activityLogData.traderId = req.user.id;
+      } else if (req.userType === 'EMPLOYEE') {
+        activityLogData.employeeId = req.user.id;
+      } else if (req.userType === 'ADMIN') {
+        activityLogData.adminId = req.user.id;
+      }
+      
+      await prisma.activityLog.create({ data: activityLogData });
       console.log('✅ Activity log created successfully');
     } catch (logError) {
       console.error('⚠️ Failed to create activity log:', logError);
@@ -800,8 +850,24 @@ const requestNegotiationPublic = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!offer.trader.employeeId) {
-    return errorResponse(res, 'Employee not found for this trader', 500);
+  // Get trader's employee or find a default one
+  let employee = null;
+  if (offer.trader.employeeId) {
+    employee = await prisma.employee.findUnique({
+      where: { id: offer.trader.employeeId }
+    });
+  }
+
+  // If trader doesn't have an employee, try to find a default employee
+  if (!employee) {
+    employee = await prisma.employee.findFirst({
+      where: { isActive: true }
+    });
+
+    // If still no employee found, return error
+    if (!employee) {
+      return errorResponse(res, 'No employee available to process this deal. Please contact support.', 500);
+    }
   }
 
   // Generate deal number
@@ -815,7 +881,7 @@ const requestNegotiationPublic = asyncHandler(async (req, res) => {
       offerId: offer.id,
       traderId: offer.traderId,
       clientId: client.id,
-      employeeId: offer.trader.employeeId,
+      employeeId: employee.id,
       status: 'NEGOTIATION',
       notes: notes || null,
       totalCartons: 0,
@@ -918,11 +984,11 @@ const requestNegotiationPublic = asyncHandler(async (req, res) => {
   // Log activity
   await prisma.activityLog.create({
     data: {
-      userId: client.id,
+      clientId: client.id,
       userType: 'CLIENT',
       action: 'DEAL_CREATED',
       entityType: 'DEAL',
-      entityId: deal.id,
+      dealId: deal.id,
       description: `Client (${name}) requested negotiation for offer: ${offer.title}`,
       ipAddress: req.ip,
       userAgent: req.get('user-agent')

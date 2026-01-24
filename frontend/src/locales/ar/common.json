@@ -440,6 +440,7 @@
     "pleaseSelectProducts": "يرجى اختيار منتجات للتفاوض عليها",
     "negotiationSentSuccess": "تم إرسال طلب التفاوض بنجاح! سيتم التواصل معك قريباً.",
     "errorSendingRequest": "حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.",
+    "errorSendingRequestHelp": "يرجى المحاولة مرة أخرى أو الاتصال بالدعم إذا استمرت المشكلة.",
     "sending": "جاري الإرسال...",
     "enterNegotiationData": "يرجى إدخال سعر التفاوض و/أو كمية التفاوض للمنتجات أعلاه لعرض ملخص الطلب.",
     "noProductsFound": "لم يتم العثور على منتجات لهذا البائع. يرجى المحاولة لاحقاً."
@@ -455,6 +456,50 @@
     "title": "الصفحة غير موجودة",
     "description": "عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
     "backToHome": "العودة إلى الصفحة الرئيسية"
+  },
+  "negotiations": {
+    "title": "طلبات التفاوض",
+    "notAuthenticated": "يجب تسجيل الدخول لعرض طلبات التفاوض",
+    "noNegotiations": "لا توجد طلبات تفاوض",
+    "offer": "عرض",
+    "trader": "تاجر",
+    "itemsCount": "عدد العناصر",
+    "requestedAt": "تاريخ الطلب",
+    "proceedToCheckout": "المتابعة للدفع",
+    "tabs": {
+      "all": "الكل",
+      "pending": "قيد الانتظار",
+      "accepted": "مقبول",
+      "rejected": "مرفوض"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "accepted": "مقبول",
+      "rejected": "مرفوض",
+      "cancelled": "ملغي",
+      "negotiating": "قيد التفاوض"
+    },
+    "negotiate": "التفاوض",
+    "backToNegotiations": "العودة إلى طلبات التفاوض",
+    "negotiatingWith": "التفاوض مع",
+    "dealNumber": "رقم الصفقة",
+    "messages": "الرسائل",
+    "noMessages": "لا توجد رسائل بعد",
+    "you": "أنت",
+    "otherParty": "الطرف الآخر",
+    "proposedPrice": "السعر المقترح",
+    "proposedQuantity": "الكمية المقترحة",
+    "textMessage": "رسالة نصية",
+    "priceProposal": "اقتراح سعر",
+    "quantityProposal": "اقتراح كمية",
+    "typeMessage": "اكتب رسالتك هنا...",
+    "enterPrice": "أدخل السعر المقترح",
+    "enterQuantity": "أدخل الكمية المقترحة",
+    "send": "إرسال",
+    "sending": "جاري الإرسال...",
+    "errorSendingMessage": "حدث خطأ أثناء إرسال الرسالة",
+    "negotiationClosed": "تم إغلاق التفاوض على هذه الصفقة",
+    "dealNotFound": "لم يتم العثور على الصفقة"
   },
   "seller": {
     "title": "كن بائعاً",

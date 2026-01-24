@@ -6,12 +6,15 @@ import Header from "../components/Header";
 import FooterArabic from "../components/FooterArabic";
 import { ROUTES } from "../routes";
 import { offerService } from "../services/offerService";
+import { dealService } from "../services/dealService";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function SellerProductsPage() {
   const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
   const { sellerId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [allItems, setAllItems] = useState([]); // Flattened offer items
@@ -292,24 +295,104 @@ export default function SellerProductsPage() {
     try {
       setSubmitting(true);
       
+      // Use authenticated user data if available, otherwise use guest defaults
+      // For public requests, name, email, and phone are required
+      const negotiationData = {
+        name: isAuthenticated && user ? (user.name || user.companyName || "Guest") : "Guest",
+        email: isAuthenticated && user ? (user.email || null) : (user?.email || null),
+        phone: isAuthenticated && user ? (user.phone || null) : (user?.phone || null),
+        notes: notes || null,
+      };
+      
       // Send negotiation request for each offer
-      const promises = Object.keys(itemsByOffer).map(offerId =>
-        offerService.requestNegotiationPublic(offerId, {
-          name: prompt(t("sellerProducts.name")) || "Guest",
-          email: prompt(t("sellerProducts.email")) || null,
-          phone: prompt(t("sellerProducts.phone")) || null,
-          notes: notes,
-          items: itemsByOffer[offerId]
+      // Note: The backend automatically creates a deal when negotiation is requested
+      const negotiationResults = await Promise.all(
+        Object.keys(itemsByOffer).map(async (offerId) => {
+          try {
+            // Send negotiation request - use authenticated endpoint if user is logged in
+            // The backend will automatically create a deal with status 'NEGOTIATION'
+            const negotiationResponse = isAuthenticated
+              ? await offerService.requestNegotiation(offerId, {
+                  notes: notes || null
+                })
+              : await offerService.requestNegotiationPublic(offerId, {
+                  ...negotiationData,
+                  items: itemsByOffer[offerId] // Public endpoint requires items in the request
+                });
+
+            // For authenticated users, add items to the deal after creation
+            let deal = negotiationResponse.data?.data || negotiationResponse.data;
+            if (isAuthenticated && deal?.id && itemsByOffer[offerId]?.length > 0) {
+              try {
+                // Add items to the deal
+                await dealService.addDealItems(deal.id, itemsByOffer[offerId].map(item => ({
+                  offerItemId: item.offerItemId,
+                  quantity: item.quantity,
+                  negotiatedPrice: item.negotiatedPrice
+                })));
+              } catch (itemsError) {
+                console.error('Error adding items to deal:', itemsError);
+                // Continue even if adding items fails
+              }
+            }
+
+            // The response should contain the created deal
+            return {
+              negotiation: negotiationResponse.data,
+              deal: deal
+            };
+          } catch (negotiationError) {
+            console.error(`Error sending negotiation for offer ${offerId}:`, negotiationError);
+            // Log detailed error information
+            if (negotiationError.response) {
+              console.error('Error response:', negotiationError.response.data);
+              console.error('Error status:', negotiationError.response.status);
+            }
+            // Don't throw - continue with other offers even if one fails
+            return {
+              negotiation: null,
+              deal: null,
+              error: negotiationError.response?.data?.message || negotiationError.message
+            };
+          }
         })
       );
-
-      await Promise.all(promises);
       
-      alert(t("sellerProducts.negotiationSentSuccess"));
-      navigate(ROUTES.REQUEST_SENT);
+      // Check if any requests succeeded
+      const successfulRequests = negotiationResults.filter(r => r.negotiation && !r.error);
+      const failedRequests = negotiationResults.filter(r => r.error);
+      
+      if (successfulRequests.length > 0) {
+        // At least one request succeeded
+        if (isAuthenticated) {
+          navigate(ROUTES.NEGOTIATIONS);
+        } else {
+          alert(t("sellerProducts.negotiationSentSuccess"));
+          navigate(ROUTES.HOME);
+        }
+      } else if (failedRequests.length > 0) {
+        // All requests failed
+        const errorMessages = failedRequests.map(r => r.error).filter(Boolean);
+        const errorMessage = errorMessages.length > 0 
+          ? errorMessages[0] 
+          : t("sellerProducts.errorSendingRequest");
+        alert(`${t("sellerProducts.errorSendingRequest")}\n${errorMessage}`);
+      } else {
+        // No requests were made (shouldn't happen)
+        alert(t("sellerProducts.pleaseSelectProducts"));
+      }
     } catch (error) {
       console.error('Error sending negotiation request:', error);
-      alert(t("sellerProducts.errorSendingRequest"));
+      // Extract error message from response
+      let errorMessage = t("sellerProducts.errorSendingRequest");
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show user-friendly error message
+      alert(`${t("sellerProducts.errorSendingRequest")}\n${errorMessage}\n\n${t("sellerProducts.errorSendingRequestHelp") || "Please try again or contact support if the problem persists."}`);
     } finally {
       setSubmitting(false);
     }

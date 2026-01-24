@@ -25,6 +25,8 @@ export const ROUTES = {
   ORDER_CHECKOUT: "/OrderCheckout",
   ORDER_CHECKOUT_TWO: "/OrderCheckoutPageTwo",
   ORDER_TRACKING: "/OrderTrackingCardPage",
+  NEGOTIATIONS: "/NegotiationsPage",
+  NEGOTIATION_DETAIL: "/NegotiationDetail",
   
   // Payment pages
   PAYMENT_ONE: "/PaymentPageOne",

@@ -33,12 +33,26 @@ export const offerService = {
   },
 
   // Request negotiation (public - for non-authenticated users)
+  // Note: mediation routes are mounted at root (/), not /mediation
   requestNegotiationPublic: (offerId, data) => {
-    return api.post(`${MEDIATION_BASE_URL}/offers/${offerId}/request-negotiation/public`, data);
+    return api.post(`/offers/${offerId}/request-negotiation/public`, data);
   },
 
   // Request negotiation (authenticated)
+  // Note: mediation routes are mounted at root (/), not /mediation
   requestNegotiation: (offerId, data) => {
-    return api.post(`${MEDIATION_BASE_URL}/offers/${offerId}/request-negotiation`, data);
+    return api.post(`/offers/${offerId}/request-negotiation`, data);
+  },
+
+  // Get client negotiations (authenticated)
+  // Note: Uses deals endpoint with client filter - deals with status NEGOTIATION are negotiation requests
+  getMyNegotiations: (params = {}) => {
+    // Get deals for current client, which includes negotiation requests
+    return api.get(`/deals`, { 
+      params: {
+        ...params,
+        status: 'NEGOTIATION' // Filter for negotiation status deals
+      }
+    });
   }
 };

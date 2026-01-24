@@ -30,6 +30,8 @@ import TraderOffers from "./pages/trader/TraderOffers";
 import TraderDeals from "./pages/trader/TraderDeals";
 import TraderViewOffer from "./pages/trader/TraderViewOffer";
 import TraderViewDeal from "./pages/trader/TraderViewDeal";
+import NegotiationsPage from "./pages/NegotiationsPage";
+import NegotiationDetailPage from "./pages/NegotiationDetailPage";
 
 function AppContent() {
   const location = useLocation();
@@ -71,6 +73,8 @@ function AppContent() {
       <Route path={ROUTES.MODERATOR_DASHBOARD} element={<ProtectedRoute allowedRoles={['MODERATOR']}><ModeratorDashboard /></ProtectedRoute>} />
       <Route path={ROUTES.PROFILE} element={<ProfilePage />} />
       <Route path={ROUTES.REQUEST_SENT} element={<RequestSent />} />
+      <Route path={ROUTES.NEGOTIATIONS} element={<NegotiationsPage />} />
+      <Route path={`${ROUTES.NEGOTIATION_DETAIL}/:dealId`} element={<NegotiationDetailPage />} />
       <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

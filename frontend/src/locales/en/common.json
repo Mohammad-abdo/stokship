@@ -443,6 +443,7 @@
     "pleaseSelectProducts": "Please select products to negotiate",
     "negotiationSentSuccess": "Negotiation request sent successfully! You will be contacted soon.",
     "errorSendingRequest": "An error occurred while sending the request. Please try again.",
+    "errorSendingRequestHelp": "Please try again or contact support if the problem persists.",
     "sending": "Sending...",
     "enterNegotiationData": "Please enter negotiation price and/or quantity for products above to see order summary.",
     "noProductsFound": "No products found for this seller. Please try again later."
@@ -458,6 +459,50 @@
     "title": "Page Not Found",
     "description": "Sorry, the page you are looking for does not exist or has been moved.",
     "backToHome": "Back to Home Page"
+  },
+  "negotiations": {
+    "title": "Negotiation Requests",
+    "notAuthenticated": "You must be logged in to view negotiation requests",
+    "noNegotiations": "No negotiation requests",
+    "offer": "Offer",
+    "trader": "Trader",
+    "itemsCount": "Items Count",
+    "requestedAt": "Requested At",
+    "proceedToCheckout": "Proceed to Checkout",
+    "tabs": {
+      "all": "All",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected"
+    },
+    "status": {
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "negotiating": "Negotiating"
+    },
+    "negotiate": "Negotiate",
+    "backToNegotiations": "Back to Negotiations",
+    "negotiatingWith": "Negotiating with",
+    "dealNumber": "Deal Number",
+    "messages": "Messages",
+    "noMessages": "No messages yet",
+    "you": "You",
+    "otherParty": "Other Party",
+    "proposedPrice": "Proposed Price",
+    "proposedQuantity": "Proposed Quantity",
+    "textMessage": "Text Message",
+    "priceProposal": "Price Proposal",
+    "quantityProposal": "Quantity Proposal",
+    "typeMessage": "Type your message here...",
+    "enterPrice": "Enter proposed price",
+    "enterQuantity": "Enter proposed quantity",
+    "send": "Send",
+    "sending": "Sending...",
+    "errorSendingMessage": "Error sending message",
+    "negotiationClosed": "Negotiation is closed for this deal",
+    "dealNotFound": "Deal not found"
   },
   "seller": {
     "title": "Become a Seller",

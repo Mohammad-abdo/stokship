@@ -84,23 +84,31 @@ const sendNegotiationMessage = asyncHandler(async (req, res) => {
   });
 
   // Log activity
-  await prisma.activityLog.create({
-    data: {
-      userId: req.user.id,
-      userType: senderType,
-      action: 'NEGOTIATION_MESSAGE',
-      entityType: 'DEAL',
-      entityId: deal.id,
-      description: `${senderType} sent negotiation message`,
-      metadata: JSON.stringify({
-        messageType: negotiation.messageType,
-        hasPrice: !!proposedPrice,
-        hasQuantity: !!proposedQuantity
-      }),
-      ipAddress: req.ip,
-      userAgent: req.get('user-agent')
-    }
-  });
+  const activityLogData = {
+    userType: senderType,
+    action: 'NEGOTIATION_MESSAGE',
+    entityType: 'DEAL',
+    dealId: deal.id,
+    description: `${senderType} sent negotiation message`,
+    metadata: JSON.stringify({
+      messageType: negotiation.messageType,
+      hasPrice: !!proposedPrice,
+      hasQuantity: !!proposedQuantity
+    }),
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent')
+  };
+  
+  // Set the appropriate user ID field based on senderType
+  if (senderType === 'CLIENT') {
+    activityLogData.clientId = req.user.id;
+  } else if (senderType === 'TRADER') {
+    activityLogData.traderId = req.user.id;
+  } else if (senderType === 'EMPLOYEE') {
+    activityLogData.employeeId = req.user.id;
+  }
+  
+  await prisma.activityLog.create({ data: activityLogData });
 
   // Notify recipient and employee
   await notifyNegotiationMessage(deal, req.user.id, senderType);
