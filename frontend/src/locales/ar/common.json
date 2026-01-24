@@ -7,7 +7,9 @@
     "notifications": "الإشعارات",
     "orders": "طلباتي",
     "menu": "القائمة",
-    "search": "بحث"
+    "search": "بحث",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة"
   },
   "hero": {
     "title": "تجارة ناجحة من أول مرة!",
@@ -17,6 +19,8 @@
   "common": {
     "arabic": "العربية",
     "english": "English",
+    "switchToEnglish": "التبديل إلى الإنجليزية",
+    "switchToArabic": "التبديل إلى العربية",
     "submit": "إرسال",
     "cancel": "إلغاء",
     "save": "حفظ",
@@ -31,7 +35,15 @@
     "loading": "جاري التحميل...",
     "error": "حدث خطأ",
     "success": "تم بنجاح",
-    "of": "من"
+    "of": "من",
+    "untitled": "بدون عنوان",
+    "noData": "لا توجد بيانات",
+    "notFound": "غير موجود",
+    "notAvailable": "غير متاح",
+    "dataLoaded": "تم تحميل البيانات",
+    "fromBackend": "من الخادم",
+    "user": "المستخدم",
+    "profile": "الملف الشخصي"
   },
   "auth": {
     "welcomeBack": "مرحباً بعودتك!",
@@ -55,7 +67,9 @@
     "hidePassword": "إخفاء كلمة المرور",
     "allRightsReserved": "جميع الحقوق محفوظة",
     "loggingIn": "جاري تسجيل الدخول...",
-    "loginFailed": "فشل تسجيل الدخول. يرجى التحقق من البريد الإلكتروني وكلمة المرور"
+    "loginFailed": "فشل تسجيل الدخول. يرجى التحقق من البريد الإلكتروني وكلمة المرور",
+    "guestLoginFailed": "فشل تسجيل الدخول كزائر",
+    "registrationFailed": "فشل التسجيل"
   },
   "orders": {
     "title": "طلباتي",
@@ -176,6 +190,8 @@
     "all": "الكل",
     "latest": "الأحدث",
     "bestseller": "الأكثر مبيعاً",
+    "subcategory": "فئة فرعية",
+    "unknown": "غير معروف",
     "shortcuts": "اختصارات",
     "sections": "الأقسام",
     "smartphones": "الهواتف الذكيه",
@@ -206,6 +222,7 @@
     "terms": "الشروط والأحكام",
     "privacy": "سياسة الخصوصية",
     "rights": "جميع الحقوق محفوظة",
+    "designedBy": "صمم بواسطة",
     "description": "منصة للشركات والتجار تعمل على بناء الثقة بين المصانع والتجار، حيث يمكنك عرض بضائعك بالجملة، للتفاوض مباشرةً مع المشترين. ونضمن الصفقات بأمان وسهولة، مع ضمان متابعة الشحن وحماية المدفوعات في كل خطوة.",
     "securePayment": "بيانات الدفع الآمنة",
     "followUs": "تابعنا",
@@ -299,7 +316,9 @@
   },
   "recommended": {
     "title": "منتجات موصى بها",
-    "shortDescription": "وصف مختصر"
+    "shortDescription": "وصف مختصر",
+    "badge": "موصى به",
+    "noProducts": "لا توجد منتجات موصى بها"
   },
   "seller": {
     "title": "كن بائعاً",
@@ -337,6 +356,9 @@
     "relatedProducts": "بضائع ذات صلة",
     "mostPurchased": "الاكثر شراءا",
     "available": "متوفرة",
+    "unavailable": "غير متوفرة",
+    "pending": "قيد الانتظار",
+    "rejected": "مرفوض",
     "company": "شركة",
     "addToFavorites": "إضافة للمفضلة",
     "removeFromFavorites": "إزالة من المفضلة",
@@ -348,6 +370,11 @@
     "home": "الرئيسية",
     "products": "البضائع",
     "productDetails": "تفاصيل المنتج",
+    "offerImage": "صورة العرض",
+    "offerNotFound": "العرض غير موجود",
+    "descriptionNotAvailable": "وصف العرض غير متوفر",
+    "goodsDescriptionNotAvailable": "وصف البضائع غير متوفر",
+    "companyName": "اسم الشركة",
     "addToFavorites": "إضافة إلى المفضلة",
     "removeFromFavorites": "إزالة من المفضلة",
     "share": "مشاركة",
@@ -373,7 +400,8 @@
     "quantity": "الكمية",
     "price": "السعر",
     "makeRequest": "تقديم طلب",
-    "locationNotSpecified": "الموقع غير محدد"
+    "locationNotSpecified": "الموقع غير محدد",
+    "item": "عنصر"
   },
   "sellerProducts": {
     "quantity": "الكمية",
@@ -526,6 +554,28 @@
   "termsPolicies": {
     "title": "الشروط و الاحكام",
     "content": "لوريم إيبسوم دولار سيت أميت، كونسيكتيتور أديبيسينج إليت. سِد دو إيوسمد تمبور إنكيديدنت يو لابوري إت دولوري ماجنا أليكا. يوت إنيم أد مينيم فينيام، كيوس نوسترود إكسرسيتاشن أولامكو لابوريس نيسي أوت أليكيب إكس إيا كومودو كونسيكوات. ديويس أيوتي إيروري دولور إن ريبريهينديريت إن فولوبتاتي فيليت إسي سيليوم دولوري إيو فيوجيات نولا باريتور."
+  },
+  "locations": {
+    "cities": {
+      "riyadh": "الرياض",
+      "jeddah": "جدة",
+      "dammam": "الدمام",
+      "mecca": "مكة",
+      "medina": "المدينة المنورة"
+    },
+    "countries": {
+      "saudiarabia": "المملكة العربية السعودية",
+      "saudi arabia": "المملكة العربية السعودية",
+      "uae": "الإمارات العربية المتحدة",
+      "united arab emirates": "الإمارات العربية المتحدة",
+      "kuwait": "الكويت",
+      "qatar": "قطر",
+      "bahrain": "البحرين",
+      "oman": "عمان",
+      "egypt": "مصر",
+      "jordan": "الأردن",
+      "lebanon": "لبنان"
+    }
   }
 }
 

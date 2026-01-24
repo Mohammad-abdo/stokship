@@ -144,7 +144,7 @@ const StockshipAdminLayout = ({ children }) => {
             {sidebarOpen && (
               <div className={`flex-1 min-w-0 ${isRTL ? 'order-1 text-right' : 'text-left'}`}>
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {adminUser?.name || "Admin"}
+                  {adminUser?.name || t('common.admin') || 'Admin'}
                 </p>
                 <p className="text-xs text-gray-500 truncate">
                   {adminUser?.email || ''}

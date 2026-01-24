@@ -12,7 +12,7 @@ import { offerService } from "../services/offerService";
 import { transformOffersToProducts } from "../utils/offerTransformers";
 
 export default function ProductsCarousel({title, categoryId = null, limit = 10}) {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +67,7 @@ export default function ProductsCarousel({title, categoryId = null, limit = 10})
       {/* Swiper */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-slate-500">جاري التحميل...</div>
+          <div className="text-slate-500">{t("common.loading") || "Loading..."}</div>
         </div>
       ) : products.length > 0 ? (
         <Swiper

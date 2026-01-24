@@ -7,7 +7,9 @@
     "notifications": "Notifications",
     "orders": "My Orders",
     "menu": "Menu",
-    "search": "Search"
+    "search": "Search",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "hero": {
     "title": "Successful Trading from the First Time!",
@@ -17,6 +19,8 @@
   "common": {
     "arabic": "العربية",
     "english": "English",
+    "switchToEnglish": "Switch to English",
+    "switchToArabic": "Switch to Arabic",
     "submit": "Submit",
     "cancel": "Cancel",
     "save": "Save",
@@ -31,7 +35,15 @@
     "loading": "Loading...",
     "error": "An error occurred",
     "success": "Success",
-    "of": "of"
+    "of": "of",
+    "untitled": "Untitled",
+    "noData": "No data available",
+    "notFound": "Not Found",
+    "notAvailable": "N/A",
+    "dataLoaded": "Data loaded",
+    "fromBackend": "from backend",
+    "user": "User",
+    "profile": "Profile"
   },
   "auth": {
     "welcomeBack": "Welcome Back!",
@@ -53,7 +65,10 @@
     "guestLogin": "Continue as Guest",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
-    "allRightsReserved": "All rights reserved"
+    "allRightsReserved": "All rights reserved",
+    "loginFailed": "Login failed. Please check your email and password",
+    "guestLoginFailed": "Guest login failed",
+    "registrationFailed": "Registration failed"
   },
   "orders": {
     "title": "My Orders",
@@ -123,6 +138,9 @@
     "relatedProducts": "Related Products",
     "mostPurchased": "Most Purchased",
     "available": "Available",
+    "unavailable": "Unavailable",
+    "pending": "Pending",
+    "rejected": "Rejected",
     "company": "Company",
     "viewImage": "View Image"
   },
@@ -219,6 +237,8 @@
     "all": "All",
     "latest": "Latest",
     "bestseller": "Bestseller",
+    "subcategory": "Subcategory",
+    "unknown": "Unknown",
     "shortcuts": "Shortcuts",
     "sections": "Sections",
     "smartphones": "Smartphones",
@@ -251,6 +271,7 @@
     "terms": "Terms and Conditions",
     "privacy": "Privacy Policy",
     "rights": "All rights reserved",
+    "designedBy": "Designed by",
     "description": "A platform for companies and traders that works to build trust between factories and traders, where you can display your goods wholesale, to negotiate directly with buyers. We guarantee deals safely and easily, with guaranteed shipping tracking and payment protection at every step.",
     "securePayment": "Secure Payment Data",
     "followUs": "Follow Us",
@@ -344,12 +365,19 @@
   },
   "recommended": {
     "title": "Recommended Products",
-    "shortDescription": "Short description"
+    "shortDescription": "Short description",
+    "badge": "RECOMMENDED",
+    "noProducts": "No recommended products"
   },
   "productDetails": {
     "home": "Home",
     "products": "Products",
     "productDetails": "Product Details",
+    "offerImage": "Offer Image",
+    "offerNotFound": "Offer not found",
+    "descriptionNotAvailable": "Offer description not available",
+    "goodsDescriptionNotAvailable": "No goods description available",
+    "companyName": "Company Name",
     "addToFavorites": "Add to Favorites",
     "removeFromFavorites": "Remove from Favorites",
     "share": "Share",
@@ -375,7 +403,8 @@
     "quantity": "Quantity",
     "price": "Price",
     "makeRequest": "Make Request",
-    "locationNotSpecified": "Location not specified"
+    "locationNotSpecified": "Location not specified",
+    "item": "Item"
   },
   "sellerProducts": {
     "quantity": "Quantity",
@@ -528,6 +557,28 @@
   "termsPolicies": {
     "title": "Terms and Conditions",
     "content": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+  },
+  "locations": {
+    "cities": {
+      "riyadh": "Riyadh",
+      "jeddah": "Jeddah",
+      "dammam": "Dammam",
+      "mecca": "Mecca",
+      "medina": "Medina"
+    },
+    "countries": {
+      "saudiarabia": "Saudi Arabia",
+      "saudi arabia": "Saudi Arabia",
+      "uae": "United Arab Emirates",
+      "united arab emirates": "United Arab Emirates",
+      "kuwait": "Kuwait",
+      "qatar": "Qatar",
+      "bahrain": "Bahrain",
+      "oman": "Oman",
+      "egypt": "Egypt",
+      "jordan": "Jordan",
+      "lebanon": "Lebanon"
+    }
   }
 }
 

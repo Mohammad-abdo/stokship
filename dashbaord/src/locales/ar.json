@@ -77,7 +77,15 @@
     "none": "لا يوجد",
     "items": "عناصر",
     "send": "إرسال",
-    "sending": "جاري الإرسال..."
+    "sending": "جاري الإرسال...",
+    "notifications": "الإشعارات",
+    "noNotifications": "لا توجد إشعارات",
+    "viewAllNotifications": "عرض جميع الإشعارات",
+    "details": "التفاصيل",
+    "item": "عنصر",
+    "quantity": "الكمية",
+    "excelFile": "ملف Excel",
+    "downloadExcel": "تحميل ملف Excel"
   },
   "sidebar": {
     "dashboard": "لوحة التحكم",

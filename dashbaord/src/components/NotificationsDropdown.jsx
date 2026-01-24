@@ -247,7 +247,7 @@ export default function NotificationsDropdown() {
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b">
                 <h3 className="font-semibold">
-                  {language === 'ar' ? 'الإشعارات' : 'Notifications'}
+                  {t('common.notifications') || (language === 'ar' ? 'الإشعارات' : 'Notifications')}
                 </h3>
                 <div className="flex items-center gap-2">
                   {unreadCount > 0 && (
@@ -279,7 +279,7 @@ export default function NotificationsDropdown() {
                 ) : notifications.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     <Bell className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>{language === 'ar' ? 'لا توجد إشعارات' : 'No notifications'}</p>
+                    <p>{t('common.noNotifications') || (language === 'ar' ? 'لا توجد إشعارات' : 'No notifications')}</p>
                   </div>
                 ) : (
                   <div className="divide-y">
@@ -343,7 +343,7 @@ export default function NotificationsDropdown() {
                       setIsOpen(false);
                     }}
                   >
-                    {language === 'ar' ? 'عرض جميع الإشعارات' : 'View All Notifications'}
+                    {t('common.viewAllNotifications') || (language === 'ar' ? 'عرض جميع الإشعارات' : 'View All Notifications')}
                   </Button>
                 </div>
               )}

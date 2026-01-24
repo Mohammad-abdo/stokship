@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 export default function LanguageSwitcher({ className = '', variant = 'button' }) {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const currentLang = i18n.language;
 
   const toggleLanguage = () => {
@@ -19,7 +19,7 @@ export default function LanguageSwitcher({ className = '', variant = 'button' })
             ? 'bg-blue-900 text-white hover:bg-blue-800'
             : 'bg-amber-500 text-blue-900 hover:bg-amber-600'
         } ${className}`}
-        aria-label={currentLang === 'ar' ? 'Switch to English' : 'Switch to Arabic'}
+        aria-label={currentLang === 'ar' ? t('common.switchToEnglish') || 'Switch to English' : t('common.switchToArabic') || 'Switch to Arabic'}
       >
         {currentLang === 'ar' ? 'AR' : 'EN'}
       </button>
@@ -34,7 +34,7 @@ export default function LanguageSwitcher({ className = '', variant = 'button' })
         onClick={() => toggleLanguage()}
         className="w-full text-right block px-4 py-3 text-sm text-slate-700 hover:bg-white"
       >
-        {currentLang === 'ar' ? 'English' : 'العربية'}
+        {currentLang === 'ar' ? t('common.english') || 'English' : t('common.arabic') || 'العربية'}
       </button>
     </div>
   );

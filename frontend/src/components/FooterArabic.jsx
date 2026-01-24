@@ -205,7 +205,7 @@ export default function FooterArabic({
         <div className="mt-12 h-px w-full bg-blue-400/60" />
 
         <div className="py-6 text-center text-sm text-blue-500">
-          All Rights Reserved © Designed by{" "}
+          {t("footer.rights")} © {t("footer.designedBy")}{" "}
           <a 
             href="https://www.qeematech.net/" 
             target="_blank" 

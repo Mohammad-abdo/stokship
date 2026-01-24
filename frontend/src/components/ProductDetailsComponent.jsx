@@ -192,7 +192,7 @@ export default function ProductDetailsComponent({ offerId }) {
         let imagesWithIds = offerImages.map((img, idx) => ({
           id: idx === 0 ? "main" : `t${idx}`,
           src: img,
-          alt: offerData.title || "صورة العرض"
+          alt: offerData.title || t("productDetails.offerImage") || "Offer Image"
         }));
         
         // If no images found, use placeholder
@@ -200,7 +200,7 @@ export default function ProductDetailsComponent({ offerId }) {
           imagesWithIds = [{
             id: "main",
             src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1600&q=80",
-            alt: offerData.title || "صورة العرض"
+            alt: offerData.title || t("productDetails.offerImage") || "Offer Image"
           }];
         }
         
@@ -260,7 +260,7 @@ export default function ProductDetailsComponent({ offerId }) {
         <div className="w-full pt-25 sm:pt-30 md:pt-30 lg:pt-55 xl:pt-55 2xl:pt-55">
           <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
             <div className="flex items-center justify-center py-12">
-              <div className="text-slate-500">جاري التحميل...</div>
+              <div className="text-slate-500">{t("common.loading") || "Loading..."}</div>
             </div>
           </div>
         </div>
@@ -274,7 +274,7 @@ export default function ProductDetailsComponent({ offerId }) {
         <div className="w-full pt-25 sm:pt-30 md:pt-30 lg:pt-55 xl:pt-55 2xl:pt-55">
           <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20">
             <div className="flex items-center justify-center py-12">
-              <div className="text-slate-500">العرض غير موجود</div>
+              <div className="text-slate-500">{t("productDetails.offerNotFound") || t("common.notFound") || "Offer not found"}</div>
             </div>
           </div>
         </div>
@@ -425,15 +425,13 @@ export default function ProductDetailsComponent({ offerId }) {
                       }
                       
                       // Show fallback if description is empty or matches static text
-                      return i18n.language === 'ar' 
-                        ? 'وصف العرض غير متوفر'
-                        : 'Offer description not available';
+                      return t("productDetails.descriptionNotAvailable") || "Offer description not available";
                     })()}
                   </p>
                   {/* Debug indicator - remove in production */}
                   {process.env.NODE_ENV === 'development' && (
                     <div className="mt-2 text-xs text-green-600">
-                      ✅ Data loaded from backend (ID: {offer.id})
+                      {t("common.dataLoaded") || "Data loaded"} {t("common.fromBackend") || "from backend"} (ID: {offer.id})
                     </div>
                   )}
                 </div>
@@ -444,7 +442,15 @@ export default function ProductDetailsComponent({ offerId }) {
                   to={getSellerProductsUrl(offer.trader.id)}
                   className="block w-full rounded-md bg-blue-900 px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 text-center"
                 >
-                  {t("seller.viewProducts")}
+                  {(() => {
+                    const key = "seller.viewProducts";
+                    const translated = t(key);
+                    // If translation returns the key itself, it means translation wasn't found
+                    if (translated === key) {
+                      return i18n.language === 'ar' ? "عرض قائمة البضائع" : "View Products List";
+                    }
+                    return translated;
+                  })()}
                 </Link>
               )}
 
@@ -453,7 +459,24 @@ export default function ProductDetailsComponent({ offerId }) {
                 <div className="flex items-center gap-2 text-slate-700 justify-start">
                   <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                   <span className="break-words">
-                    {[offer.city || offer.trader?.city, offer.country || offer.trader?.country].filter(Boolean).join('، ') || t("productDetails.locationNotSpecified")}
+                    {(() => {
+                      const city = offer.city || offer.trader?.city;
+                      const country = offer.country || offer.trader?.country;
+                      if (!city && !country) {
+                        return t("productDetails.locationNotSpecified");
+                      }
+                      // Localize common locations
+                      const locationParts = [];
+                      if (city) {
+                        const cityKey = `locations.cities.${city.toLowerCase().replace(/\s+/g, '')}`;
+                        locationParts.push(t(cityKey) !== cityKey ? t(cityKey) : city);
+                      }
+                      if (country) {
+                        const countryKey = `locations.countries.${country.toLowerCase().replace(/\s+/g, '')}`;
+                        locationParts.push(t(countryKey) !== countryKey ? t(countryKey) : country);
+                      }
+                      return locationParts.join(i18n.language === 'ar' ? '، ' : ', ');
+                    })()}
                   </span>
                 </div>
 
@@ -470,7 +493,8 @@ export default function ProductDetailsComponent({ offerId }) {
                         if (prices.length > 0) {
                           const minPrice = Math.min(...prices);
                           const currency = offer.items[0].currency || 'SAR';
-                          return `${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+                          const locale = i18n.language === 'ar' ? 'ar-SA' : 'en-US';
+                          return `${minPrice.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
                         }
                       }
                       return t("productDetails.priceOnRequest");
@@ -491,7 +515,17 @@ export default function ProductDetailsComponent({ offerId }) {
                 {/* Availability */}
                 <div className="flex items-center gap-2 text-slate-700 justify-start">
                   <BadgeCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 text-green-600" />
-                  <span>{offer.status === 'ACTIVE' ? t("products.available") : offer.status}</span>
+                  <span>
+                    {offer.status === 'ACTIVE' 
+                      ? t("products.available") 
+                      : offer.status === 'INACTIVE'
+                      ? t("products.unavailable") || "Unavailable"
+                      : offer.status === 'PENDING'
+                      ? t("products.pending") || "Pending"
+                      : offer.status === 'REJECTED'
+                      ? t("products.rejected") || "Rejected"
+                      : offer.status || t("common.notAvailable")}
+                  </span>
                 </div>
               </div>
 
@@ -504,7 +538,7 @@ export default function ProductDetailsComponent({ offerId }) {
 
                       <div className="text-center flex-1 min-w-0">
                         <div className="text-xs sm:text-sm font-semibold tracking-wide text-slate-900 truncate">
-                          {offer.trader.companyName || offer.trader.name || 'COMPANY NAME'}
+                          {offer.trader.companyName || offer.trader.name || t("productDetails.companyName") || "Company Name"}
                         </div>
                         <div className="mt-1.5 sm:mt-2 flex items-center justify-center gap-1 text-amber-500">
                           <Star className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
@@ -562,7 +596,7 @@ export default function ProductDetailsComponent({ offerId }) {
                         {t("productDetails.verificationNumber")}
                       </div>
                       <div className="px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm text-slate-700 break-words">
-                        {offer.trader?.traderCode || offer.id || 'N/A'}
+                        {offer.trader?.traderCode || offer.id || t("common.notAvailable") || "N/A"}
                       </div>
                     </div>
 
@@ -612,9 +646,7 @@ export default function ProductDetailsComponent({ offerId }) {
                       }
                       
                       // Show fallback if description is empty or matches static text
-                      return i18n.language === 'ar' 
-                        ? 'لا يوجد وصف متوفر للبضائع'
-                        : 'No goods description available';
+                      return t("productDetails.goodsDescriptionNotAvailable") || "No goods description available";
                     })()}
                   </div>
                   {offer.items && offer.items.length > 0 && (
@@ -624,7 +656,7 @@ export default function ProductDetailsComponent({ offerId }) {
                       </div>
                       {offer.items.map((item, idx) => (
                         <div key={idx} className="border border-slate-200 rounded-md p-3">
-                          <div className="font-semibold text-slate-900">{item.productName || `Item ${idx + 1}`}</div>
+                          <div className="font-semibold text-slate-900">{item.productName || `${t("productDetails.item")} ${idx + 1}`}</div>
                           {item.description && (
                             <div className="text-xs text-slate-600 mt-1">{item.description}</div>
                           )}

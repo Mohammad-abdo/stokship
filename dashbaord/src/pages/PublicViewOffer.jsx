@@ -106,7 +106,7 @@ export default function PublicViewOffer() {
          {/* Main Info */}
          <div className="lg:col-span-2 space-y-6">
             <Card>
-               <CardHeader><CardTitle>{t('mediation.offers.details') || 'Details'}</CardTitle></CardHeader>
+               <CardHeader><CardTitle>{t('common.details') || t('mediation.offers.details') || 'Details'}</CardTitle></CardHeader>
                <CardContent className="space-y-4">
                   <p className="text-gray-700 whitespace-pre-wrap">{offer.description}</p>
                   
@@ -134,16 +134,16 @@ export default function PublicViewOffer() {
             {/* Items */}
             {offer.items?.length > 0 && (
                <Card>
-                  <CardHeader><CardTitle>{t('mediation.offers.items') || 'Items'}</CardTitle></CardHeader>
+                  <CardHeader><CardTitle>{t('common.items') || t('mediation.offers.items') || 'Items'}</CardTitle></CardHeader>
                   <CardContent>
                      <div className="space-y-4">
                         {offer.items.map((item, idx) => (
                            <div key={idx} className="border p-4 rounded-lg flex flex-col md:flex-row gap-4">
                               <div>
-                                 <h4 className="font-medium">{item.name || `${t('client.item') || 'Item'} ${idx + 1}`}</h4>
+                                 <h4 className="font-medium">{item.name || `${t('common.item') || t('client.item') || 'Item'} ${idx + 1}`}</h4>
                                  <p className="text-sm text-gray-500 mt-1">{item.description}</p>
                                  <div className="mt-2 text-sm flex gap-4">
-                                     <span className="bg-gray-100 px-2 py-1 rounded">{t('client.quantity') || 'Qty'}: {item.quantity}</span>
+                                     <span className="bg-gray-100 px-2 py-1 rounded">{t('common.quantity') || t('client.quantity') || 'Qty'}: {item.quantity}</span>
                                      {item.price && <span className="bg-green-50 text-green-700 px-2 py-1 rounded">{item.price} {item.currency}</span>}
                                  </div>
                               </div>
@@ -159,7 +159,7 @@ export default function PublicViewOffer() {
          <div className="space-y-6">
             {offer.excelFileUrl && (
                <Card>
-                  <CardHeader><CardTitle>{t('mediation.trader.excelFile') || 'Excel File'}</CardTitle></CardHeader>
+                  <CardHeader><CardTitle>{t('mediation.trader.excelFile') || t('common.excelFile') || 'Excel File'}</CardTitle></CardHeader>
                   <CardContent>
                      {/* Check if authenticated before showing download button? Usually safe if public, but maybe restrict? Let's leave public for now. */}
                      <a 
@@ -168,7 +168,7 @@ export default function PublicViewOffer() {
                         download
                      >
                         <FileSpreadsheet className="w-5 h-5" />
-                        <span className="flex-1 font-medium truncate">{offer.excelFileName || (t('client.downloadExcel') || 'Download Excel')}</span>
+                        <span className="flex-1 font-medium truncate">{offer.excelFileName || t('common.downloadExcel') || t('client.downloadExcel') || 'Download Excel'}</span>
                         <Download className="w-4 h-4" />
                      </a>
                   </CardContent>

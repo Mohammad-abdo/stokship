@@ -5,12 +5,12 @@ import { getProductDetailsUrl } from "../routes";
 
 export default function ProductCard({
   id,
-  category = "هواتف ذكية",
-  title = "هاتف iPhone",
+  category,
+  title,
   image,
   rating = 5,
   reviews = 65,
-  subtitle = "لوريم إيبسوم دولور سيت أم",
+  subtitle,
 }) {
   const { t } = useTranslation();
   const [isFavorite, setIsFavorite] = useState(false);
@@ -39,9 +39,13 @@ export default function ProductCard({
 
       {/* Content */}
       <div className="p-3 sm:p-4 text-right flex-1 flex flex-col">
-        <div className="text-xs sm:text-sm text-slate-500">{category}</div>
+        {category && (
+          <div className="text-xs sm:text-sm text-slate-500">{category}</div>
+        )}
 
-        <div className="mt-1 text-base sm:text-lg font-bold text-slate-900 line-clamp-2">{title}</div>
+        {title && (
+          <div className="mt-1 text-base sm:text-lg font-bold text-slate-900 line-clamp-2">{title}</div>
+        )}
 
         {/* Rating */}
         <div className="mt-2 flex items-center gap-2">

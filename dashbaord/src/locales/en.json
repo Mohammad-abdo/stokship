@@ -77,7 +77,15 @@
     "none": "None",
     "items": "items",
     "send": "Send",
-    "sending": "Sending..."
+    "sending": "Sending...",
+    "notifications": "Notifications",
+    "noNotifications": "No notifications",
+    "viewAllNotifications": "View All Notifications",
+    "details": "Details",
+    "item": "Item",
+    "quantity": "Quantity",
+    "excelFile": "Excel File",
+    "downloadExcel": "Download Excel"
   },
   "sidebar": {
     "dashboard": "Dashboard",

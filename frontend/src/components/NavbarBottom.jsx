@@ -76,7 +76,7 @@ function DesktopDropdownPortal({ open, rect, items, onClose, dropdownRef, isLang
 }
 
 export default function NavbarBottom() {
-  const { t } = useTranslation(); // Used in menuItems useMemo
+  const { t, i18n } = useTranslation(); // Used in menuItems useMemo
   const location = useLocation();
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isVisible, setIsVisible] = useState(true);
@@ -130,7 +130,7 @@ export default function NavbarBottom() {
               children: (cat.children || []).map((child, childIndex) => {
                 if (!child.nameKey) {
                   return {
-                    label: `Subcategory ${childIndex + 1}`,
+                    label: t("categories.subcategory") + ` ${childIndex + 1}`,
                     to: `${ROUTES.PRODUCTS_LIST}?categoryId=${child.id}`
                   };
                 }
@@ -241,7 +241,6 @@ export default function NavbarBottom() {
     });
   };
 
-  const { i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
 
   return (
@@ -288,7 +287,7 @@ export default function NavbarBottom() {
                 </button>
               );
             }) : (
-              <div className="text-sm text-slate-500 px-2">جاري التحميل...</div>
+              <div className="text-sm text-slate-500 px-2">{t("common.loading") || "Loading..."}</div>
             )}
             </div>
 

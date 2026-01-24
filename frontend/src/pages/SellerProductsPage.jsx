@@ -338,7 +338,15 @@ export default function SellerProductsPage() {
           <div className="bg-[#EEF4FF] rounded-lg px-6 py-4 mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-slate-900">
-                {t("seller.allSellerProducts")}
+                {(() => {
+                  const key = "seller.allSellerProducts";
+                  const translated = t(key);
+                  // If translation returns the key itself, it means translation wasn't found
+                  if (translated === key) {
+                    return i18n.language === 'ar' ? "جميع بضائع البائع" : "All Seller Products";
+                  }
+                  return translated;
+                })()}
               </h1>
               {/* Debug indicator - remove in production */}
               {process.env.NODE_ENV === 'development' && productState.length > 0 && (

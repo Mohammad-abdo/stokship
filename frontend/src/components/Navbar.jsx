@@ -60,7 +60,7 @@ export default function Navbar() {
               children: (cat.children || []).map((child, childIndex) => {
                 if (!child.nameKey) {
                   return {
-                    label: `Subcategory ${childIndex + 1}`,
+                    label: t("categories.subcategory") + ` ${childIndex + 1}`,
                     to: `${ROUTES.PRODUCTS_LIST}?categoryId=${child.id}`
                   };
                 }
@@ -222,7 +222,7 @@ export default function Navbar() {
                   className="h-8 sm:h-9 md:h-10 lg:h-11 px-2 sm:px-3 md:px-4 lg:px-5 rounded-[5px] bg-(--white) border border-(--primary) flex items-center justify-center gap-2"
                 >
                   <span className="text-(--primary) font-bold text-[12px] sm:text-[12px] md:text-[14px] lg:text-[16px] leading-[150%] whitespace-nowrap">
-                    {user?.name || user?.email || "المستخدم"}
+                    {user?.name || user?.email || t("common.user") || "User"}
                   </span>
                   <img src={dropdown} alt="dropdown" className={`w-4 h-4 transition ${userDropdown ? 'rotate-180' : ''}`} />
                 </button>
@@ -234,7 +234,7 @@ export default function Navbar() {
                       onClick={() => setUserDropdown(false)}
                       className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                     >
-                      الملف الشخصي
+                      {t("common.profile") || "Profile"}
                     </Link>
                     {user?.userType === 'TRADER' && (
                       <>
@@ -243,14 +243,14 @@ export default function Navbar() {
                         onClick={() => setUserDropdown(false)}
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        لوحة التحكم
+                        {t("common.dashboard") || "Dashboard"}
                       </Link>
                       <Link
                         to={ROUTES.PUBLISH_AD}
                         onClick={() => setUserDropdown(false)}
                         className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                       >
-                        نشر إعلان
+                        {t("seller.publishAd") || "Publish Ad"}
                       </Link>
                       </>
                     )}
@@ -284,7 +284,7 @@ export default function Navbar() {
             rounded-md border border-white/30
             bg-black/20 backdrop-blur-md text-white
           "
-          aria-label="Open menu"
+          aria-label={t("nav.openMenu") || "Open menu"}
         >
           <span className="text-xl leading-none">☰</span>
         </button>
@@ -309,7 +309,7 @@ export default function Navbar() {
               <button
                 onClick={closeSidebar}
                 className="w-10 h-10 rounded-full grid place-items-center hover:bg-black/5 text-white font-bold bg-(--accent)"
-                aria-label="Close sidebar"
+                aria-label={t("nav.closeMenu") || "Close menu"}
               >
                 ✕
               </button>

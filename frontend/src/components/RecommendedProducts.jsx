@@ -54,7 +54,7 @@ export default function RecommendedProducts() {
         {/* Grid: 5 فوق + 5 تحت على الشاشات الكبيرة */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-slate-500">جاري التحميل...</div>
+            <div className="text-slate-500">{t("common.loading") || "Loading..."}</div>
           </div>
         ) : products.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5">
@@ -68,13 +68,13 @@ export default function RecommendedProducts() {
                 rating={p.rating}
                 reviews={p.reviews}
                 subtitle={p.subtitle}
-                badgeText="RECOMMENDED"
+                badgeText={t("recommended.badge") || "RECOMMENDED"}
               />
             ))}
           </div>
         ) : (
           <div className="flex items-center justify-center py-12">
-            <div className="text-slate-500">لا توجد منتجات موصى بها</div>
+            <div className="text-slate-500">{t("recommended.noProducts") || t("common.noData") || "No recommended products"}</div>
           </div>
         )}
       </div>
