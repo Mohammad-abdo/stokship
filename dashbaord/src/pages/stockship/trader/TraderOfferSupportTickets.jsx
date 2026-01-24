@@ -18,7 +18,8 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  Circle
+  Circle,
+  Info
 } from 'lucide-react';
 import { offerSupportTicketApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
