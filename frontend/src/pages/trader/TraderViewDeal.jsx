@@ -24,29 +24,86 @@ export default function TraderViewDeal() {
   const [proposedQuantity, setProposedQuantity] = useState("");
   const [messageType, setMessageType] = useState("TEXT");
 
-  useEffect(() => {
-    const fetchDeal = async () => {
-      try {
-        setLoading(true);
-        const res = await dealService.getDealById(id);
-        setDeal(res.data.data || res.data);
-      } catch (err) {
-        console.error("Error fetching deal:", err);
-        setError("Failed to load deal details");
-      } finally {
-        setLoading(false);
+  const fetchDeal = async () => {
+    try {
+      const res = await dealService.getDealById(id);
+      console.log("✅ Full API Response:", res.data);
+      
+      // The API returns data in response.data.data, which contains { deal, platformSettings }
+      let dealData = null;
+      if (res.data?.success && res.data?.data) {
+        // The backend returns { deal, platformSettings }, so we need to access .deal
+        if (res.data.data.deal) {
+          dealData = res.data.data.deal;
+        } else if (res.data.data.id) {
+          // Fallback: if data is the deal itself (not nested)
+          dealData = res.data.data;
+        }
       }
-    };
+      
+      if (dealData) {
+        console.log("✅ Deal fetched - Status:", dealData.status, "Deal ID:", dealData.id);
+        console.log("✅ Deal Items:", dealData.items?.length || 0, "items");
+        console.log("✅ Negotiated Amount:", dealData.negotiatedAmount);
+        console.log("✅ Full Deal Data:", dealData);
+        
+        // If items are missing but we have messages, try to update from messages
+        if ((!dealData.items || dealData.items.length === 0) && dealData.id) {
+          console.log("⚠️ No items found in deal, checking negotiation messages...");
+          try {
+            const messagesRes = await dealService.getNegotiationMessages(dealData.id, { limit: 50 });
+            const messages = messagesRes.data?.data || messagesRes.data || [];
+            
+            if (messages.length > 0) {
+              // Sort messages by createdAt (newest first)
+              const sortedMessages = [...messages].sort((a, b) => {
+                return new Date(b.createdAt) - new Date(a.createdAt);
+              });
+              
+              // Find the most recent price proposal
+              for (const message of sortedMessages) {
+                if (message.proposedPrice && message.proposedPrice > 0) {
+                  dealData.negotiatedAmount = message.proposedPrice;
+                  console.log("✅ Updated negotiatedAmount from messages:", dealData.negotiatedAmount);
+                  break;
+                }
+              }
+            }
+          } catch (msgError) {
+            console.warn("⚠️ Could not fetch messages to update amount:", msgError);
+          }
+        }
+        
+        setDeal(dealData);
+      } else {
+        console.warn("⚠️ No deal data found in API response");
+      }
+    } catch (err) {
+      console.error("Error fetching deal:", err);
+      setError("Failed to load deal details");
+    }
+  };
 
+  useEffect(() => {
     if (id) {
-      fetchDeal();
-      fetchMessages();
-      // Poll for new messages every 5 seconds
+      setLoading(true);
+      const loadData = async () => {
+        await Promise.all([fetchDeal(), fetchMessages()]);
+        // Mark messages as read when opening the page
+        markMessagesAsRead();
+        setLoading(false);
+      };
+      loadData();
+      
+      // Poll for new messages and deal updates every 5 seconds
       const interval = setInterval(() => {
+        console.log("🔄 Polling for updates...");
         fetchMessages(false);
+        fetchDeal(); // Also refresh deal data
       }, 5000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -66,8 +123,10 @@ export default function TraderViewDeal() {
       });
       
       if (response.data?.success && response.data?.data) {
-        // Ensure messages are sorted by createdAt (oldest first)
-        const sortedMessages = [...response.data.data].sort((a, b) => {
+        // Backend returns messages in descending order (newest first) and reverses them
+        // So we need to ensure they're sorted by createdAt (oldest first) for display
+        const messagesData = Array.isArray(response.data.data) ? response.data.data : [];
+        const sortedMessages = [...messagesData].sort((a, b) => {
           return new Date(a.createdAt) - new Date(b.createdAt);
         });
         setMessages(sortedMessages);
@@ -79,7 +138,28 @@ export default function TraderViewDeal() {
     }
   };
 
+  const markMessagesAsRead = async () => {
+    try {
+      await dealService.markMessagesAsRead(id);
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      // Don't show error to user, this is a background operation
+    }
+  };
+
   const handleSendMessage = async () => {
+    // Validate input based on message type
+    if (messageType === "TEXT" && !messageText.trim()) {
+      return;
+    }
+    if (messageType === "PRICE_PROPOSAL" && !proposedPrice) {
+      alert(t("negotiations.enterPrice") || "يرجى إدخال السعر المقترح");
+      return;
+    }
+    if (messageType === "QUANTITY_PROPOSAL" && !proposedQuantity) {
+      alert(t("negotiations.enterQuantity") || "يرجى إدخال الكمية المقترحة");
+      return;
+    }
     if (!messageText.trim() && !proposedPrice && !proposedQuantity) {
       return;
     }
@@ -93,7 +173,9 @@ export default function TraderViewDeal() {
         proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : null
       };
 
-      await dealService.sendNegotiationMessage(id, messageData);
+      console.log("📤 Sending negotiation message:", messageData);
+      const response = await dealService.sendNegotiationMessage(id, messageData);
+      console.log("✅ Message sent successfully:", response.data);
       
       // Clear form
       setMessageText("");
@@ -101,15 +183,20 @@ export default function TraderViewDeal() {
       setProposedQuantity("");
       setMessageType("TEXT");
       
-      // Refresh messages
-      await fetchMessages(false);
+      // Refresh messages and deal data
+      await Promise.all([
+        fetchMessages(false),
+        fetchDeal() // Also refresh deal to get updated negotiatedAmount
+      ]);
     } catch (error) {
-      console.error("Error sending message:", error);
-      alert(t("negotiations.errorSendingMessage") || "حدث خطأ أثناء إرسال الرسالة");
+      console.error("❌ Error sending message:", error);
+      const errorMessage = error.response?.data?.message || error.message || "حدث خطأ أثناء إرسال الرسالة";
+      alert(t("negotiations.errorSendingMessage", errorMessage) || errorMessage);
     } finally {
       setSending(false);
     }
   };
+
 
   if (loading) {
     return (
@@ -143,6 +230,23 @@ export default function TraderViewDeal() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getStatusLabel = (status) => {
+    if (!status) return '';
+    const statusKey = `mediation.deals.status.${status.toLowerCase()}`;
+    try {
+      const translated = t(statusKey, { defaultValue: status });
+      // If translation returns the key itself (not found), return the original status
+      if (translated === statusKey || translated === undefined) {
+        console.warn(`Translation not found for key: ${statusKey}, using status: ${status}`);
+        return status;
+      }
+      return translated;
+    } catch (error) {
+      console.error(`Error translating status ${status}:`, error);
+      return status;
+    }
+  };
+
   const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return '0.00';
     try {
@@ -154,6 +258,170 @@ export default function TraderViewDeal() {
       }).format(amount);
     } catch {
       return amount;
+    }
+  };
+
+  // Get the latest price and quantity from negotiation messages
+  const getLatestNegotiationValues = () => {
+    if (!messages || messages.length === 0) {
+      return { latestPrice: null, latestQuantity: null };
+    }
+    
+    // Sort messages by createdAt (newest first) to get the latest
+    const sortedMessages = [...messages].sort((a, b) => {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+    
+    let latestPrice = null;
+    let latestQuantity = null;
+    
+    // Find the most recent price and quantity proposals
+    for (const message of sortedMessages) {
+      if (message.proposedPrice && latestPrice === null) {
+        latestPrice = message.proposedPrice;
+      }
+      if (message.proposedQuantity && latestQuantity === null) {
+        latestQuantity = message.proposedQuantity;
+      }
+      // If we found both, we can break early
+      if (latestPrice !== null && latestQuantity !== null) {
+        break;
+      }
+    }
+    
+    return { latestPrice, latestQuantity };
+  };
+
+  const { latestPrice, latestQuantity } = getLatestNegotiationValues();
+
+  // Calculate statistics from deal items
+  const calculateStatistics = () => {
+    if (!deal?.items || deal.items.length === 0) {
+      return {
+        totalAmount: 0,
+        totalCubicMeter: 0,
+        totalCartons: 0,
+        itemsCount: 0,
+        paymentsCount: deal?.payments?.length || 0
+      };
+    }
+
+    const stats = deal.items.reduce((acc, item) => {
+      const quantity = item.negotiatedQuantity || item.quantity || 0;
+      const unitPrice = item.negotiatedPrice || item.unitPrice || 0;
+      const amount = quantity * unitPrice;
+      
+      return {
+        totalAmount: acc.totalAmount + amount,
+        totalCubicMeter: acc.totalCubicMeter + (item.cubicMeter || 0) * quantity,
+        totalCartons: acc.totalCartons + (item.cartons || 0) * quantity,
+        itemsCount: acc.itemsCount + 1
+      };
+    }, {
+      totalAmount: 0,
+      totalCubicMeter: 0,
+      totalCartons: 0,
+      itemsCount: 0
+    });
+
+    return {
+      ...stats,
+      paymentsCount: deal?.payments?.length || 0
+    };
+  };
+
+  const statistics = calculateStatistics();
+
+  const handleApprove = async () => {
+    try {
+      // Recalculate statistics and latest values to ensure we have fresh data
+      const currentStatistics = calculateStatistics();
+      const currentLatestValues = getLatestNegotiationValues();
+      const currentLatestPrice = currentLatestValues.latestPrice;
+      
+      // Calculate negotiatedAmount from items or use latest price
+      // Priority: deal.negotiatedAmount > statistics.totalAmount > latestPrice > 0
+      let calculatedAmount = null;
+      
+      // Try deal.negotiatedAmount first
+      if (deal?.negotiatedAmount && parseFloat(deal.negotiatedAmount) > 0) {
+        calculatedAmount = parseFloat(deal.negotiatedAmount);
+      }
+      // Try statistics.totalAmount
+      else if (currentStatistics?.totalAmount && currentStatistics.totalAmount > 0) {
+        calculatedAmount = currentStatistics.totalAmount;
+      }
+      // Try latestPrice from messages
+      else if (currentLatestPrice && parseFloat(currentLatestPrice) > 0) {
+        calculatedAmount = parseFloat(currentLatestPrice);
+      }
+      // Default to 0
+      else {
+        calculatedAmount = 0;
+      }
+      
+      console.log("🔍 Approve Deal Debug:", {
+        dealNegotiatedAmount: deal?.negotiatedAmount,
+        statisticsTotalAmount: currentStatistics?.totalAmount,
+        latestPrice: currentLatestPrice,
+        calculatedAmount: calculatedAmount,
+        hasItems: deal?.items && deal.items.length > 0,
+        itemsCount: deal?.items?.length || 0,
+        items: deal?.items
+      });
+      
+      // Validate that we have a valid amount
+      if (!calculatedAmount || calculatedAmount <= 0 || isNaN(calculatedAmount)) {
+        const errorMsg = t('trader.noAmountToApprove', 'لا يمكن الموافقة على الصفقة بدون مبلغ صحيح. يرجى التأكد من وجود عناصر أو سعر متفق عليه.') || 
+                         'لا يمكن الموافقة على الصفقة بدون مبلغ صحيح. يرجى التأكد من وجود عناصر أو سعر متفق عليه.';
+        console.error("❌ Invalid negotiatedAmount:", {
+          calculatedAmount: calculatedAmount,
+          dealNegotiatedAmount: deal?.negotiatedAmount,
+          statisticsTotalAmount: currentStatistics?.totalAmount,
+          latestPrice: currentLatestPrice,
+          isNaN: isNaN(calculatedAmount)
+        });
+        alert(errorMsg);
+        return;
+      }
+
+      console.log("✅ Approving deal with amount:", calculatedAmount);
+      
+      // Call the approve deal API endpoint
+      const response = await dealService.approveDeal(id, {
+        negotiatedAmount: calculatedAmount
+      });
+      
+      if (response.data?.success) {
+        // Refresh deal data
+        await fetchDeal();
+        alert(t('trader.dealApproved', 'تم الموافقة على الصفقة بنجاح') || 'تم الموافقة على الصفقة بنجاح');
+      }
+    } catch (error) {
+      console.error("❌ Error approving deal:", error);
+      const errorMessage = error.response?.data?.message || error.message || 'حدث خطأ أثناء الموافقة على الصفقة';
+      alert(t('trader.errorApprovingDeal', errorMessage) || errorMessage);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!confirm(t('trader.confirmReject', 'هل أنت متأكد من رفض هذه الصفقة؟') || 'هل أنت متأكد من رفض هذه الصفقة؟')) {
+      return;
+    }
+
+    try {
+      // Call the reject deal API endpoint
+      const response = await dealService.rejectDeal(id);
+      
+      if (response.data?.success) {
+        // Refresh deal data
+        await fetchDeal();
+        alert(t('trader.dealRejected', 'تم رفض الصفقة') || 'تم رفض الصفقة');
+      }
+    } catch (error) {
+      console.error("❌ Error rejecting deal:", error);
+      const errorMessage = error.response?.data?.message || error.message || 'حدث خطأ أثناء رفض الصفقة';
+      alert(t('trader.errorRejectingDeal', errorMessage) || errorMessage);
     }
   };
 
@@ -182,7 +450,7 @@ export default function TraderViewDeal() {
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900 mb-2">{t('trader.deal', 'صفقة')} {deal.dealNumber}</h1>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(deal.status)}`}>
-                    {deal.status}
+                    {getStatusLabel(deal.status)}
                   </span>
                 </div>
                 <div className="flex flex-col items-end text-sm text-slate-500">
@@ -191,12 +459,126 @@ export default function TraderViewDeal() {
                     {new Date(deal.createdAt).toLocaleDateString()}
                   </span>
                   <span className="mt-1 font-bold text-slate-900 text-lg">
-                    {formatCurrency(deal.negotiatedAmount)}
+                    {formatCurrency(deal.negotiatedAmount || latestPrice || 0)}
                   </span>
+                  {(latestPrice || latestQuantity) && (
+                    <div className="mt-2 text-xs text-slate-600">
+                      {latestPrice && (
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="w-3 h-3" />
+                          {t("negotiations.latestPrice") || "آخر سعر"}: {formatCurrency(latestPrice)}
+                        </div>
+                      )}
+                      {latestQuantity && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Package className="w-3 h-3" />
+                          {t("negotiations.latestQuantity") || "آخر كمية"}: {latestQuantity}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Deal Stages / Progress could accept status logic later */}
+            </div>
+
+            {/* Quick Statistics */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                <Package className="w-5 h-5 text-blue-600" />
+                {t('trader.quickStatistics', 'إحصائيات سريعة')}
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                  <span className="text-slate-600">{t('trader.totalAmount', 'إجمالي المبلغ')}</span>
+                  <span className="font-bold text-slate-900">{formatCurrency(deal.negotiatedAmount || statistics.totalAmount || latestPrice || 0)}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                  <span className="text-slate-600">{t('trader.totalCubicMeter', 'إجمالي المتر المكعب')}</span>
+                  <span className="font-semibold text-slate-900">{statistics.totalCubicMeter.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                  <span className="text-slate-600">{t('trader.totalCartons', 'إجمالي الكرتونات')}</span>
+                  <span className="font-semibold text-slate-900">{statistics.totalCartons}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-slate-100">
+                  <span className="text-slate-600">{t('trader.items', 'العناصر')}</span>
+                  <span className="font-semibold text-slate-900">{statistics.itemsCount}</span>
+                </div>
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-slate-600">{t('trader.payments', 'المدفوعات')}</span>
+                  <span className="font-semibold text-slate-900">{statistics.paymentsCount}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Deal Items */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                <Box className="w-5 h-5 text-blue-600" />
+                {t('trader.dealItems', 'عناصر الصفقة')} ({deal.items?.length || 0})
+              </h3>
+              
+              {deal.items && deal.items.length > 0 ? (
+                <>
+                  {/* Search Input */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder={t('trader.searchItems', '...بحث عن العناصر')}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
+                    />
+                  </div>
+
+                  {/* Items Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.itemNumber', 'رقم العنصر')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.description', 'الوصف')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.quantity', 'الكمية')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.unit', 'الوحدة')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.unitPrice', 'سعر الوحدة')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.amount', 'المبلغ')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.cartons', 'الكرتونات')}</th>
+                          <th className="px-4 py-3 text-right text-slate-700 font-semibold">{t('trader.cubicMeter', 'المتر المكعب')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {deal.items.map((item, index) => {
+                          const quantity = item.negotiatedQuantity || item.quantity || 0;
+                          const unitPrice = item.negotiatedPrice || item.unitPrice || 0;
+                          const amount = quantity * unitPrice;
+                          const cartons = (item.cartons || 0) * quantity;
+                          const cubicMeter = (item.cubicMeter || 0) * quantity;
+                          
+                          return (
+                            <tr key={item.id || index} className="hover:bg-slate-50">
+                              <td className="px-4 py-3 text-slate-900">{index + 1}</td>
+                              <td className="px-4 py-3 text-slate-900">
+                                {item.offerItem?.description || item.description || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-slate-900">{quantity}</td>
+                              <td className="px-4 py-3 text-slate-900">{item.unit || '-'}</td>
+                              <td className="px-4 py-3 text-slate-900">{formatCurrency(unitPrice)}</td>
+                              <td className="px-4 py-3 text-slate-900 font-semibold">{formatCurrency(amount)}</td>
+                              <td className="px-4 py-3 text-slate-900">{cartons}</td>
+                              <td className="px-4 py-3 text-slate-900">{cubicMeter.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-8 text-slate-500">
+                  <Box className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                  <p>{t('common.noData', 'لا توجد عناصر في هذه الصفقة')}</p>
+                </div>
+              )}
             </div>
 
             {/* Related Offer Details (if available in deal object) */}
@@ -245,8 +627,11 @@ export default function TraderViewDeal() {
                   ) : (
                     messages.map((message) => {
                       // Check if message was sent by current user
+                      // Check by senderId first (most reliable), then by senderType and specific IDs
                       const isMyMessage = message.senderId === user?.id || 
-                        (message.senderType === 'TRADER' && message.traderId === user?.id);
+                        (message.senderType === 'CLIENT' && message.clientId === user?.id) ||
+                        (message.senderType === 'TRADER' && message.traderId === user?.id) ||
+                        (message.senderType === 'EMPLOYEE' && message.employeeId === user?.id);
                       
                       // Determine sender name
                       let senderName = t("negotiations.you") || "أنت";
@@ -401,6 +786,21 @@ export default function TraderViewDeal() {
 
           {/* Sidebar - Right Col */}
           <div className="space-y-6">
+            {/* Status Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+              <h3 className="font-bold text-slate-900 mb-4">{t('common.status', 'الحالة')}</h3>
+              <div className="space-y-3">
+                <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${getStatusColor(deal.status)}`}>
+                  {getStatusLabel(deal.status)}
+                </span>
+                {deal.status === 'NEGOTIATION' && (
+                  <p className="text-sm text-slate-600 mt-2">
+                    {t('trader.canApproveDeal', 'يمكنك الموافقة على هذه الصفقة للمتابعة') || 'يمكنك الموافقة على هذه الصفقة للمتابعة'}
+                  </p>
+                )}
+              </div>
+            </div>
+
             {/* Client Info Card */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -442,10 +842,16 @@ export default function TraderViewDeal() {
             {deal.status === 'NEGOTIATION' && (
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
                     <h3 className="font-bold text-slate-900 mb-3">{t('common.actions', 'إجراءات')}</h3>
-                    <button className="w-full mb-2 py-2 px-4 bg-green-600 text-white rounded font-medium hover:bg-green-700 transition">
+                    <button 
+                      onClick={handleApprove}
+                      className="w-full mb-2 py-2 px-4 bg-green-600 text-white rounded font-medium hover:bg-green-700 transition"
+                    >
                         {t('trader.approveDeal', 'موافقة على الصفقة')}
                     </button>
-                    <button className="w-full py-2 px-4 bg-white border border-red-200 text-red-600 rounded font-medium hover:bg-red-50 transition">
+                    <button 
+                      onClick={handleReject}
+                      className="w-full py-2 px-4 bg-white border border-red-200 text-red-600 rounded font-medium hover:bg-red-50 transition"
+                    >
                          {t('trader.rejectDeal', 'رفض الصفقة')}
                     </button>
                 </div>

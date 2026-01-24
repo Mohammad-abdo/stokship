@@ -44,9 +44,10 @@ const getNotifications = asyncHandler(async (req, res) => {
 const markAsRead = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  // Notification.id is String (UUID), not Int
   const notification = await prisma.notification.findFirst({
     where: {
-      id: parseInt(id),
+      id: id, // Use id directly as it's a UUID string
       userId: req.user.id,
       userType: req.userType // Add userType check
     }
@@ -57,8 +58,8 @@ const markAsRead = asyncHandler(async (req, res) => {
   }
 
   const updated = await prisma.notification.update({
-    where: { id: parseInt(id) },
-    data: { isRead: true }
+    where: { id: id }, // Use id directly as it's a UUID string
+    data: { isRead: true, readAt: new Date() }
   });
 
   successResponse(res, updated, 'Notification marked as read');
@@ -101,9 +102,10 @@ const getUnreadCount = asyncHandler(async (req, res) => {
 const deleteNotification = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  // Notification.id is String (UUID), not Int
   const notification = await prisma.notification.findFirst({
     where: {
-      id: parseInt(id),
+      id: id, // Use id directly as it's a UUID string
       userId: req.user.id,
       userType: req.userType
     }
@@ -114,7 +116,7 @@ const deleteNotification = asyncHandler(async (req, res) => {
   }
 
   await prisma.notification.delete({
-    where: { id: parseInt(id) }
+    where: { id: id } // Use id directly as it's a UUID string
   });
 
   successResponse(res, null, 'Notification deleted successfully');

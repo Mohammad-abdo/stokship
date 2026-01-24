@@ -128,8 +128,10 @@ export default function NegotiationDetailPage() {
       });
       
       if (response.data?.success && response.data?.data) {
-        // Ensure messages are sorted by createdAt (oldest first)
-        const sortedMessages = [...response.data.data].sort((a, b) => {
+        // Backend returns messages in descending order (newest first) and reverses them
+        // So we need to ensure they're sorted by createdAt (oldest first) for display
+        const messagesData = Array.isArray(response.data.data) ? response.data.data : [];
+        const sortedMessages = [...messagesData].sort((a, b) => {
           return new Date(a.createdAt) - new Date(b.createdAt);
         });
         setMessages(sortedMessages);
@@ -141,13 +143,28 @@ export default function NegotiationDetailPage() {
     }
   };
 
+  const markMessagesAsRead = async () => {
+    try {
+      await dealService.markMessagesAsRead(dealId);
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+      // Don't show error to user, this is a background operation
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated && dealId) {
-      fetchDeal();
-      fetchMessages();
-      // Poll for new messages every 5 seconds
+      const loadData = async () => {
+        await Promise.all([fetchDeal(), fetchMessages()]);
+        // Mark messages as read when opening the page
+        markMessagesAsRead();
+      };
+      loadData();
+      
+      // Poll for new messages and deal updates every 5 seconds
       const interval = setInterval(() => {
         fetchMessages(false);
+        fetchDeal(); // Also refresh deal data
       }, 5000);
       return () => clearInterval(interval);
     }
@@ -159,6 +176,18 @@ export default function NegotiationDetailPage() {
   }, [messages]);
 
   const handleSendMessage = async () => {
+    // Validate input based on message type
+    if (messageType === "TEXT" && !messageText.trim()) {
+      return;
+    }
+    if (messageType === "PRICE_PROPOSAL" && !proposedPrice) {
+      alert(t("negotiations.enterPrice") || "يرجى إدخال السعر المقترح");
+      return;
+    }
+    if (messageType === "QUANTITY_PROPOSAL" && !proposedQuantity) {
+      alert(t("negotiations.enterQuantity") || "يرجى إدخال الكمية المقترحة");
+      return;
+    }
     if (!messageText.trim() && !proposedPrice && !proposedQuantity) {
       return;
     }
@@ -172,7 +201,9 @@ export default function NegotiationDetailPage() {
         proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : null
       };
 
-      await dealService.sendNegotiationMessage(dealId, messageData);
+      console.log("📤 Sending negotiation message:", messageData);
+      const response = await dealService.sendNegotiationMessage(dealId, messageData);
+      console.log("✅ Message sent successfully:", response.data);
       
       // Clear form
       setMessageText("");
@@ -180,11 +211,15 @@ export default function NegotiationDetailPage() {
       setProposedQuantity("");
       setMessageType("TEXT");
       
-      // Refresh messages
-      await fetchMessages(false);
+      // Refresh messages and deal data
+      await Promise.all([
+        fetchMessages(false),
+        fetchDeal() // Refresh deal to get updated status and negotiatedAmount
+      ]);
     } catch (error) {
-      console.error("Error sending message:", error);
-      alert(t("negotiations.errorSendingMessage") || "حدث خطأ أثناء إرسال الرسالة");
+      console.error("❌ Error sending message:", error);
+      const errorMessage = error.response?.data?.message || error.message || "حدث خطأ أثناء إرسال الرسالة";
+      alert(t("negotiations.errorSendingMessage", errorMessage) || errorMessage);
     } finally {
       setSending(false);
     }
@@ -242,41 +277,30 @@ export default function NegotiationDetailPage() {
                           dealStatus === 'ACCEPTED' ? 'APPROVED' : 
                           dealStatus;
   
-  console.log("🔍 Status Debug:", {
-    dealObject: deal,
-    dealStatus: dealStatus,
-    normalizedStatus: normalizedStatus,
-    dealId: deal?.id,
-    hasStatus: !!deal?.status
-  });
-  
-  const badge = getStatusBadge(normalizedStatus, t);
-  const StatusIcon = badge.icon;
   // Determine if current user is client or trader
-  const isClient = user?.id === deal.clientId;
-  const isTrader = user?.id === deal.traderId;
-  const otherParty = isClient ? deal.trader : deal.client;
+  const isClient = user?.id === deal?.clientId;
+  const isTrader = user?.id === deal?.traderId;
+  const otherParty = isClient ? deal?.trader : deal?.client;
   
   // Check if negotiation is allowed
   // The deal status should be NEGOTIATION or APPROVED from the database
   // Also handle display statuses PENDING (maps to NEGOTIATION) and ACCEPTED (maps to APPROVED)
-  // Check both the raw status and normalized status to be safe
-  const canNegotiate = dealStatus === 'NEGOTIATION' || 
-                       dealStatus === 'APPROVED' ||
-                       normalizedStatus === 'NEGOTIATION' || 
-                       normalizedStatus === 'APPROVED';
+  const canNegotiate = normalizedStatus === 'NEGOTIATION' || normalizedStatus === 'APPROVED';
   
-  console.log("🔍 Can Negotiate Check:", {
+  console.log("🔍 Negotiation Status Check:", {
+    dealId: deal?.id,
     dealStatus: dealStatus,
     normalizedStatus: normalizedStatus,
     canNegotiate: canNegotiate,
-    checks: {
-      rawIsNEGOTIATION: dealStatus === 'NEGOTIATION',
-      rawIsAPPROVED: dealStatus === 'APPROVED',
-      normalizedIsNEGOTIATION: normalizedStatus === 'NEGOTIATION',
-      normalizedIsAPPROVED: normalizedStatus === 'APPROVED'
-    }
+    isClient: isClient,
+    isTrader: isTrader,
+    userId: user?.id,
+    dealClientId: deal?.clientId,
+    dealTraderId: deal?.traderId
   });
+  
+  const badge = getStatusBadge(normalizedStatus, t);
+  const StatusIcon = badge.icon;
 
   return (
     <MainLayout>
@@ -341,9 +365,11 @@ export default function NegotiationDetailPage() {
               ) : (
                 messages.map((message) => {
                   // Check if message was sent by current user
+                  // Check by senderId first (most reliable), then by senderType and specific IDs
                   const isMyMessage = message.senderId === user?.id || 
-                    (isClient && message.senderType === 'CLIENT' && message.clientId === user?.id) ||
-                    (isTrader && message.senderType === 'TRADER' && message.traderId === user?.id);
+                    (message.senderType === 'CLIENT' && message.clientId === user?.id && isClient) ||
+                    (message.senderType === 'TRADER' && message.traderId === user?.id && isTrader) ||
+                    (message.senderType === 'EMPLOYEE' && message.employeeId === user?.id);
                   
                   // Determine sender name
                   let senderName = t("negotiations.you") || "أنت";

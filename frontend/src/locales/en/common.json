@@ -502,7 +502,9 @@
     "sending": "Sending...",
     "errorSendingMessage": "Error sending message",
     "negotiationClosed": "Negotiation is closed for this deal",
-    "dealNotFound": "Deal not found"
+    "dealNotFound": "Deal not found",
+    "latestPrice": "Latest Price",
+    "latestQuantity": "Latest Quantity"
   },
   "seller": {
     "title": "Become a Seller",
@@ -623,6 +625,51 @@
       "egypt": "Egypt",
       "jordan": "Jordan",
       "lebanon": "Lebanon"
+    }
+  },
+  "trader": {
+    "dashboard": "Dashboard",
+    "deals": "My Deals",
+    "deal": "Deal",
+    "client": "Client",
+    "noClientInfo": "Client information not available",
+    "relatedOffer": "Related Offer",
+    "dealNotFound": "Deal not found",
+    "approveDeal": "Approve Deal",
+    "rejectDeal": "Reject Deal",
+    "quickStatistics": "Quick Statistics",
+    "totalAmount": "Total Amount",
+    "totalCubicMeter": "Total Cubic Meter",
+    "totalCartons": "Total Cartons",
+    "items": "Items",
+    "payments": "Payments",
+    "dealItems": "Deal Items",
+    "searchItems": "Search for items...",
+    "itemNumber": "Item Number",
+    "description": "Description",
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "unitPrice": "Unit Price",
+    "amount": "Amount",
+    "cartons": "Cartons",
+    "cubicMeter": "Cubic Meter",
+    "approve": "Approve",
+    "noAmountToApprove": "Cannot approve deal without a valid amount. Please open the deal and add an amount or items.",
+    "dealApproved": "Deal approved successfully",
+    "errorApprovingDeal": "Error approving deal",
+    "noDealsFound": "No deals found",
+    "manageDeals": "Track all deals and orders",
+    "canApproveDeal": "You can approve this deal to proceed"
+  },
+  "mediation": {
+    "deals": {
+      "status": {
+        "negotiation": "Negotiation",
+        "approved": "Approved",
+        "paid": "Paid",
+        "settled": "Settled",
+        "cancelled": "Cancelled"
+      }
     }
   }
 }

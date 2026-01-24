@@ -77,5 +77,27 @@ export const dealService = {
       console.error('Error marking messages as read:', error);
       throw error;
     }
+  },
+
+  // Approve a deal
+  approveDeal: async (dealId, data = {}) => {
+    try {
+      const response = await api.put(`/traders/deals/${dealId}/approve`, data);
+      return response;
+    } catch (error) {
+      console.error('Error approving deal:', error);
+      throw error;
+    }
+  },
+
+  // Reject a deal
+  rejectDeal: async (dealId) => {
+    try {
+      const response = await api.put(`/deals/${dealId}/reject`);
+      return response;
+    } catch (error) {
+      console.error('Error rejecting deal:', error);
+      throw error;
+    }
   }
 };

@@ -184,12 +184,14 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
   }
 
   // Transform messages to include content for frontend compatibility
-  const transformedMessages = messages.reverse().map(msg => ({
+  // Messages are already in descending order (newest first), reverse to show oldest first
+  const reversedMessages = messages.reverse();
+  const transformedMessages = reversedMessages.map(msg => ({
     ...msg,
     content: msg.message || '' // Add content field for frontend compatibility (use message field)
   }));
 
-  paginatedResponse(res, transformedMessages, { // Reverse to show oldest first
+  paginatedResponse(res, transformedMessages, { // Messages are now in ascending order (oldest first)
     page: parseInt(page),
     limit: parseInt(limit),
     total,

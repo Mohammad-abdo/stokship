@@ -499,7 +499,9 @@
     "sending": "جاري الإرسال...",
     "errorSendingMessage": "حدث خطأ أثناء إرسال الرسالة",
     "negotiationClosed": "تم إغلاق التفاوض على هذه الصفقة",
-    "dealNotFound": "لم يتم العثور على الصفقة"
+    "dealNotFound": "لم يتم العثور على الصفقة",
+    "latestPrice": "آخر سعر",
+    "latestQuantity": "آخر كمية"
   },
   "seller": {
     "title": "كن بائعاً",
@@ -620,6 +622,51 @@
       "egypt": "مصر",
       "jordan": "الأردن",
       "lebanon": "لبنان"
+    }
+  },
+  "trader": {
+    "dashboard": "لوحة التحكم",
+    "deals": "صفقاتي",
+    "deal": "صفقة",
+    "client": "العميل",
+    "noClientInfo": "معلومات العميل غير متوفرة",
+    "relatedOffer": "العرض المرتبط",
+    "dealNotFound": "الصفقة غير موجودة",
+    "approveDeal": "موافقة على الصفقة",
+    "rejectDeal": "رفض الصفقة",
+    "quickStatistics": "إحصائيات سريعة",
+    "totalAmount": "إجمالي المبلغ",
+    "totalCubicMeter": "إجمالي المتر المكعب",
+    "totalCartons": "إجمالي الكرتونات",
+    "items": "العناصر",
+    "payments": "المدفوعات",
+    "dealItems": "عناصر الصفقة",
+    "searchItems": "...بحث عن العناصر",
+    "itemNumber": "رقم العنصر",
+    "description": "الوصف",
+    "quantity": "الكمية",
+    "unit": "الوحدة",
+    "unitPrice": "سعر الوحدة",
+    "amount": "المبلغ",
+    "cartons": "الكرتونات",
+    "cubicMeter": "المتر المكعب",
+    "approve": "موافقة",
+    "noAmountToApprove": "لا يمكن الموافقة على الصفقة بدون مبلغ صحيح. يرجى فتح الصفقة وإضافة مبلغ أو عناصر.",
+    "dealApproved": "تم الموافقة على الصفقة بنجاح",
+    "errorApprovingDeal": "حدث خطأ أثناء الموافقة على الصفقة",
+    "noDealsFound": "لم يتم العثور على صفقات",
+    "manageDeals": "متابعة جميع الصفقات والطلبات",
+    "canApproveDeal": "يمكنك الموافقة على هذه الصفقة للمتابعة"
+  },
+  "mediation": {
+    "deals": {
+      "status": {
+        "negotiation": "قيد التفاوض",
+        "approved": "موافق عليه",
+        "paid": "مدفوع",
+        "settled": "مستقر",
+        "cancelled": "ملغي"
+      }
     }
   }
 }

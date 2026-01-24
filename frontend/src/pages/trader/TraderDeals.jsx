@@ -4,7 +4,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { dealService } from "../../services/dealService";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes";
-import { ShoppingCart, ChevronLeft, ChevronRight, Search, Users } from "lucide-react";
+import { ShoppingCart, ChevronLeft, ChevronRight, Search, Users, Check } from "lucide-react";
 
 export default function TraderDeals() {
   const { t, i18n } = useTranslation();
@@ -21,7 +21,53 @@ export default function TraderDeals() {
       try {
         // Fetch deals for this trader
         const dealsRes = await dealService.getDeals({ traderId: user.id, limit: 100 });
-        setDeals(dealsRes.data.data || dealsRes.data || []);
+        let dealsData = dealsRes.data.data || dealsRes.data || [];
+        
+        // For each deal, fetch the latest negotiation messages to get the latest price and quantity
+        const dealsWithNegotiationData = await Promise.all(
+          dealsData.map(async (deal) => {
+            // If deal already has negotiatedAmount, use it
+            if (deal.negotiatedAmount && deal.negotiatedAmount > 0) {
+              return deal;
+            }
+            
+            // Otherwise, try to get latest price from negotiation messages
+            try {
+              const messagesRes = await dealService.getNegotiationMessages(deal.id, { limit: 50 });
+              const messages = messagesRes.data?.data || messagesRes.data || [];
+              
+              if (messages.length > 0) {
+                // Sort messages by createdAt (newest first)
+                const sortedMessages = [...messages].sort((a, b) => {
+                  return new Date(b.createdAt) - new Date(a.createdAt);
+                });
+                
+                // Find the most recent price proposal
+                let latestPrice = null;
+                for (const message of sortedMessages) {
+                  if (message.proposedPrice && message.proposedPrice > 0) {
+                    latestPrice = message.proposedPrice;
+                    break;
+                  }
+                }
+                
+                // If we found a latest price, update the deal
+                if (latestPrice) {
+                  return {
+                    ...deal,
+                    negotiatedAmount: latestPrice
+                  };
+                }
+              }
+            } catch (msgError) {
+              console.warn(`Could not fetch messages for deal ${deal.id}:`, msgError);
+            }
+            
+            return deal;
+          })
+        );
+        
+        setDeals(dealsWithNegotiationData);
       } catch (error) {
         console.error('Error loading deals:', error);
       } finally {
@@ -51,6 +97,23 @@ export default function TraderDeals() {
     return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
+  const getStatusLabel = (status) => {
+    if (!status) return '';
+    const statusKey = `mediation.deals.status.${status.toLowerCase()}`;
+    try {
+      const translated = t(statusKey, { defaultValue: status });
+      // If translation returns the key itself (not found), return the original status
+      if (translated === statusKey || translated === undefined) {
+        console.warn(`Translation not found for key: ${statusKey}, using status: ${status}`);
+        return status;
+      }
+      return translated;
+    } catch (error) {
+      console.error(`Error translating status ${status}:`, error);
+      return status;
+    }
+  };
+
   const formatCurrency = (amount) => {
     if (!amount && amount !== 0) return '0.00';
     try {
@@ -62,6 +125,102 @@ export default function TraderDeals() {
       }).format(amount);
     } catch (e) {
       return amount;
+    }
+  };
+
+  const handleApprove = async (e, deal) => {
+    e.stopPropagation(); // Prevent navigation when clicking approve button
+    
+    try {
+      // First, try to fetch the full deal data to get items
+      let dealData = deal;
+      try {
+        const dealResponse = await dealService.getDealById(deal.id);
+        if (dealResponse.data?.success && dealResponse.data?.data) {
+          if (dealResponse.data.data.deal) {
+            dealData = dealResponse.data.data.deal;
+          } else if (dealResponse.data.data.id) {
+            dealData = dealResponse.data.data;
+          }
+        }
+      } catch (fetchError) {
+        console.warn("⚠️ Could not fetch full deal data, using provided deal:", fetchError);
+      }
+      
+      // Calculate negotiatedAmount from deal items or use deal's negotiatedAmount
+      let calculatedAmount = dealData?.negotiatedAmount;
+      
+      // If no negotiatedAmount, calculate from items
+      if (!calculatedAmount || calculatedAmount === 0) {
+        if (dealData?.items && dealData.items.length > 0) {
+          calculatedAmount = dealData.items.reduce((total, item) => {
+            const quantity = item.negotiatedQuantity || item.quantity || 0;
+            const unitPrice = item.negotiatedPrice || item.unitPrice || 0;
+            return total + (quantity * unitPrice);
+          }, 0);
+        }
+      }
+      
+      // If still no amount, try to get from latest negotiation messages
+      if (!calculatedAmount || calculatedAmount === 0) {
+        try {
+          const messagesRes = await dealService.getNegotiationMessages(deal.id, { limit: 50 });
+          const messages = messagesRes.data?.data || messagesRes.data || [];
+          
+          if (messages.length > 0) {
+            // Sort messages by createdAt (newest first)
+            const sortedMessages = [...messages].sort((a, b) => {
+              return new Date(b.createdAt) - new Date(a.createdAt);
+            });
+            
+            // Find the most recent price proposal
+            for (const message of sortedMessages) {
+              if (message.proposedPrice && message.proposedPrice > 0) {
+                calculatedAmount = message.proposedPrice;
+                console.log("✅ Found latest price from negotiation messages:", calculatedAmount);
+                break;
+              }
+            }
+          }
+        } catch (msgError) {
+          console.warn("⚠️ Could not fetch negotiation messages:", msgError);
+        }
+      }
+      
+      console.log("🔍 Approve Deal Debug:", {
+        dealId: deal.id,
+        dealNegotiatedAmount: dealData?.negotiatedAmount,
+        calculatedAmount: calculatedAmount,
+        hasItems: dealData?.items && dealData.items.length > 0,
+        itemsCount: dealData?.items?.length || 0
+      });
+      
+      // If still no amount, show error
+      if (!calculatedAmount || calculatedAmount <= 0 || isNaN(calculatedAmount)) {
+        const errorMsg = t('trader.noAmountToApprove', 'لا يمكن الموافقة على الصفقة بدون مبلغ صحيح. يرجى فتح الصفقة وإضافة مبلغ أو عناصر.') || 
+                        'لا يمكن الموافقة على الصفقة بدون مبلغ صحيح. يرجى فتح الصفقة وإضافة مبلغ أو عناصر.';
+        console.error("❌ Invalid negotiatedAmount:", calculatedAmount);
+        alert(errorMsg);
+        return;
+      }
+
+      console.log("✅ Approving deal:", deal.id, "with amount:", calculatedAmount);
+      
+      // Call the approve deal API endpoint
+      const response = await dealService.approveDeal(deal.id, {
+        negotiatedAmount: parseFloat(calculatedAmount)
+      });
+      
+      if (response.data?.success) {
+        // Refresh deals list
+        const dealsRes = await dealService.getDeals({ traderId: user.id, limit: 100 });
+        setDeals(dealsRes.data.data || dealsRes.data || []);
+        alert(t('trader.dealApproved', 'تم الموافقة على الصفقة بنجاح') || 'تم الموافقة على الصفقة بنجاح');
+      }
+    } catch (error) {
+      console.error("❌ Error approving deal:", error);
+      const errorMessage = error.response?.data?.message || error.message || 'حدث خطأ أثناء الموافقة على الصفقة';
+      alert(t('trader.errorApprovingDeal', errorMessage) || errorMessage);
     }
   };
 
@@ -112,11 +271,13 @@ export default function TraderDeals() {
                {filteredDeals.map((deal) => (
                  <div 
                    key={deal.id}
-                   onClick={() => navigate(ROUTES.TRADER_DEAL_DETAILS.replace(':id', deal.id))}
-                   className="p-4 sm:p-6 hover:bg-slate-50 transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                   className="p-4 sm:p-6 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
                  >
-                   <div className="flex items-start gap-4">
-                     <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                   <div 
+                     onClick={() => navigate(ROUTES.TRADER_DEAL_DETAILS.replace(':id', deal.id))}
+                     className="flex items-start gap-4 flex-1 cursor-pointer"
+                   >
+                     <div className="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center shrink-0">
                        <ShoppingCart className="w-6 h-6 text-green-600" />
                      </div>
                      <div>
@@ -125,7 +286,7 @@ export default function TraderDeals() {
                        </h3>
                        <div className="flex items-center gap-3 mt-1 flex-wrap">
                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${getStatusColor(deal.status)}`}>
-                           {deal.status}
+                           {getStatusLabel(deal.status)}
                          </span>
                          {deal.client && (
                            <span className="text-sm text-slate-500 flex items-center gap-1">
@@ -136,13 +297,24 @@ export default function TraderDeals() {
                        </div>
                      </div>
                    </div>
-                   <div className="text-right sm:text-left rtl:text-left rtl:sm:text-right">
-                     <span className="block font-bold text-slate-900">
-                       {formatCurrency(deal.negotiatedAmount || 0)}
-                     </span>
-                     <span className="text-xs text-slate-400 block mt-1">
-                       {new Date(deal.createdAt).toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
-                     </span>
+                   <div className="flex items-center gap-3">
+                     <div className="text-right sm:text-left rtl:text-left rtl:sm:text-right">
+                       <span className="block font-bold text-slate-900">
+                         {formatCurrency(deal.negotiatedAmount || 0)}
+                       </span>
+                       <span className="text-xs text-slate-400 block mt-1">
+                         {new Date(deal.createdAt).toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                       </span>
+                     </div>
+                     {deal.status === 'NEGOTIATION' && (
+                       <button
+                         onClick={(e) => handleApprove(e, deal)}
+                         className="px-3 py-1.5 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 transition flex items-center gap-1"
+                       >
+                         <Check className="w-4 h-4" />
+                         {t('trader.approve', 'موافقة')}
+                       </button>
+                     )}
                    </div>
                  </div>
                ))}
