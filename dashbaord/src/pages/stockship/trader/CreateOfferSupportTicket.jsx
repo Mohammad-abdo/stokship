@@ -178,7 +178,7 @@ const CreateOfferSupportTicket = () => {
 
                 <div>
                   <Label htmlFor="priority" className="text-sm font-medium text-gray-700 mb-2 block">
-                    {t('mediation.support.priority') || 'Priority'}
+                    {t('mediation.support.priorityLabel') || 'Priority'}
                   </Label>
                   <select
                     id="priority"

@@ -167,7 +167,7 @@ const TraderOfferSupportTickets = () => {
     },
     {
       key: 'priority',
-      label: t('mediation.support.priority') || 'Priority',
+      label: t('mediation.support.priorityLabel') || 'Priority',
       minWidth: '100px',
       render: (value) => getPriorityBadge(value)
     },

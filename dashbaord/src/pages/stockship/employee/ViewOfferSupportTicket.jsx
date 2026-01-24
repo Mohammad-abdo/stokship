@@ -394,7 +394,7 @@ const ViewOfferSupportTicket = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500 mb-1 block">
-                  {t('mediation.support.priority') || 'Priority'}
+                  {t('mediation.support.priorityLabel') || 'Priority'}
                 </label>
                 {getPriorityBadge(ticket.priority)}
               </div>
