@@ -82,4 +82,3 @@ export function getSellerProductsUrl(sellerId: string | number): string {
 export function getCompanyProfileUrl(traderId: string | number): string {
   return `${ROUTES.COMPANY_PROFILE}/${traderId}`;
 }
-
