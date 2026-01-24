@@ -409,6 +409,11 @@ const getDeals = asyncHandler(async (req, res) => {
             title: true
           }
         },
+        items: {
+          include: {
+            offerItem: true
+          }
+        },
         _count: {
           select: {
             items: true,
@@ -422,7 +427,55 @@ const getDeals = asyncHandler(async (req, res) => {
     prisma.deal.count({ where })
   ]);
 
-  paginatedResponse(res, deals, {
+  // Calculate negotiatedAmount from items or get from latest negotiation message if not set
+  const dealsWithAmount = await Promise.all(
+    deals.map(async (deal) => {
+      // If deal already has negotiatedAmount, use it
+      if (deal.negotiatedAmount && parseFloat(deal.negotiatedAmount) > 0) {
+        return deal;
+      }
+
+      // Calculate from items if available
+      if (deal.items && deal.items.length > 0) {
+        const calculatedAmount = deal.items.reduce((total, item) => {
+          const quantity = item.quantity || 0;
+          const unitPrice = item.negotiatedPrice ? parseFloat(item.negotiatedPrice) : 0;
+          return total + (quantity * unitPrice);
+        }, 0);
+
+        if (calculatedAmount > 0) {
+          return {
+            ...deal,
+            negotiatedAmount: calculatedAmount
+          };
+        }
+      }
+
+      // If still no amount, try to get from latest negotiation message
+      try {
+        const latestNegotiation = await prisma.dealNegotiation.findFirst({
+          where: {
+            dealId: deal.id,
+            proposedPrice: { not: null }
+          },
+          orderBy: { createdAt: 'desc' }
+        });
+
+        if (latestNegotiation && latestNegotiation.proposedPrice) {
+          return {
+            ...deal,
+            negotiatedAmount: parseFloat(latestNegotiation.proposedPrice)
+          };
+        }
+      } catch (error) {
+        console.error(`Error fetching latest negotiation for deal ${deal.id}:`, error);
+      }
+
+      return deal;
+    })
+  );
+
+  paginatedResponse(res, dealsWithAmount, {
     page: parseInt(page),
     limit: parseInt(limit),
     total,

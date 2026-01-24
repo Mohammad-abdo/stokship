@@ -117,7 +117,7 @@ const TraderViewDeal = () => {
         navigate('/stockship/trader/deals');
         return;
       }
-      
+        
       setDeal(dealData);
       setPlatformSettings(settings);
     } catch (error) {
