@@ -16,7 +16,7 @@ const { initWebSocket } = require('./services/websocket.service');
 const { initRedis } = require('./services/cache.service');
 
 const app = express();
-
+//new
 // Trust proxy
 app.set('trust proxy', 1);
 
