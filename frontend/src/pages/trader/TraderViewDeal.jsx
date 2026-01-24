@@ -1,18 +1,28 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { dealService } from "../../services/dealService";
 import { ROUTES } from "../../routes";
-import { ChevronLeft, ChevronRight, ShoppingCart, User, Calendar, CreditCard, Box, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShoppingCart, User, Calendar, CreditCard, Box, AlertCircle, Send, MessageSquare, DollarSign, Package } from "lucide-react";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function TraderViewDeal() {
   const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
   const { id } = useParams();
+  const { user } = useAuth();
+  const messagesEndRef = useRef(null);
   
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [messageText, setMessageText] = useState("");
+  const [proposedPrice, setProposedPrice] = useState("");
+  const [proposedQuantity, setProposedQuantity] = useState("");
+  const [messageType, setMessageType] = useState("TEXT");
 
   useEffect(() => {
     const fetchDeal = async () => {
@@ -30,8 +40,76 @@ export default function TraderViewDeal() {
 
     if (id) {
       fetchDeal();
+      fetchMessages();
+      // Poll for new messages every 5 seconds
+      const interval = setInterval(() => {
+        fetchMessages(false);
+      }, 5000);
+      return () => clearInterval(interval);
     }
   }, [id]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const fetchMessages = async (showLoading = true) => {
+    try {
+      if (showLoading) setLoadingMessages(true);
+      const response = await dealService.getNegotiationMessages(id, {
+        page: 1,
+        limit: 100
+      });
+      
+      if (response.data?.success && response.data?.data) {
+        // Ensure messages are sorted by createdAt (oldest first)
+        const sortedMessages = [...response.data.data].sort((a, b) => {
+          return new Date(a.createdAt) - new Date(b.createdAt);
+        });
+        setMessages(sortedMessages);
+      }
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+    } finally {
+      if (showLoading) setLoadingMessages(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageText.trim() && !proposedPrice && !proposedQuantity) {
+      return;
+    }
+
+    try {
+      setSending(true);
+      const messageData = {
+        message: messageText.trim() || null,
+        messageType: messageType,
+        proposedPrice: proposedPrice ? parseFloat(proposedPrice) : null,
+        proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : null
+      };
+
+      await dealService.sendNegotiationMessage(id, messageData);
+      
+      // Clear form
+      setMessageText("");
+      setProposedPrice("");
+      setProposedQuantity("");
+      setMessageType("TEXT");
+      
+      // Refresh messages
+      await fetchMessages(false);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      alert(t("negotiations.errorSendingMessage") || "حدث خطأ أثناء إرسال الرسالة");
+    } finally {
+      setSending(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -146,6 +224,164 @@ export default function TraderViewDeal() {
                </div>
             )}
             
+            {/* Negotiation Messages */}
+            {(deal.status === 'NEGOTIATION' || deal.status === 'APPROVED') && (
+              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                  <MessageSquare className="w-5 h-5 text-blue-600" />
+                  {t("negotiations.messages") || "رسائل التفاوض"}
+                </h3>
+
+                {/* Messages Area */}
+                <div className="h-96 overflow-y-auto p-4 space-y-4 mb-4 border border-slate-100 rounded-lg bg-slate-50">
+                  {loadingMessages && messages.length === 0 ? (
+                    <div className="text-center text-slate-500 py-8">
+                      {t("common.loading") || "جاري التحميل..."}
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="text-center text-slate-500 py-8">
+                      {t("negotiations.noMessages") || "لا توجد رسائل بعد"}
+                    </div>
+                  ) : (
+                    messages.map((message) => {
+                      // Check if message was sent by current user
+                      const isMyMessage = message.senderId === user?.id || 
+                        (message.senderType === 'TRADER' && message.traderId === user?.id);
+                      
+                      // Determine sender name
+                      let senderName = t("negotiations.you") || "أنت";
+                      if (!isMyMessage) {
+                        if (message.senderType === 'CLIENT') {
+                          senderName = deal.client?.name || message.client?.name || t("negotiations.otherParty") || "الطرف الآخر";
+                        } else if (message.senderType === 'TRADER') {
+                          senderName = deal.trader?.companyName || deal.trader?.name || message.trader?.companyName || message.trader?.name || t("negotiations.otherParty") || "الطرف الآخر";
+                        } else {
+                          senderName = t("negotiations.otherParty") || "الطرف الآخر";
+                        }
+                      }
+
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isMyMessage ? (currentDir === 'rtl' ? 'justify-start' : 'justify-end') : (currentDir === 'rtl' ? 'justify-end' : 'justify-start')}`}
+                        >
+                          <div
+                            className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                              isMyMessage
+                                ? "bg-blue-900 text-white"
+                                : "bg-slate-100 text-slate-900"
+                            }`}
+                          >
+                            <div className="text-xs opacity-75 mb-1">{senderName}</div>
+                            
+                            {message.message && (
+                              <div className="mb-2">{message.message}</div>
+                            )}
+
+                            {message.proposedPrice && (
+                              <div className="flex items-center gap-2 text-sm mb-1">
+                                <DollarSign className="h-4 w-4" />
+                                <span>
+                                  {t("negotiations.proposedPrice") || "السعر المقترح"}: {message.proposedPrice.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                                </span>
+                              </div>
+                            )}
+
+                            {message.proposedQuantity && (
+                              <div className="flex items-center gap-2 text-sm mb-1">
+                                <Package className="h-4 w-4" />
+                                <span>
+                                  {t("negotiations.proposedQuantity") || "الكمية المقترحة"}: {message.proposedQuantity}
+                                </span>
+                              </div>
+                            )}
+
+                            <div className="text-xs opacity-75 mt-2">
+                              {new Date(message.createdAt).toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Message Input */}
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setMessageType("TEXT")}
+                      className={`px-3 py-1 rounded text-sm ${
+                        messageType === "TEXT"
+                          ? "bg-blue-900 text-white"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {t("negotiations.textMessage") || "رسالة نصية"}
+                    </button>
+                    <button
+                      onClick={() => setMessageType("PRICE_PROPOSAL")}
+                      className={`px-3 py-1 rounded text-sm ${
+                        messageType === "PRICE_PROPOSAL"
+                          ? "bg-blue-900 text-white"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {t("negotiations.priceProposal") || "اقتراح سعر"}
+                    </button>
+                    <button
+                      onClick={() => setMessageType("QUANTITY_PROPOSAL")}
+                      className={`px-3 py-1 rounded text-sm ${
+                        messageType === "QUANTITY_PROPOSAL"
+                          ? "bg-blue-900 text-white"
+                          : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {t("negotiations.quantityProposal") || "اقتراح كمية"}
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={messageText}
+                    onChange={(e) => setMessageText(e.target.value)}
+                    placeholder={t("negotiations.typeMessage") || "اكتب رسالتك هنا..."}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
+                    rows={3}
+                  />
+
+                  {messageType === "PRICE_PROPOSAL" && (
+                    <input
+                      type="number"
+                      value={proposedPrice}
+                      onChange={(e) => setProposedPrice(e.target.value)}
+                      placeholder={t("negotiations.enterPrice") || "أدخل السعر المقترح"}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
+                    />
+                  )}
+
+                  {messageType === "QUANTITY_PROPOSAL" && (
+                    <input
+                      type="number"
+                      value={proposedQuantity}
+                      onChange={(e) => setProposedQuantity(e.target.value)}
+                      placeholder={t("negotiations.enterQuantity") || "أدخل الكمية المقترحة"}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
+                    />
+                  )}
+
+                  <button
+                    onClick={handleSendMessage}
+                    disabled={sending || (!messageText.trim() && !proposedPrice && !proposedQuantity)}
+                    className={`flex items-center gap-2 rounded-md bg-blue-900 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed ${currentDir === 'rtl' ? 'flex-row-reverse ml-auto' : 'flex-row'}`}
+                  >
+                    <Send className="h-4 w-4" />
+                    {sending ? (t("negotiations.sending") || "جاري الإرسال...") : (t("negotiations.send") || "إرسال")}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Payment Info */}
              <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">

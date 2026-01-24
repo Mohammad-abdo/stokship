@@ -236,6 +236,15 @@ export default function Navbar() {
                     >
                       {t("common.profile") || "Profile"}
                     </Link>
+                    {user?.userType === 'CLIENT' && (
+                      <Link
+                        to={ROUTES.NEGOTIATIONS}
+                        onClick={() => setUserDropdown(false)}
+                        className="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      >
+                        {t("negotiations.title") || "طلبات التفاوض"}
+                      </Link>
+                    )}
                     {user?.userType === 'TRADER' && (
                       <>
                       <Link
@@ -437,6 +446,15 @@ export default function Navbar() {
                     >
                       الملف الشخصي
                     </Link>
+                    {user?.userType === 'CLIENT' && (
+                      <Link
+                        to={ROUTES.NEGOTIATIONS}
+                        onClick={closeSidebar}
+                        className="block w-full rounded-xl border border-(--primary) text-white px-4 py-3 text-center font-['Tajawal'] font-bold bg-(--primary)"
+                      >
+                        {t("negotiations.title") || "طلبات التفاوض"}
+                      </Link>
+                    )}
                     {user?.userType === 'TRADER' && (
                       <Link
                         to={ROUTES.PUBLISH_AD}

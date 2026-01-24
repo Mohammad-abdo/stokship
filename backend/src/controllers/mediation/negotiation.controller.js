@@ -168,16 +168,13 @@ const getNegotiationMessages = asyncHandler(async (req, res) => {
     })
   ]);
 
-  // Mark messages as read for current user
+  // Mark messages as read for current user (only messages NOT sent by current user)
   if (req.userType === 'CLIENT' || req.userType === 'TRADER') {
     await prisma.dealNegotiation.updateMany({
       where: {
         dealId: dealId, // Deal.id is String (UUID), not Int
         isRead: false,
-        ...(req.userType === 'CLIENT' 
-          ? { clientId: req.user.id }
-          : { traderId: req.user.id }
-        )
+        senderId: { not: req.user.id } // Only mark messages as read if they were NOT sent by current user
       },
       data: {
         isRead: true,
@@ -224,14 +221,9 @@ const markMessagesAsRead = asyncHandler(async (req, res) => {
 
   const where = {
     dealId: dealId, // Deal.id is String (UUID), not Int
-    isRead: false
+    isRead: false,
+    senderId: { not: req.user.id } // Only mark messages as read if they were NOT sent by current user
   };
-
-  if (req.userType === 'CLIENT') {
-    where.clientId = req.user.id;
-  } else if (req.userType === 'TRADER') {
-    where.traderId = req.user.id;
-  }
 
   const updated = await prisma.dealNegotiation.updateMany({
     where,

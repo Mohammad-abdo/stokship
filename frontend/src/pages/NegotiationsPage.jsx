@@ -218,8 +218,18 @@ export default function NegotiationsPage() {
                         {(negotiation.status === 'PENDING' || negotiation.status === 'ACCEPTED') && (
                           <button
                             onClick={() => {
+                              // Pass the original deal status along with the negotiation data
+                              const dealData = {
+                                ...negotiation,
+                                status: negotiation.status === 'PENDING' ? 'NEGOTIATION' : 
+                                        negotiation.status === 'ACCEPTED' ? 'APPROVED' : 
+                                        negotiation.status,
+                                originalStatus: negotiation.status === 'PENDING' ? 'NEGOTIATION' : 
+                                               negotiation.status === 'ACCEPTED' ? 'APPROVED' : 
+                                               negotiation.status
+                              };
                               navigate(`${ROUTES.NEGOTIATION_DETAIL}/${negotiation.dealId}`, {
-                                state: { deal: negotiation, negotiation: negotiation }
+                                state: { deal: dealData, negotiation: negotiation }
                               });
                             }}
                             className="inline-flex items-center gap-2 rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
