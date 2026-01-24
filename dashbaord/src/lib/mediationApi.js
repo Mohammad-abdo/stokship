@@ -198,6 +198,27 @@ export const employeeApi = {
 
   rejectOfferUpdateRequest: (id, data) => {
     return api.put(`${BASE_URL}/admin/offer-update-requests/${id}/reject`, data);
+  },
+
+  // Offer support ticket functions (Employee/Admin)
+  getAllOfferSupportTickets: (params = {}) => {
+    return api.get(`${BASE_URL}/admin/offer-support-tickets`, { params });
+  },
+
+  getOfferSupportTicketById: (id) => {
+    return api.get(`${BASE_URL}/admin/offer-support-tickets/${id}`);
+  },
+
+  addOfferSupportTicketMessage: (id, data) => {
+    return api.post(`${BASE_URL}/admin/offer-support-tickets/${id}/messages`, data);
+  },
+
+  updateOfferSupportTicketStatus: (id, data) => {
+    return api.put(`${BASE_URL}/admin/offer-support-tickets/${id}/status`, data);
+  },
+
+  assignOfferSupportTicket: (id, data) => {
+    return api.put(`${BASE_URL}/admin/offer-support-tickets/${id}/assign`, data);
   }
 };
 
@@ -313,6 +334,59 @@ export const offerApi = {
 
   cancelOfferUpdateRequest: (id) => {
     return api.put(`${BASE_URL}/traders/offers/update-requests/${id}/cancel`);
+  },
+
+  // Offer support ticket functions (Trader)
+  createOfferSupportTicket: (offerId, data) => {
+    return api.post(`${BASE_URL}/traders/offers/${offerId}/support-tickets`, data);
+  },
+
+  getTraderOfferSupportTickets: (params = {}) => {
+    return api.get(`${BASE_URL}/traders/support-tickets`, { params });
+  },
+
+  getOfferSupportTickets: (offerId, params = {}) => {
+    return api.get(`${BASE_URL}/traders/offers/${offerId}/support-tickets`, { params });
+  },
+
+  getTraderOfferSupportTicketById: (id) => {
+    return api.get(`${BASE_URL}/traders/support-tickets/${id}`);
+  },
+
+  addTraderOfferSupportTicketMessage: (id, data) => {
+    return api.post(`${BASE_URL}/traders/support-tickets/${id}/messages`, data);
+  }
+};
+
+// ============================================
+// OFFER SUPPORT TICKET API
+// ============================================
+
+export const offerSupportTicketApi = {
+  // Trader methods
+  // Create support ticket for an offer
+  createTicket: (offerId, data) => {
+    return api.post(`${BASE_URL}/traders/offers/${offerId}/support-tickets`, data);
+  },
+
+  // Get trader's support tickets
+  getTraderTickets: (params = {}) => {
+    return api.get(`${BASE_URL}/traders/support-tickets`, { params });
+  },
+
+  // Get tickets for specific offer
+  getOfferTickets: (offerId, params = {}) => {
+    return api.get(`${BASE_URL}/traders/offers/${offerId}/support-tickets`, { params });
+  },
+
+  // Get ticket by ID (Trader)
+  getTraderTicketById: (id) => {
+    return api.get(`${BASE_URL}/traders/support-tickets/${id}`);
+  },
+
+  // Add message to ticket (Trader)
+  addTraderMessage: (id, data) => {
+    return api.post(`${BASE_URL}/traders/support-tickets/${id}/messages`, data);
   }
 };
 
@@ -506,6 +580,7 @@ export default {
   financial: financialApi,
   categories: categoriesApi,
   // Alias for easier access
-  category: categoriesApi
+  category: categoriesApi,
+  offerSupportTicket: offerSupportTicketApi
 };
 

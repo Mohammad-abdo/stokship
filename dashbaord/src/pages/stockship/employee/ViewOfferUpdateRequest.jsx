@@ -743,7 +743,118 @@ const ViewOfferUpdateRequest = () => {
               {renderFieldComparison('description', t('mediation.trader.description') || 'Description', offer?.description, requestedData.description, FileText)}
               {renderFieldComparison('country', t('mediation.trader.country') || 'Country', offer?.country, requestedData.country, MapPin)}
               {renderFieldComparison('city', t('mediation.trader.city') || 'City', offer?.city, requestedData.city, MapPin)}
-              {renderFieldComparison('category', t('mediation.trader.category') || 'Category', offer?.category, requestedData.category, Tag)}
+              {renderFieldComparison('category', t('mediation.trader.category') || 'Category', 
+                offer?.category?.startsWith('category.') ? t(offer.category) || offer.category : offer?.category, 
+                requestedData.category?.startsWith('category.') ? t(requestedData.category) || requestedData.category : requestedData.category, 
+                Tag
+              )}
+              {/* Excel File Changes */}
+              {(requestedData.excelFileUrl || requestedData.excelFileName) && (
+                <div className="p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
+                  <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+                    <Label className="text-sm font-semibold text-blue-900">
+                      {t('mediation.trader.excelFile') || 'Excel File'}
+                    </Label>
+                    <span className="ml-auto px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      {t('common.changed') || 'Changed'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1 block">
+                        {t('common.current') || 'Current'}
+                      </Label>
+                      {offer?.excelFileUrl ? (
+                        <div className="flex items-center gap-2">
+                          <FileSpreadsheet className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm text-gray-700">{offer.excelFileName || 'Excel File'}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">N/A</span>
+                      )}
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-500 mb-1 block">
+                        {t('common.requested') || 'Requested'}
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <FileSpreadsheet className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm text-blue-700 font-medium">
+                          {requestedData.excelFileName || 'New Excel File'}
+                        </span>
+                        {requestedData.excelFileSize && (
+                          <span className="text-xs text-gray-500">
+                            ({(requestedData.excelFileSize / 1024 / 1024).toFixed(2)} MB)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Items Changes */}
+              {requestedData.items && Array.isArray(requestedData.items) && requestedData.items.length > 0 && (
+                <div className="p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
+                  <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                    <Package className="w-5 h-5 text-blue-600" />
+                    <Label className="text-sm font-semibold text-blue-900">
+                      {t('mediation.offers.items') || 'Items'}
+                    </Label>
+                    <span className="ml-auto px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                      {t('common.changed') || 'Changed'} ({requestedData.items.length} {t('common.items') || 'items'})
+                    </span>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500 mb-2 block">
+                      {t('common.requested') || 'Requested'} {t('mediation.offers.items') || 'Items'}
+                    </Label>
+                    <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg bg-white p-2">
+                      <table className="w-full text-sm">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className={`px-2 py-1 text-left text-xs font-semibold text-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                              {t('mediation.offers.itemNo') || 'Item No.'}
+                            </th>
+                            <th className={`px-2 py-1 text-left text-xs font-semibold text-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                              {t('mediation.offers.productName') || 'Product'}
+                            </th>
+                            <th className={`px-2 py-1 text-left text-xs font-semibold text-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                              {t('mediation.offers.quantity') || 'Quantity'}
+                            </th>
+                            <th className={`px-2 py-1 text-left text-xs font-semibold text-gray-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                              {t('mediation.offers.unitPrice') || 'Unit Price'}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {requestedData.items.slice(0, 10).map((item, idx) => (
+                            <tr key={idx} className="border-b border-gray-100">
+                              <td className={`px-2 py-1 text-xs ${isRTL ? 'text-right' : 'text-left'}`}>
+                                {item.itemNo || '-'}
+                              </td>
+                              <td className={`px-2 py-1 text-xs ${isRTL ? 'text-right' : 'text-left'}`}>
+                                {item.productName || item.description || '-'}
+                              </td>
+                              <td className={`px-2 py-1 text-xs ${isRTL ? 'text-right' : 'text-left'}`}>
+                                {item.quantity || 0} {item.unit || ''}
+                              </td>
+                              <td className={`px-2 py-1 text-xs ${isRTL ? 'text-right' : 'text-left'}`}>
+                                {item.unitPrice ? parseFloat(item.unitPrice).toFixed(2) : '0.00'} {item.currency || 'USD'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {requestedData.items.length > 10 && (
+                        <p className="text-xs text-gray-500 mt-2 text-center">
+                          +{requestedData.items.length - 10} {t('common.more') || 'more'} {t('common.items') || 'items'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
               {requestedData.images && (
                 <div className="p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
                   <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>

@@ -521,6 +521,47 @@ const TraderEditOfferRequest = () => {
         updateData.images = adImages;
       }
 
+      // Check if Excel file changed
+      if (excelFileUrl && excelFileUrl !== offer.excelFileUrl) {
+        updateData.excelFileUrl = excelFileUrl;
+        if (excelFile) {
+          updateData.excelFileName = excelFile.name;
+          updateData.excelFileSize = excelFile.size;
+        }
+      }
+
+      // Check if items changed (from Excel)
+      if (items.length > 0) {
+        const currentItems = offer.items && Array.isArray(offer.items) ? offer.items : [];
+        // Compare items by converting to JSON strings
+        const currentItemsStr = JSON.stringify(currentItems.map(item => ({
+          itemNo: item.itemNo,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        })));
+        const newItemsStr = JSON.stringify(items.map(item => ({
+          itemNo: item.itemNo,
+          productName: item.productName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice
+        })));
+        
+        if (currentItemsStr !== newItemsStr) {
+          updateData.items = items;
+        }
+      }
+
+      // Check if negotiation fields changed
+      if (formData.acceptsPriceNegotiation !== undefined && 
+          formData.acceptsPriceNegotiation !== offer.acceptsPriceNegotiation) {
+        updateData.acceptsPriceNegotiation = formData.acceptsPriceNegotiation;
+      }
+      if (formData.acceptsQuantityNegotiation !== undefined && 
+          formData.acceptsQuantityNegotiation !== offer.acceptsQuantityNegotiation) {
+        updateData.acceptsQuantityNegotiation = formData.acceptsQuantityNegotiation;
+      }
+
       if (Object.keys(updateData).length === 0) {
         showToast.error(t('mediation.offers.noChanges') || 'No changes detected');
         return;

@@ -19,7 +19,13 @@ const createUpdateRequest = asyncHandler(async (req, res) => {
     country,
     city,
     categoryId,
-    acceptsNegotiation
+    acceptsNegotiation,
+    acceptsPriceNegotiation,
+    acceptsQuantityNegotiation,
+    excelFileUrl,
+    excelFileName,
+    excelFileSize,
+    items
   } = req.body;
 
   // Check if offer exists and belongs to trader
@@ -64,6 +70,14 @@ const createUpdateRequest = asyncHandler(async (req, res) => {
   if (city !== undefined) requestedData.city = city;
   if (categoryId !== undefined) requestedData.categoryId = categoryId;
   if (acceptsNegotiation !== undefined) requestedData.acceptsNegotiation = acceptsNegotiation;
+  if (acceptsPriceNegotiation !== undefined) requestedData.acceptsPriceNegotiation = acceptsPriceNegotiation;
+  if (acceptsQuantityNegotiation !== undefined) requestedData.acceptsQuantityNegotiation = acceptsQuantityNegotiation;
+  if (excelFileUrl !== undefined) requestedData.excelFileUrl = excelFileUrl;
+  if (excelFileName !== undefined) requestedData.excelFileName = excelFileName;
+  if (excelFileSize !== undefined) requestedData.excelFileSize = excelFileSize;
+  if (items !== undefined && Array.isArray(items)) {
+    requestedData.items = items;
+  }
 
   if (Object.keys(requestedData).length === 0) {
     return errorResponse(res, 'No changes provided', 400);
@@ -356,6 +370,42 @@ const approveUpdateRequest = asyncHandler(async (req, res) => {
   if (requestedData.categoryId !== undefined) updateData.categoryId = requestedData.categoryId;
   if (requestedData.acceptsNegotiation !== undefined) {
     updateData.acceptsNegotiation = requestedData.acceptsNegotiation === true || requestedData.acceptsNegotiation === 'true';
+  }
+  if (requestedData.acceptsPriceNegotiation !== undefined) {
+    updateData.acceptsPriceNegotiation = requestedData.acceptsPriceNegotiation === true || requestedData.acceptsPriceNegotiation === 'true';
+  }
+  if (requestedData.acceptsQuantityNegotiation !== undefined) {
+    updateData.acceptsQuantityNegotiation = requestedData.acceptsQuantityNegotiation === true || requestedData.acceptsQuantityNegotiation === 'true';
+  }
+  if (requestedData.excelFileUrl !== undefined) updateData.excelFileUrl = requestedData.excelFileUrl;
+  if (requestedData.excelFileName !== undefined) updateData.excelFileName = requestedData.excelFileName;
+  if (requestedData.excelFileSize !== undefined) updateData.excelFileSize = requestedData.excelFileSize;
+  
+  // Update items if provided
+  if (requestedData.items !== undefined && Array.isArray(requestedData.items)) {
+    // Delete existing items and create new ones
+    await prisma.offerItem.deleteMany({
+      where: { offerId: request.offerId }
+    });
+    
+    // Create new items
+    if (requestedData.items.length > 0) {
+      await prisma.offerItem.createMany({
+        data: requestedData.items.map((item, index) => ({
+          offerId: request.offerId,
+          itemNo: item.itemNo || `ITEM-${index + 1}`,
+          productName: item.productName || item.description || '',
+          description: item.description || item.productName || '',
+          quantity: parseInt(item.quantity) || 0,
+          unit: item.unit || 'SET',
+          unitPrice: parseFloat(item.unitPrice) || 0,
+          currency: item.currency || 'USD',
+          amount: (parseInt(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0),
+          totalCBM: parseFloat(item.totalCBM) || 0,
+          images: item.images ? (Array.isArray(item.images) ? JSON.stringify(item.images) : item.images) : null
+        }))
+      });
+    }
   }
 
   // Update offer

@@ -114,6 +114,20 @@ enum OfferUpdateRequestStatus {
   CANCELLED
 }
 
+enum OfferSupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum OfferSupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum AuditAction {
   DEAL_CREATED
   DEAL_UPDATED
@@ -197,6 +211,7 @@ model Employee {
   traderUpdateRequests  TraderUpdateRequest[]  @relation("TraderUpdateRequestReviewer")
   offerUpdateRequests   OfferUpdateRequest[]   @relation("OfferUpdateRequestReviewer")
   financialTransactions FinancialTransaction[] @relation("FinancialTransactionEmployee")
+  offerSupportTickets   OfferSupportTicket[]   @relation("OfferSupportTicketEmployee")
 
   @@index([createdBy])
   @@index([employeeCode])
@@ -241,6 +256,7 @@ model Trader {
   activityLogs     ActivityLog[]         @relation("ActivityLogTrader")
   auditTrails      AuditTrail[]          @relation("AuditTrailTrader")
   updateRequests   TraderUpdateRequest[]
+  offerSupportTickets OfferSupportTicket[] @relation("OfferSupportTicketTrader")
 
   @@index([employeeId])
   @@index([clientId])
@@ -318,6 +334,7 @@ model Offer {
   deals            Deal[]
   activityLogs     ActivityLog[] @relation("ActivityLogOffer")
   updateRequests   OfferUpdateRequest[]
+  supportTickets   OfferSupportTicket[]
 
   @@index([traderId])
   @@index([status])
@@ -1002,6 +1019,61 @@ model OfferUpdateRequest {
   @@index([offerId])
   @@index([status])
   @@index([reviewedBy])
+  @@index([createdAt])
+}
+
+// ============================================
+// OFFER SUPPORT TICKETS
+// ============================================
+
+model OfferSupportTicket {
+  id          String                      @id @default(uuid())
+  offerId     String
+  traderId    String // Trader who created the ticket
+  employeeId  String? // Employee assigned to handle the ticket
+  subject     String
+  status      OfferSupportTicketStatus    @default(OPEN)
+  priority    OfferSupportTicketPriority  @default(MEDIUM)
+  
+  // Timestamps
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+
+  // Relations
+  offer       Offer                       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  trader      Trader                      @relation("OfferSupportTicketTrader", fields: [traderId], references: [id], onDelete: Cascade)
+  employee    Employee?                   @relation("OfferSupportTicketEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  messages    OfferSupportTicketMessage[]
+
+  @@index([offerId])
+  @@index([traderId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model OfferSupportTicketMessage {
+  id          String                @id @default(uuid())
+  ticketId    String
+  senderId    String // ID of sender (trader or employee)
+  senderType  UserType // TRADER or EMPLOYEE
+  message     String                @db.Text
+  attachments String?               @db.Text // JSON array of file URLs
+  
+  // Timestamps
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  readAt      DateTime? // When the message was read by the recipient
+
+  // Relations
+  ticket      OfferSupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([senderType])
   @@index([createdAt])
 }
 

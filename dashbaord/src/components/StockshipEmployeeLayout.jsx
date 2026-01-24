@@ -24,6 +24,7 @@ import {
   MapPin,
   Edit,
   Gift,
+  MessageSquare,
 } from "lucide-react";
 
 export default function StockshipEmployeeLayout({ children }) {
@@ -51,6 +52,7 @@ export default function StockshipEmployeeLayout({ children }) {
     { icon: Users, label: t('mediation.employee.traders') || 'My Traders', path: "/stockship/employee/traders" },
     { icon: FileText, label: t('mediation.trader.updateRequest.reviewTitle') || 'Trader Update Requests', path: "/stockship/employee/trader-update-requests" },
     { icon: Gift, label: t('mediation.offers.updateRequest.reviewTitle') || 'Offer Update Requests', path: "/stockship/employee/offer-update-requests" },
+    { icon: MessageSquare, label: t('mediation.support.tickets') || 'Offer Support Tickets', path: "/stockship/employee/offer-support-tickets" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/employee/deals" },
     { icon: Package, label: t('mediation.employee.offersValidation') || 'Offers Validation', path: "/stockship/employee/offers" },
     { icon: MapPin, label: 'Shipping Tracking', path: "/stockship/employee/shipping-tracking" },

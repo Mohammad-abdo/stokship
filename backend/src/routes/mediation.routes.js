@@ -49,6 +49,7 @@ const employeeController = require('../controllers/mediation/employee.controller
 const traderController = require('../controllers/mediation/trader.controller');
 const traderUpdateRequestController = require('../controllers/mediation/traderUpdateRequest.controller');
 const offerUpdateRequestController = require('../controllers/mediation/offerUpdateRequest.controller');
+const offerSupportTicketController = require('../controllers/mediation/offerSupportTicket.controller');
 const offerController = require('../controllers/mediation/offer.controller');
 const dealController = require('../controllers/mediation/deal.controller');
 const negotiationController = require('../controllers/mediation/negotiation.controller');
@@ -148,6 +149,24 @@ router.post('/traders/offers/:id/upload-excel', protect, authorize('TRADER'), up
 router.post('/traders/offers/:offerId/update-request', protect, authorize('TRADER'), offerUpdateRequestController.createUpdateRequest);
 router.get('/traders/offers/update-requests', protect, authorize('TRADER'), offerUpdateRequestController.getTraderOfferUpdateRequests);
 router.put('/traders/offers/update-requests/:id/cancel', protect, authorize('TRADER'), offerUpdateRequestController.cancelUpdateRequest);
+
+// ============================================
+// OFFER SUPPORT TICKET ROUTES
+// ============================================
+
+// Trader routes
+router.post('/traders/offers/:offerId/support-tickets', protect, authorize('TRADER'), offerSupportTicketController.createTicket);
+router.get('/traders/offers/:offerId/support-tickets', protect, authorize('TRADER'), offerSupportTicketController.getTraderTickets);
+router.get('/traders/support-tickets', protect, authorize('TRADER'), offerSupportTicketController.getTraderTickets);
+router.get('/traders/support-tickets/:id', protect, authorize('TRADER'), offerSupportTicketController.getTraderTicketById);
+router.post('/traders/support-tickets/:id/messages', protect, authorize('TRADER'), offerSupportTicketController.addTraderMessage);
+
+// Admin/Employee routes
+router.get('/admin/offer-support-tickets', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.getAllTickets);
+router.get('/admin/offer-support-tickets/:id', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.getTicketById);
+router.post('/admin/offer-support-tickets/:id/messages', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.addMessage);
+router.put('/admin/offer-support-tickets/:id/status', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.updateTicketStatus);
+router.put('/admin/offer-support-tickets/:id/assign', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.assignTicket);
 
 // Employee offer management routes moved above to prevent route conflicts
 
