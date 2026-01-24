@@ -175,35 +175,29 @@ const getAllUpdateRequests = asyncHandler(async (req, res) => {
 
   // Employee can only see requests for offers from their assigned traders
   if (userType === 'EMPLOYEE') {
-    const employee = await prisma.employee.findUnique({
-      where: { id: userId },
-      include: {
-        traders: {
-          select: { id: true },
-          include: {
-            offers: {
-              select: { id: true }
-            }
-          }
-        }
-      }
+    // Get all traders assigned to this employee
+    const traders = await prisma.trader.findMany({
+      where: { employeeId: userId },
+      select: { id: true }
     });
 
-    if (!employee) {
-      return errorResponse(res, 'Employee not found', 404);
-    }
-
-    const offerIds = [];
-    employee.traders.forEach(trader => {
-      trader.offers.forEach(offer => {
-        offerIds.push(offer.id);
-      });
-    });
-
-    if (offerIds.length === 0) {
+    if (traders.length === 0) {
       return successResponse(res, []);
     }
 
+    const traderIds = traders.map(t => t.id);
+
+    // Get all offers from these traders
+    const offers = await prisma.offer.findMany({
+      where: { traderId: { in: traderIds } },
+      select: { id: true }
+    });
+
+    if (offers.length === 0) {
+      return successResponse(res, []);
+    }
+
+    const offerIds = offers.map(o => o.id);
     where.offerId = { in: offerIds };
   }
 
@@ -262,6 +256,7 @@ const getUpdateRequestById = asyncHandler(async (req, res) => {
     include: {
       offer: {
         include: {
+          items: true,
           trader: {
             select: {
               id: true,

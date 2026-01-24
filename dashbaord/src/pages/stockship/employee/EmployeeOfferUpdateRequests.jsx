@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useMultiAuth } from '@/contexts/MultiAuthContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import StandardDataTable from '@/components/StandardDataTable';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
@@ -14,10 +15,10 @@ import {
   Filter,
   Eye,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Store,
+  Edit2
 } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { employeeApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
 
@@ -92,6 +93,147 @@ const EmployeeOfferUpdateRequests = () => {
     );
   };
 
+  const getRequestedChangesPreview = (requestedData) => {
+    if (!requestedData || Object.keys(requestedData).length === 0) {
+      return <span className="text-xs text-gray-400 italic">{t('common.none') || 'None'}</span>;
+    }
+    
+    const changes = Object.keys(requestedData).slice(0, 2);
+    const moreCount = Object.keys(requestedData).length - 2;
+    
+    return (
+      <div className="flex flex-col gap-1">
+        {changes.map((key) => (
+          <span key={key} className="text-xs text-gray-600">
+            <span className="font-medium">{key}:</span> {String(requestedData[key]).substring(0, 30)}
+            {String(requestedData[key]).length > 30 ? '...' : ''}
+          </span>
+        ))}
+        {moreCount > 0 && (
+          <span className="text-xs text-gray-400">
+            +{moreCount} {t('common.more') || 'more'}
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const columns = [
+    {
+      key: 'offer',
+      label: t('mediation.offers.offerTitle') || 'Offer',
+      minWidth: '250px',
+      render: (value, row) => (
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <Gift className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-sm text-gray-900 truncate">
+              {row.offer?.title || t('common.unknown') || 'Unknown'}
+            </p>
+            {row.offer?.trader?.traderCode && (
+              <p className="text-xs text-gray-500 truncate">
+                {t('mediation.traders.traderCode') || 'Code'}: {row.offer.trader.traderCode}
+              </p>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'trader',
+      label: t('mediation.offers.trader') || 'Trader',
+      minWidth: '200px',
+      render: (value, row) => (
+        <div className="flex items-center gap-2">
+          <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-gray-900 truncate">
+              {row.offer?.trader?.companyName || row.offer?.trader?.name || 'N/A'}
+            </p>
+            {row.offer?.trader?.name && row.offer?.trader?.name !== row.offer?.trader?.companyName && (
+              <p className="text-xs text-gray-500 truncate">{row.offer.trader.name}</p>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'status',
+      label: t('mediation.common.status') || 'Status',
+      minWidth: '120px',
+      render: (value) => getStatusBadge(value)
+    },
+    {
+      key: 'requestedChanges',
+      label: t('mediation.offers.updateRequest.requestedChanges') || 'Requested Changes',
+      minWidth: '200px',
+      render: (value, row) => (
+        <div className="flex items-center gap-2">
+          <Edit2 className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            {getRequestedChangesPreview(row.requestedData)}
+          </div>
+        </div>
+      )
+    },
+    {
+      key: 'createdAt',
+      label: t('common.submittedAt') || 'Submitted',
+      minWidth: '150px',
+      render: (value) => (
+        <div className="flex items-center gap-1 text-sm text-gray-600">
+          <Clock className="w-3 h-3 flex-shrink-0" />
+          <span className="whitespace-nowrap">
+            {value ? new Date(value).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric'
+            }) : 'N/A'}
+          </span>
+        </div>
+      )
+    },
+    {
+      key: 'reviewedAt',
+      label: t('mediation.offers.updateRequest.reviewedAt') || 'Reviewed',
+      minWidth: '150px',
+      render: (value, row) => {
+        if (!value && row.status === 'PENDING') {
+          return <span className="text-xs text-gray-400 italic">{t('common.pending') || 'Pending'}</span>;
+        }
+        return value ? (
+          <div className="flex items-center gap-1 text-sm text-gray-600">
+            <Clock className="w-3 h-3 flex-shrink-0" />
+            <span className="whitespace-nowrap">
+              {new Date(value).toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              })}
+            </span>
+          </div>
+        ) : null;
+      }
+    }
+  ];
+
+  const rowActions = (row) => (
+    <div className="flex items-center gap-1 justify-end">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/stockship/employee/offer-update-requests/${row.id}`);
+        }}
+        className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+        title={t('common.view') || 'View Details'}
+      >
+        <Eye className="w-4 h-4 text-gray-600" />
+      </button>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -124,24 +266,26 @@ const EmployeeOfferUpdateRequests = () => {
 
       {/* Filters */}
       <Card className="border-gray-200 shadow-sm">
-        <CardContent className="p-4">
-          <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <div className="relative">
+        <CardContent className="pt-6">
+          <div className={`flex flex-col sm:flex-row gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <div className={`relative flex-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
               <Search className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
-              <Input
+              <input
                 type="text"
-                placeholder={t('common.search') || 'Search...'}
+                placeholder={t('mediation.employee.searchOffers') || 'Search by offer title or trader...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`${isRTL ? 'pr-10' : 'pl-10'}`}
+                className={`w-full ${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300 bg-white`}
               />
             </div>
             <div className="relative">
-              <Filter className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
+              <Filter className={`absolute ${isRTL ? 'right-3' : 'left-3'} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none`} />
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className={`w-full ${isRTL ? 'pr-10' : 'pl-10'} py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-300 bg-white`}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                }}
+                className={`${isRTL ? 'pr-10 pl-4' : 'pl-10 pr-4'} py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300 bg-white appearance-none min-w-[200px]`}
               >
                 <option value="">{t('mediation.offers.updateRequest.allStatus') || 'All Status'}</option>
                 <option value="PENDING">{t('mediation.offers.updateRequest.status.pending') || 'Pending'}</option>
@@ -150,82 +294,40 @@ const EmployeeOfferUpdateRequests = () => {
                 <option value="CANCELLED">{t('mediation.offers.updateRequest.status.cancelled') || 'Cancelled'}</option>
               </select>
             </div>
+            {statusFilter && (
+              <button
+                onClick={() => {
+                  setStatusFilter('');
+                }}
+                className="px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
+              >
+                {t('mediation.employee.clearFilter') || 'Clear Filter'}
+              </button>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Requests List */}
-      {filteredRequests.length === 0 ? (
-        <Card className="border-gray-200 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">
-              {t('mediation.offers.updateRequest.noRequests') || 'No update requests found'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredRequests.map((request) => (
-            <Card key={request.id} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className={`flex items-start justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <div className="flex-1">
-                    <div className={`flex items-center gap-3 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Gift className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div className={`flex-1 ${isRTL ? 'text-right' : 'text-left'}`}>
-                        <h3 className="font-semibold text-gray-900">
-                          {request.offer?.title || t('common.unknown') || 'Unknown'}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                          {request.offer?.trader?.companyName || request.offer?.trader?.name || ''} • {request.offer?.trader?.traderCode || ''}
-                        </p>
-                      </div>
-                      {getStatusBadge(request.status)}
-                    </div>
-                    <p className="text-xs text-gray-500 mb-2">
-                      {t('common.submittedAt') || 'Submitted'}: {new Date(request.createdAt).toLocaleString()}
-                    </p>
-                    {Object.keys(request.requestedData || {}).length > 0 && (
-                      <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                        <p className="text-xs font-semibold mb-1">
-                          {t('mediation.offers.updateRequest.requestedChanges') || 'Requested Changes'}:
-                        </p>
-                        <ul className="text-xs text-gray-700 space-y-1">
-                          {Object.entries(request.requestedData).slice(0, 3).map(([key, value]) => (
-                            <li key={key}>
-                              <strong>{key}:</strong> {String(value).substring(0, 50)}
-                              {String(value).length > 50 ? '...' : ''}
-                            </li>
-                          ))}
-                          {Object.keys(request.requestedData).length > 3 && (
-                            <li className="text-gray-500">
-                              +{Object.keys(request.requestedData).length - 3} {t('common.more') || 'more'}
-                            </li>
-                          )}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                  <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/stockship/employee/offer-update-requests/${request.id}`)}
-                      className="flex items-center gap-2"
-                    >
-                      <Eye className="w-4 h-4" />
-                      {t('common.view') || 'View'}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Requests Table */}
+      <Card className="border-gray-200 shadow-sm">
+        <CardHeader className="border-b border-gray-200 bg-gray-50">
+          <CardTitle className={`text-lg font-semibold text-gray-900 ${isRTL ? 'text-right' : 'text-left'}`}>
+            {t('mediation.offers.updateRequest.reviewTitle') || 'Offer Update Requests'} ({filteredRequests.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <StandardDataTable
+            columns={columns}
+            data={filteredRequests}
+            loading={loading}
+            emptyMessage={t('mediation.offers.updateRequest.noRequests') || 'No update requests found'}
+            searchable={false}
+            rowActions={rowActions}
+            compact={false}
+            onRowClick={(row) => navigate(`/stockship/employee/offer-update-requests/${row.id}`)}
+          />
+        </CardContent>
+      </Card>
 
     </motion.div>
   );

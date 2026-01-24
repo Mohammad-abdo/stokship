@@ -22,6 +22,8 @@ import {
   Package,
   FolderTree,
   MapPin,
+  Edit,
+  Gift,
 } from "lucide-react";
 
 export default function StockshipEmployeeLayout({ children }) {
@@ -47,7 +49,8 @@ export default function StockshipEmployeeLayout({ children }) {
   const menuItems = [
     { icon: LayoutDashboard, label: t('sidebar.dashboard'), path: "/stockship/employee/dashboard" },
     { icon: Users, label: t('mediation.employee.traders') || 'My Traders', path: "/stockship/employee/traders" },
-    { icon: FileText, label: t('mediation.trader.updateRequest.reviewTitle') || 'Update Requests', path: "/stockship/employee/trader-update-requests" },
+    { icon: FileText, label: t('mediation.trader.updateRequest.reviewTitle') || 'Trader Update Requests', path: "/stockship/employee/trader-update-requests" },
+    { icon: Gift, label: t('mediation.offers.updateRequest.reviewTitle') || 'Offer Update Requests', path: "/stockship/employee/offer-update-requests" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/employee/deals" },
     { icon: Package, label: t('mediation.employee.offersValidation') || 'Offers Validation', path: "/stockship/employee/offers" },
     { icon: MapPin, label: 'Shipping Tracking', path: "/stockship/employee/shipping-tracking" },
@@ -109,7 +112,8 @@ export default function StockshipEmployeeLayout({ children }) {
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            // Check if current path matches or starts with the menu item path
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
             return (
               <Link
                 key={item.path}
