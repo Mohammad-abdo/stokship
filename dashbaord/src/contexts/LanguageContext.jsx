@@ -30,6 +30,11 @@ export const LanguageProvider = ({ children }) => {
       if (!value) return key;
     }
 
+    // If the final value is an object, return the key to avoid React rendering errors
+    if (typeof value === 'object' && value !== null) {
+      return key;
+    }
+
     return value;
   }, [language]);
 

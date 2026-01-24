@@ -22,7 +22,8 @@ import {
   Edit,
   FileSpreadsheet,
   Check,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { offerApi } from '@/lib/mediationApi';
 import stockshipApi from '@/lib/stockshipApi';
@@ -85,6 +86,30 @@ const TraderViewOffer = () => {
   const [loading, setLoading] = useState(true);
   const [offer, setOffer] = useState(null);
   const [platformSettings, setPlatformSettings] = useState(null);
+  const [pendingRequest, setPendingRequest] = useState(null);
+
+  // Fetch pending update request for this offer
+  useEffect(() => {
+    if (offer?.id && offer.status === 'ACTIVE') {
+      fetchPendingRequest();
+    }
+  }, [offer?.id, offer?.status]);
+
+  const fetchPendingRequest = async () => {
+    try {
+      const response = await offerApi.getTraderOfferUpdateRequests({ offerId: offer.id });
+      const requests = response.data?.data || response.data || [];
+      const pending = requests.find(r => r.status === 'PENDING');
+      setPendingRequest(pending || null);
+    } catch (error) {
+      console.error('Error fetching pending request:', error);
+    }
+  };
+
+  const handleRequestEdit = () => {
+    if (!offer) return;
+    navigate(`/stockship/trader/offers/${offer.id}/request-edit`);
+  };
 
 
   const fetchOffer = useCallback(async () => {
@@ -324,6 +349,34 @@ const TraderViewOffer = () => {
               <Edit className="w-4 h-4" />
               <span>{t('common.edit') || 'Edit'}</span>
             </motion.button>
+          )}
+          {offer.status === 'ACTIVE' && !pendingRequest && (
+            <>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleRequestEdit}
+                className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+              >
+                <Edit className="w-4 h-4" />
+                <span>{t('mediation.offers.requestEdit') || 'Request Edit'}</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => navigate(`/stockship/trader/offers/${offer.id}/support-tickets/create`)}
+                className={`flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>{t('mediation.support.createTicket') || 'Create Support Ticket'}</span>
+              </motion.button>
+            </>
+          )}
+          {offer.status === 'ACTIVE' && pendingRequest && (
+            <div className={`flex items-center gap-2 px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg ${isRTL ? 'flex-row-reverse' : ''}`}>
+              <Clock className="w-4 h-4" />
+              <span className="text-sm font-medium">{t('mediation.offers.editRequestPending') || 'Edit Request Pending'}</span>
+            </div>
           )}
         </div>
       </div>
@@ -843,7 +896,6 @@ const TraderViewOffer = () => {
           )}
         </div>
       </div>
-
     </motion.div>
   );
 };

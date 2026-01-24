@@ -1,78 +1,44 @@
 import api from './api';
 
+const MEDIATION_BASE_URL = '/mediation'; // Mediation routes are mounted at root, but some routes need /mediation prefix
+const OFFERS_BASE_URL = '/offers'; // Base URL already includes /api
+
 export const offerService = {
-  // Get active offers
-  getActiveOffers: async (params = {}) => {
-    try {
-      const response = await api.get('/offers', { params });
-      return response;
-    } catch (error) {
-      console.error('Error fetching active offers:', error);
-      throw error;
-    }
+  // Get offer by ID (public)
+  getOfferById: (offerId) => {
+    return api.get(`${OFFERS_BASE_URL}/${offerId}`);
   },
 
-  // Get recommended offers (from mediation routes)
-  getRecommendedOffers: async (limit = 10) => {
-    try {
-      // Note: This endpoint is in mediation routes, so it's at /api/offers/recommended
-      const response = await api.get('/offers/recommended', { params: { limit } });
-      return response;
-    } catch (error) {
-      console.error('Error fetching recommended offers:', error);
-      throw error;
-    }
+  // Get active offers (public)
+  getActiveOffers: (params = {}) => {
+    return api.get(OFFERS_BASE_URL, { params });
   },
 
-  // Get offer by ID
-  getOfferById: async (id) => {
-    try {
-      const response = await api.get(`/offers/${id}`);
-      return response;
-    } catch (error) {
-      console.error(`Error fetching offer ${id}:`, error);
-      throw error;
-    }
+  // Get recommended offers (public)
+  getRecommendedOffers: (limit = 10) => {
+    return api.get(`${OFFERS_BASE_URL}/recommended`, { params: { limit } });
   },
 
-  // Get offers by category (from mediation routes)
-  getOffersByCategory: async (categoryId, params = {}) => {
-    try {
-      // Note: This endpoint is in mediation routes, so it's at /api/offers/by-category/:categoryId
-      const response = await api.get(`/offers/by-category/${categoryId}`, { params });
-      return response;
-    } catch (error) {
-      console.error(`Error fetching offers for category ${categoryId}:`, error);
-      throw error;
-    }
+  // Get offers by category (public)
+  getOffersByCategory: (categoryId, params = {}) => {
+    return api.get(`${OFFERS_BASE_URL}/by-category/${categoryId}`, { params });
   },
 
-  // Create offer (for traders)
-  createOffer: async (data) => {
-    try {
-      const response = await api.post('/traders/offers', data);
-      return response;
-    } catch (error) {
-      console.error('Error creating offer:', error);
-      throw error;
-    }
+  // Get trader offers (public)
+  // Mediation routes are mounted at root, so path is /api/traders/:id/offers/public
+  getTraderOffers: (traderId, params = {}) => {
+    console.log("📡 Calling getTraderOffers with traderId:", traderId, "params:", params);
+    console.log("📡 Full URL will be:", `/api/traders/${traderId}/offers/public`);
+    return api.get(`/traders/${traderId}/offers/public`, { params });
   },
 
-  // Upload Excel file
-  uploadExcel: async (offerId, file) => {
-    try {
-      const formData = new FormData();
-      formData.append('excelFile', file);
-      const response = await api.post(`/traders/offers/${offerId}/upload-excel`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      return response;
-    } catch (error) {
-      console.error(`Error uploading Excel for offer ${offerId}:`, error);
-      throw error;
-    }
+  // Request negotiation (public - for non-authenticated users)
+  requestNegotiationPublic: (offerId, data) => {
+    return api.post(`${MEDIATION_BASE_URL}/offers/${offerId}/request-negotiation/public`, data);
   },
+
+  // Request negotiation (authenticated)
+  requestNegotiation: (offerId, data) => {
+    return api.post(`${MEDIATION_BASE_URL}/offers/${offerId}/request-negotiation`, data);
+  }
 };
-

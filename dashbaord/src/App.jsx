@@ -24,6 +24,7 @@ import ModeratorTraders from "./pages/moderator/ModeratorTraders";
 import ModeratorReports from "./pages/moderator/ModeratorReports";
 import ModeratorSettings from "./pages/moderator/ModeratorSettings";
 import ModeratorLayout from "./components/ModeratorLayout";
+import StockshipModeratorLayout from "./components/StockshipModeratorLayout";
 
 // Removed e-commerce frontend pages - not related to mediation platform
 
@@ -107,6 +108,11 @@ import EmployeeTraders from "./pages/stockship/employee/EmployeeTraders";
 import EmployeeDeals from "./pages/stockship/employee/EmployeeDeals";
 import EmployeeTraderUpdateRequests from "./pages/stockship/employee/EmployeeTraderUpdateRequests";
 import ViewTraderUpdateRequest from "./pages/stockship/employee/ViewTraderUpdateRequest";
+import EmployeeOfferUpdateRequests from "./pages/stockship/employee/EmployeeOfferUpdateRequests";
+import ViewOfferUpdateRequest from "./pages/stockship/employee/ViewOfferUpdateRequest";
+import EmployeeOfferSupportTickets from "./pages/stockship/employee/EmployeeOfferSupportTickets";
+import CreateOfferSupportTicketEmployee from "./pages/stockship/employee/CreateOfferSupportTicket";
+import ViewOfferSupportTicketEmployee from "./pages/stockship/employee/ViewOfferSupportTicket";
 import CreateTrader from "./pages/stockship/employee/CreateTrader";
 import EmployeeViewTrader from "./pages/stockship/employee/ViewTrader";
 import EmployeeViewDeal from "./pages/stockship/employee/ViewDeal";
@@ -115,15 +121,23 @@ import EmployeeViewOffer from "./pages/stockship/employee/EmployeeViewOffer";
 import EmployeeShippingTracking from "./pages/stockship/employee/EmployeeShippingTracking";
 import EmployeeViewShippingTracking from "./pages/stockship/employee/EmployeeViewShippingTracking";
 import EmployeePayments from "./pages/stockship/employee/EmployeePayments";
+import EmployeeViewPayment from "./pages/stockship/employee/EmployeeViewPayment";
 import EmployeeSettings from "./pages/stockship/employee/EmployeeSettings";
 import EmployeeCategories from "./pages/stockship/employee/EmployeeCategories";
 import EmployeeCreateCategory from "./pages/stockship/employee/CreateCategory";
 import EmployeeEditCategory from "./pages/stockship/employee/EditCategory";
 import EmployeeViewCategory from "./pages/stockship/employee/ViewCategory";
+import NotFound from "./pages/ErrorPages/NotFound";
+import ServerError from "./pages/ErrorPages/ServerError";
+import Forbidden from "./pages/ErrorPages/Forbidden";
 import TraderDashboard from "./pages/stockship/trader/TraderDashboard";
 import TraderOffers from "./pages/stockship/trader/TraderOffers";
 import CreateOffer from "./pages/stockship/trader/CreateOffer";
 import TraderViewOffer from "./pages/stockship/trader/TraderViewOffer";
+import TraderEditOfferRequest from "./pages/stockship/trader/TraderEditOfferRequest";
+import TraderOfferSupportTickets from "./pages/stockship/trader/TraderOfferSupportTickets";
+import TraderViewOfferSupportTicket from "./pages/stockship/trader/ViewOfferSupportTicket";
+import CreateOfferSupportTicket from "./pages/stockship/trader/CreateOfferSupportTicket";
 import TraderDeals from "./pages/stockship/trader/TraderDeals";
 import TraderViewDeal from "./pages/stockship/trader/TraderViewDeal";
 import TraderPayments from "./pages/stockship/trader/TraderPayments";
@@ -229,9 +243,9 @@ function AppRoutes() {
         path="/stockship/moderator/dashboard"
         element={
           <MultiProtectedRoute requireModerator>
-            <ModeratorLayout>
+            <StockshipModeratorLayout>
               <ModeratorDashboard />
-            </ModeratorLayout>
+            </StockshipModeratorLayout>
           </MultiProtectedRoute>
         }
       />
@@ -239,9 +253,9 @@ function AppRoutes() {
         path="/stockship/moderator/traders"
         element={
           <MultiProtectedRoute requireModerator>
-            <ModeratorLayout>
+            <StockshipModeratorLayout>
               <ModeratorTraders />
-            </ModeratorLayout>
+            </StockshipModeratorLayout>
           </MultiProtectedRoute>
         }
       />
@@ -249,9 +263,9 @@ function AppRoutes() {
         path="/stockship/moderator/reports"
         element={
           <MultiProtectedRoute requireModerator>
-            <ModeratorLayout>
+            <StockshipModeratorLayout>
               <ModeratorReports />
-            </ModeratorLayout>
+            </StockshipModeratorLayout>
           </MultiProtectedRoute>
         }
       />
@@ -259,9 +273,9 @@ function AppRoutes() {
         path="/stockship/moderator/settings"
         element={
           <MultiProtectedRoute requireModerator>
-            <ModeratorLayout>
+            <StockshipModeratorLayout>
               <ModeratorSettings />
-            </ModeratorLayout>
+            </StockshipModeratorLayout>
           </MultiProtectedRoute>
         }
       />
@@ -890,6 +904,56 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/stockship/employee/offer-update-requests"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeOfferUpdateRequests />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/offer-update-requests/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <ViewOfferUpdateRequest />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/offer-support-tickets"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeOfferSupportTickets />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/offer-support-tickets/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <ViewOfferSupportTicketEmployee />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/offers/:offerId/support-tickets/create"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <CreateOfferSupportTicketEmployee />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
         path="/stockship/employee/traders/create"
         element={
           <MultiProtectedRoute requireEmployee>
@@ -955,6 +1019,26 @@ function AppRoutes() {
           <MultiProtectedRoute requireEmployee>
             <StockshipEmployeeLayout>
               <EmployeeOffers />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/payments/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeViewPayment />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/employee/payments/:id"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <EmployeeViewPayment />
             </StockshipEmployeeLayout>
           </MultiProtectedRoute>
         }
@@ -1110,6 +1194,46 @@ function AppRoutes() {
           <MultiProtectedRoute requireTrader>
             <StockshipTraderLayout>
               <CreateOffer />
+            </StockshipTraderLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/trader/offers/:id/request-edit"
+        element={
+          <MultiProtectedRoute requireTrader>
+            <StockshipTraderLayout>
+              <TraderEditOfferRequest />
+            </StockshipTraderLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/trader/support-tickets"
+        element={
+          <MultiProtectedRoute requireTrader>
+            <StockshipTraderLayout>
+              <TraderOfferSupportTickets />
+            </StockshipTraderLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/trader/support-tickets/:id"
+        element={
+          <MultiProtectedRoute requireTrader>
+            <StockshipTraderLayout>
+              <TraderViewOfferSupportTicket />
+            </StockshipTraderLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/trader/offers/:offerId/support-tickets/create"
+        element={
+          <MultiProtectedRoute requireTrader>
+            <StockshipTraderLayout>
+              <CreateOfferSupportTicket />
             </StockshipTraderLayout>
           </MultiProtectedRoute>
         }
@@ -1307,22 +1431,16 @@ function AppRoutes() {
         }
       />
 
+      {/* Error Pages */}
+      <Route path="/404" element={<NotFound />} />
+      <Route path="/500" element={<ServerError />} />
+      <Route path="/403" element={<Forbidden />} />
+
       {/* Root Landing Page */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/offers/:id" element={<PublicViewOffer />} />
       {/* <Route path="/" element={<Navigate to="/multi-login" replace />} /> */}
-      <Route 
-        path="*" 
-        element={
-          <div className="flex items-center justify-center min-h-screen bg-background">
-            <div className="text-center">
-              <h1 className="text-2xl font-bold mb-2">404 - Page Not Found</h1>
-              <p className="text-muted-foreground mb-4">The page you're looking for doesn't exist.</p>
-              <Navigate to={getDefaultRoute} replace />
-            </div>
-          </div>
-        } 
-      />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

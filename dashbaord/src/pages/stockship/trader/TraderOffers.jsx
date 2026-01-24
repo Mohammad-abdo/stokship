@@ -19,7 +19,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
+  MessageSquare
 } from 'lucide-react';
 import { traderApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
@@ -223,6 +224,18 @@ const TraderOffers = () => {
           title={t('mediation.offers.uploadData') || 'Upload Data'}
         >
           <Upload className="w-4 h-4 text-gray-600" />
+        </button>
+      )}
+      {row.status === 'ACTIVE' && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/stockship/trader/offers/${row.id}/support-tickets/create`);
+          }}
+          className="p-1.5 hover:bg-gray-200 rounded transition-colors"
+          title={t('mediation.support.createTicket') || 'Create Support Ticket'}
+        >
+          <MessageSquare className="w-4 h-4 text-green-600" />
         </button>
       )}
     </div>

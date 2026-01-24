@@ -151,10 +151,10 @@ const AdminSupportTickets = () => {
 
   const getPriorityBadge = (priority) => {
     const priorityConfig = {
-      LOW: { bg: 'bg-gray-100', text: 'text-gray-800', label: t('mediation.support.low') || 'Low' },
-      MEDIUM: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: t('mediation.support.medium') || 'Medium' },
-      HIGH: { bg: 'bg-orange-100', text: 'text-orange-800', label: t('mediation.support.high') || 'High' },
-      URGENT: { bg: 'bg-red-100', text: 'text-red-800', label: t('mediation.support.urgent') || 'Urgent' }
+      LOW: { bg: 'bg-gray-100', text: 'text-gray-800', label: t('mediation.support.priority.low') || 'Low' },
+      MEDIUM: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: t('mediation.support.priority.medium') || 'Medium' },
+      HIGH: { bg: 'bg-orange-100', text: 'text-orange-800', label: t('mediation.support.priority.high') || 'High' },
+      URGENT: { bg: 'bg-red-100', text: 'text-red-800', label: t('mediation.support.priority.urgent') || 'Urgent' }
     };
     const config = priorityConfig[priority] || { bg: 'bg-gray-100', text: 'text-gray-800', label: priority || 'Unknown' };
     return (
@@ -204,7 +204,7 @@ const AdminSupportTickets = () => {
     },
     {
       key: 'priority',
-      label: t('mediation.support.priority') || 'Priority',
+      label: t('mediation.support.priorityLabel') || 'Priority',
       render: (value) => getPriorityBadge(value)
     },
     {
@@ -415,7 +415,7 @@ const AdminSupportTickets = () => {
                   </Card>
                   <Card className="border-gray-200">
                     <CardContent className="pt-4">
-                      <div className="text-sm text-gray-500 mb-1">{t('mediation.support.priority')}</div>
+                      <div className="text-sm text-gray-500 mb-1">{t('mediation.support.priorityLabel')}</div>
                       <div>{getPriorityBadge(selectedTicket.priority)}</div>
                     </CardContent>
                   </Card>

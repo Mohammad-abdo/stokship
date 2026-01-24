@@ -18,12 +18,17 @@ export const profileService = {
   },
 
   // Get trader by ID (public)
+  // Mediation routes are mounted at root level in /api, so path is /api/traders/:id/public
   getTraderById: (id) => {
+    console.log("📡 Calling getTraderById with ID:", id);
+    console.log("📡 Full URL will be:", `/api/traders/${id}/public`);
     return api.get(`/traders/${id}/public`);
   },
 
   // Get trader offers
   getTraderOffers: (id, params = {}) => {
+    console.log("📡 Calling getTraderOffers with ID:", id, "params:", params);
+    console.log("📡 Full URL will be:", `/api/traders/${id}/offers/public`);
     return api.get(`/traders/${id}/offers/public`, { params });
   },
 

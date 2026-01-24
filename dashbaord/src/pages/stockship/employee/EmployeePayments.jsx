@@ -157,8 +157,7 @@ const EmployeePayments = () => {
   };
 
   const handleViewPayment = async (payment) => {
-    setSelectedPayment(payment);
-    setShowVerifyModal(true);
+    navigate(`/stockship/employee/payments/${payment.id}`);
   };
 
   const handleVerify = async () => {

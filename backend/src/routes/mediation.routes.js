@@ -48,6 +48,8 @@ const upload = multer({
 const employeeController = require('../controllers/mediation/employee.controller');
 const traderController = require('../controllers/mediation/trader.controller');
 const traderUpdateRequestController = require('../controllers/mediation/traderUpdateRequest.controller');
+const offerUpdateRequestController = require('../controllers/mediation/offerUpdateRequest.controller');
+const offerSupportTicketController = require('../controllers/mediation/offerSupportTicket.controller');
 const offerController = require('../controllers/mediation/offer.controller');
 const dealController = require('../controllers/mediation/deal.controller');
 const negotiationController = require('../controllers/mediation/negotiation.controller');
@@ -108,9 +110,41 @@ router.get('/admin/trader-update-requests/:id', protect, authorize('ADMIN', 'EMP
 router.put('/admin/trader-update-requests/:id/approve', protect, authorize('ADMIN', 'EMPLOYEE'), traderUpdateRequestController.approveUpdateRequest);
 router.put('/admin/trader-update-requests/:id/reject', protect, authorize('ADMIN', 'EMPLOYEE'), traderUpdateRequestController.rejectUpdateRequest);
 
+// Admin/Employee routes for offer update requests
+router.get('/admin/offer-update-requests', protect, authorize('ADMIN', 'EMPLOYEE'), offerUpdateRequestController.getAllUpdateRequests);
+router.get('/admin/offer-update-requests/:id', protect, authorize('ADMIN', 'EMPLOYEE'), offerUpdateRequestController.getUpdateRequestById);
+router.put('/admin/offer-update-requests/:id/approve', protect, authorize('ADMIN', 'EMPLOYEE'), offerUpdateRequestController.approveUpdateRequest);
+router.put('/admin/offer-update-requests/:id/reject', protect, authorize('ADMIN', 'EMPLOYEE'), offerUpdateRequestController.rejectUpdateRequest);
+
 // Trader routes (general - must come after specific routes)
 router.post('/traders/register', protect, authorize('CLIENT'), traderController.registerTrader); // New registration route
 router.get('/traders/check-linked', protect, authorize('CLIENT'), traderController.checkLinkedTrader);
+
+// IMPORTANT: Support ticket routes must come BEFORE /traders/:id to avoid route conflicts
+// ============================================
+// OFFER SUPPORT TICKET ROUTES
+// ============================================
+
+// Trader routes
+router.post('/traders/offers/:offerId/support-tickets', protect, authorize('TRADER'), offerSupportTicketController.createTicket);
+router.get('/traders/offers/:offerId/support-tickets', protect, authorize('TRADER'), offerSupportTicketController.getTraderTickets);
+router.get('/traders/support-tickets', protect, authorize('TRADER'), offerSupportTicketController.getTraderTickets);
+router.get('/traders/support-tickets/:id', protect, authorize('TRADER'), offerSupportTicketController.getTraderTicketById);
+router.post('/traders/support-tickets/:id/messages', protect, authorize('TRADER'), offerSupportTicketController.addTraderMessage);
+
+// Employee routes
+router.post('/employees/offers/:offerId/support-tickets', protect, authorize('EMPLOYEE'), checkEmployeeTraderRelation, offerSupportTicketController.createEmployeeTicket);
+
+// Admin/Employee routes
+router.get('/admin/offer-support-tickets', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.getAllTickets);
+router.get('/admin/offer-support-tickets/:id', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.getTicketById);
+router.post('/admin/offer-support-tickets/:id/messages', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.addMessage);
+router.put('/admin/offer-support-tickets/:id/status', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.updateTicketStatus);
+router.put('/admin/offer-support-tickets/:id/assign', protect, authorize('ADMIN', 'EMPLOYEE'), offerSupportTicketController.assignTicket);
+
+// ============================================
+// TRADER ROUTES (must come after support tickets)
+// ============================================
 router.get('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'MODERATOR'), traderController.getTraderById); // Added MODERATOR
 router.get('/traders/:id/offers', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'MODERATOR'), traderController.getTraderOffers); // Added MODERATOR
 router.put('/traders/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'MODERATOR'), traderController.updateTrader); // Added MODERATOR for verification
@@ -137,6 +171,10 @@ router.get('/admin/offers', protect, authorize('ADMIN'), offerController.getAllO
 // Trader routes
 router.post('/traders/offers', protect, authorize('TRADER'), offerController.createOffer);
 router.post('/traders/offers/:id/upload-excel', protect, authorize('TRADER'), upload.single('excelFile'), offerController.uploadOfferExcel);
+// Offer update request routes (must come before /traders/offers/update-requests)
+router.post('/traders/offers/:offerId/update-request', protect, authorize('TRADER'), offerUpdateRequestController.createUpdateRequest);
+router.get('/traders/offers/update-requests', protect, authorize('TRADER'), offerUpdateRequestController.getTraderOfferUpdateRequests);
+router.put('/traders/offers/update-requests/:id/cancel', protect, authorize('TRADER'), offerUpdateRequestController.cancelUpdateRequest);
 
 // Employee offer management routes moved above to prevent route conflicts
 
@@ -146,6 +184,7 @@ router.post('/traders/offers/:id/upload-excel', protect, authorize('TRADER'), up
 
 // Client routes
 router.post('/offers/:offerId/request-negotiation', protect, authorize('CLIENT'), dealController.requestNegotiation);
+router.post('/offers/:offerId/request-negotiation/public', dealController.requestNegotiationPublic);
 router.get('/deals', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'CLIENT'), dealController.getDeals);
 
 // ============================================

@@ -107,6 +107,27 @@ enum TraderUpdateRequestStatus {
   CANCELLED
 }
 
+enum OfferUpdateRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum OfferSupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum OfferSupportTicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 enum AuditAction {
   DEAL_CREATED
   DEAL_UPDATED
@@ -188,7 +209,9 @@ model Employee {
   activityLogs          ActivityLog[]          @relation("ActivityLogEmployee")
   auditTrails           AuditTrail[]           @relation("AuditTrailEmployee")
   traderUpdateRequests  TraderUpdateRequest[]  @relation("TraderUpdateRequestReviewer")
+  offerUpdateRequests   OfferUpdateRequest[]   @relation("OfferUpdateRequestReviewer")
   financialTransactions FinancialTransaction[] @relation("FinancialTransactionEmployee")
+  offerSupportTickets   OfferSupportTicket[]   @relation("OfferSupportTicketEmployee")
 
   @@index([createdBy])
   @@index([employeeCode])
@@ -233,6 +256,7 @@ model Trader {
   activityLogs     ActivityLog[]         @relation("ActivityLogTrader")
   auditTrails      AuditTrail[]          @relation("AuditTrailTrader")
   updateRequests   TraderUpdateRequest[]
+  offerSupportTickets OfferSupportTicket[] @relation("OfferSupportTicketTrader")
 
   @@index([employeeId])
   @@index([clientId])
@@ -309,6 +333,8 @@ model Offer {
   items            OfferItem[]
   deals            Deal[]
   activityLogs     ActivityLog[] @relation("ActivityLogOffer")
+  updateRequests   OfferUpdateRequest[]
+  supportTickets   OfferSupportTicket[]
 
   @@index([traderId])
   @@index([status])
@@ -961,6 +987,93 @@ model TraderUpdateRequest {
   @@index([traderId])
   @@index([status])
   @@index([reviewedBy])
+  @@index([createdAt])
+}
+
+// ============================================
+// OFFER UPDATE REQUESTS
+// ============================================
+
+model OfferUpdateRequest {
+  id       String                  @id @default(uuid())
+  offerId String
+  status  OfferUpdateRequestStatus @default(PENDING)
+
+  // Requested changes (JSON to store all fields)
+  requestedData Json @db.Json
+
+  // Review information
+  reviewedBy     String? // Employee or Admin ID
+  reviewedByType UserType? // EMPLOYEE or ADMIN
+  reviewedAt     DateTime?
+  reviewNotes    String?   @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  offer    Offer     @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  reviewer Employee? @relation("OfferUpdateRequestReviewer", fields: [reviewedBy], references: [id])
+
+  @@index([offerId])
+  @@index([status])
+  @@index([reviewedBy])
+  @@index([createdAt])
+}
+
+// ============================================
+// OFFER SUPPORT TICKETS
+// ============================================
+
+model OfferSupportTicket {
+  id          String                      @id @default(uuid())
+  offerId     String
+  traderId    String // Trader who created the ticket
+  employeeId  String? // Employee assigned to handle the ticket
+  subject     String
+  status      OfferSupportTicketStatus    @default(OPEN)
+  priority    OfferSupportTicketPriority  @default(MEDIUM)
+  
+  // Timestamps
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+
+  // Relations
+  offer       Offer                       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  trader      Trader                      @relation("OfferSupportTicketTrader", fields: [traderId], references: [id], onDelete: Cascade)
+  employee    Employee?                   @relation("OfferSupportTicketEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  messages    OfferSupportTicketMessage[]
+
+  @@index([offerId])
+  @@index([traderId])
+  @@index([employeeId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+model OfferSupportTicketMessage {
+  id          String                @id @default(uuid())
+  ticketId    String
+  senderId    String // ID of sender (trader or employee)
+  senderType  UserType // TRADER or EMPLOYEE
+  message     String                @db.Text
+  attachments String?               @db.Text // JSON array of file URLs
+  
+  // Timestamps
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  readAt      DateTime? // When the message was read by the recipient
+
+  // Relations
+  ticket      OfferSupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@index([senderType])
   @@index([createdAt])
 }
 

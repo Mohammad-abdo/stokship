@@ -27,7 +27,8 @@ import {
   User,
   Save,
   Loader2,
-  Eye
+  Eye,
+  MessageSquare
 } from 'lucide-react';
 import { offerApi } from '@/lib/mediationApi';
 import showToast from '@/lib/toast';
@@ -399,6 +400,17 @@ const EmployeeViewOffer = () => {
           >
             <ArrowLeft className={`w-5 h-5 ${isRTL ? 'rotate-180' : ''}`} />
           </motion.button>
+          {offer.status === 'ACTIVE' && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(`/stockship/employee/offers/${offer.id}/support-tickets/create`)}
+              className={`flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow-sm ${isRTL ? 'flex-row-reverse' : ''}`}
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>{t('mediation.support.createTicket') || 'Create Support Ticket'}</span>
+            </motion.button>
+          )}
           <div className={isRTL ? 'text-right' : 'text-left'}>
             <h1 className="text-3xl font-bold text-gray-900">
               {t('mediation.employee.offerDetails') || 'Offer Details'}

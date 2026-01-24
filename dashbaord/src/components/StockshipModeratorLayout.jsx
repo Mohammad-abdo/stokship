@@ -8,26 +8,22 @@ import NotificationsDropdown from "./NotificationsDropdown";
 import LanguageToggle from "./LanguageToggle";
 import {
   LayoutDashboard,
-  Package,
+  Users,
   FileText,
-  DollarSign,
   Settings,
   LogOut,
   Menu,
   X,
-  Building2,
-  Plus,
-  Globe,
-  Bell,
-  MessageSquare,
+  Shield,
+  BarChart2,
 } from "lucide-react";
 
-export default function StockshipTraderLayout({ children }) {
+export default function StockshipModeratorLayout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { getAuth, logout } = useMultiAuth();
   const { t, language, toggleLanguage, isRTL } = useLanguage();
-  const { user } = getAuth('trader');
+  const { user } = getAuth('moderator');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -38,18 +34,15 @@ export default function StockshipTraderLayout({ children }) {
   }, []);
 
   const handleLogout = () => {
-    logout('trader');
+    logout('moderator');
     navigate('/multi-login');
   };
 
   const menuItems = [
-    { icon: LayoutDashboard, label: t('sidebar.dashboard') || "Dashboard", path: "/stockship/trader/dashboard" },
-    { icon: Package, label: t('mediation.trader.myOffers') || "My Offers", path: "/stockship/trader/offers" },
-    { icon: Plus, label: t('mediation.trader.createOffer') || "Create Offer", path: "/stockship/trader/offers/create" },
-    { icon: FileText, label: t('mediation.deals.title') || "Deals", path: "/stockship/trader/deals" },
-    { icon: DollarSign, label: t('mediation.payments.title') || "Payments", path: "/stockship/trader/payments" },
-    { icon: MessageSquare, label: t('mediation.support.tickets') || "Support Tickets", path: "/stockship/trader/support-tickets" },
-    { icon: Settings, label: t('common.settings') || "Settings", path: "/stockship/trader/settings" },
+    { icon: LayoutDashboard, label: t('sidebar.dashboard'), path: "/stockship/moderator/dashboard" },
+    { icon: Users, label: t('mediation.moderator.traders.title') || 'Traders', path: "/stockship/moderator/traders" },
+    { icon: BarChart2, label: t('mediation.moderator.reports.title') || 'Reports', path: "/stockship/moderator/reports" },
+    { icon: Settings, label: t('common.settings'), path: "/stockship/moderator/settings" },
   ];
 
   return (
@@ -75,7 +68,7 @@ export default function StockshipTraderLayout({ children }) {
         <div className={`h-16 flex items-center justify-between px-4 border-b border-gray-200/50 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <div className={isRTL ? 'text-right' : 'text-left'}>
             <h2 className="text-lg font-semibold text-gray-900">Stockship</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{t('mediation.trader.portal') || 'Trader Portal'}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t('mediation.moderator.portal') || 'Moderator Portal'}</p>
           </div>
           <button
             onClick={() => setMobileMenuOpen(false)}
@@ -90,53 +83,49 @@ export default function StockshipTraderLayout({ children }) {
         <div className="px-4 py-3 border-b border-gray-200/50">
           <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
             <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
-              <Building2 className="w-5 h-5 text-gray-600" />
+              <Shield className="w-5 h-5 text-gray-600" />
             </div>
             <div className={`flex-1 min-w-0 ${isRTL ? 'text-right' : 'text-left'}`}>
-              <p className="text-sm font-medium text-gray-900 truncate">{user?.name || t('mediation.trader.trader') || 'Trader'}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.name || t('mediation.moderator.moderator') || 'Moderator'}</p>
               <p className="text-xs text-gray-500 truncate">
-                {user?.traderCode || 'TRD-0000'}
+                {t('mediation.moderator.role') || 'Moderator'}
               </p>
-              {user?.companyName && (
-                <p className="text-xs text-gray-400 truncate">
-                  {user.companyName}
-                </p>
-              )}
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1" dir={isRTL ? 'rtl' : 'ltr'}>
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            // Check if current path matches or starts with the menu item path
+            const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center ${isRTL ? 'flex-row-reverse justify-end' : 'flex-row'} gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isActive
                     ? "bg-gray-100/80 text-gray-900 font-medium"
                     : "text-gray-600 hover:bg-gray-100/50 hover:text-gray-900"
-                }`}
+                } ${isRTL ? 'flex-row-reverse justify-end' : ''}`}
               >
-                <Icon className={`w-5 h-5 shrink-0 ${isRTL ? 'order-2' : ''}`} />
-                <span className={`text-sm font-medium ${isRTL ? 'text-right order-1' : 'text-left'}`}>{item.label}</span>
+                <Icon className="w-5 h-5 shrink-0" />
+                <span className={`text-sm font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
         {/* Logout */}
-        <div className="p-3 border-t border-gray-200/50" dir={isRTL ? 'rtl' : 'ltr'}>
+        <div className="p-3 border-t border-gray-200/50">
           <button
             onClick={handleLogout}
-            className={`flex items-center ${isRTL ? 'flex-row-reverse justify-end' : 'flex-row'} gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100/60 text-gray-600 hover:text-gray-900 w-full transition-colors text-sm`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-100/60 text-gray-600 hover:text-gray-900 w-full transition-colors text-sm ${isRTL ? 'flex-row-reverse justify-end' : ''}`}
           >
-            <LogOut className={`w-5 h-5 shrink-0 ${isRTL ? 'order-2' : ''}`} />
-            <span className={`font-medium ${isRTL ? 'order-1 text-right' : 'text-left'}`}>{t('common.logout') || 'Logout'}</span>
+            <LogOut className="w-5 h-5 shrink-0" />
+            <span className={`font-medium ${isRTL ? 'text-right' : 'text-left'}`}>{t('common.logout')}</span>
           </button>
         </div>
       </aside>
@@ -168,14 +157,14 @@ export default function StockshipTraderLayout({ children }) {
               <Menu size={20} />
             </button>
             <h1 className={`text-base font-semibold text-gray-900 ${isRTL ? 'text-right' : 'text-left'}`}>
-              {menuItems.find(item => item.path === location.pathname)?.label || t('mediation.trader.portal') || 'Trader Portal'}
+              {menuItems.find(item => item.path === location.pathname || location.pathname.startsWith(item.path + '/'))?.label || t('mediation.moderator.portal') || 'Moderator Portal'}
             </h1>
           </div>
           <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-           <RoleSwitcher />
-           <ProfileStatusBadge />
-           <NotificationsDropdown />
-           <LanguageToggle />
+             <RoleSwitcher />
+             <ProfileStatusBadge />
+             <NotificationsDropdown />
+             <LanguageToggle />
           </div>
         </header>
         <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>

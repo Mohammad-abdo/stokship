@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import Header from "../components/Header";
 import FooterArabic from "../components/FooterArabic";
 import { ROUTES } from "../routes";
+import { offerService } from "../services/offerService";
 
 export default function SellerProductsPage() {
   const { t, i18n } = useTranslation();
@@ -12,143 +13,230 @@ export default function SellerProductsPage() {
   const { sellerId } = useParams();
   const navigate = useNavigate();
   const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [allItems, setAllItems] = useState([]); // Flattened offer items
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  // Sample products data
-  const products = [
-    {
-      id: 1,
-      image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80",
-      thumbnails: [
-        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&q=80",
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&q=80",
-        "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?w=100&q=80",
-      ],
-      title: "فلتر زيت أصلي",
-      itemNumber: "#item number",
-      country: "🇨🇳",
-      description: "لوريم إيبسوم دولور سيت أميت، كونسيكتيتور أديبيسينج إيليت، سيد دو إيوسمود تيمبور إينسيديدونت.",
-      quantity: 500,
-      piecesPerCarton: 101,
-      pricePerPiece: 700,
-      cbm: 8,
-      soldOut: false,
-      negotiationPrice: "",
-      negotiationQuantity: "",
-    },
-    {
-      id: 2,
-      image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80",
-      thumbnails: [
-        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&q=80",
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&q=80",
-        "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?w=100&q=80",
-      ],
-      title: "فلتر زيت أصلي",
-      itemNumber: "#item number",
-      country: "🇨🇳",
-      description: "لوريم إيبسوم دولور سيت أميت، كونسيكتيتور أديبيسينج إيليت، سيد دو إيوسمود تيمبور إينسيديدونت.",
-      quantity: 500,
-      piecesPerCarton: 101,
-      pricePerPiece: 700,
-      cbm: 8,
-      soldOut: false,
-      negotiationPrice: "",
-      negotiationQuantity: "",
-    },
-    {
-      id: 3,
-      image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80",
-      thumbnails: [
-        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&q=80",
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&q=80",
-        "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?w=100&q=80",
-      ],
-      title: "فلتر زيت أصلي",
-      itemNumber: "#item number",
-      country: "🇨🇳",
-      description: "لوريم إيبسوم دولور سيت أميت، كونسيكتيتور أديبيسينج إيليت، سيد دو إيوسمود تيمبور إينسيديدونت.",
-      quantity: 500,
-      piecesPerCarton: 101,
-      pricePerPiece: 100,
-      cbm: 8,
-      soldOut: true,
-      negotiationPrice: 100,
-      negotiationQuantity: 30,
-    },
-    {
-      id: 4,
-      image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80",
-      thumbnails: [
-        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&q=80",
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&q=80",
-        "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?w=100&q=80",
-      ],
-      title: "فلتر زيت أصلي",
-      itemNumber: "#item number",
-      country: "🇨🇳",
-      description: "لوريم إيبسوم دولور سيت أميت، كونسيكتيتور أديبيسينج إيليت، سيد دو إيوسمود تيمبور إينسيديدونت.",
-      quantity: 500,
-      piecesPerCarton: 101,
-      pricePerPiece: 700,
-      cbm: 8,
-      soldOut: false,
-      negotiationPrice: "",
-      negotiationQuantity: "",
-    },
-    {
-      id: 5,
-      image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80",
-      thumbnails: [
-        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&q=80",
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&q=80",
-        "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?w=100&q=80",
-      ],
-      title: "فلتر زيت أصلي",
-      itemNumber: "#item number",
-      country: "🇨🇳",
-      description: "لوريم إيبسوم دولور سيت أميت، كونسيكتيتور أديبيسينج إيليت، سيد دو إيوسمود تيمبور إينسيديدونت.",
-      quantity: 500,
-      piecesPerCarton: 101,
-      pricePerPiece: 700,
-      cbm: 8,
-      soldOut: false,
-      negotiationPrice: "",
-      negotiationQuantity: "",
-    },
-    {
-      id: 6,
-      image: "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=400&q=80",
-      thumbnails: [
-        "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=100&q=80",
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=100&q=80",
-        "https://images.unsplash.com/photo-1580913428735-bd3c269d6a82?w=100&q=80",
-      ],
-      title: "فلتر زيت أصلي",
-      itemNumber: "#item number",
-      country: "🇨🇳",
-      description: "لوريم إيبسوم دولور سيت أميت، كونسيكتيتور أديبيسينج إيليت، سيد دو إيوسمود تيمبور إينسيديدونت.",
-      quantity: 500,
-      piecesPerCarton: 101,
-      pricePerPiece: 100,
-      cbm: 5,
-      soldOut: true,
-      negotiationPrice: 100,
-      negotiationQuantity: 30,
-    },
-  ];
+  const fetchTraderOffers = useCallback(async () => {
+    if (!sellerId) {
+      console.error("❌ Cannot fetch: sellerId is missing");
+      setError(t("sellerProducts.sellerIdNotFound"));
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      console.log("🔄 Fetching trader offers for sellerId:", sellerId);
+      console.log("📡 API call will be made to:", `/api/traders/${sellerId}/offers/public`);
+      
+      const response = await offerService.getTraderOffers(sellerId, {
+        page: 1,
+        limit: 100 // Get all offers
+      });
+      
+      console.log("📦 Full offers response:", response);
+      console.log("📦 Response.data:", response?.data);
+      console.log("📦 Response.data.data:", response?.data?.data);
+      console.log("📦 Response.data.success:", response?.data?.success);
+      console.log("📦 Response.data.pagination:", response?.data?.pagination);
+      
+      // Handle paginated response: { success: true, data: [...], pagination: {...} }
+      let offersData = [];
+      if (response && response.data) {
+        // Standard paginated response: { success: true, data: [...], pagination: {...} }
+        if (response.data.success) {
+          if (Array.isArray(response.data.data)) {
+            offersData = response.data.data;
+            console.log("✅ Found offers in response.data.data (paginated)", offersData.length, "offers");
+          } else if (response.data.data?.data && Array.isArray(response.data.data.data)) {
+            offersData = response.data.data.data;
+            console.log("✅ Found offers in nested response.data.data.data");
+          }
+        } 
+        // Direct array response
+        else if (Array.isArray(response.data)) {
+          offersData = response.data;
+          console.log("✅ Found offers in response.data (direct array)");
+        }
+        // Nested data structure
+        else if (response.data.data && Array.isArray(response.data.data)) {
+          offersData = response.data.data;
+          console.log("✅ Found offers in response.data.data");
+        }
+      }
+      
+      if (offersData.length === 0) {
+        console.warn("⚠️ No offers found in response");
+        console.warn("⚠️ Full response structure:", JSON.stringify(response?.data, null, 2));
+      } else {
+        // Log details about each offer
+        offersData.forEach((offer, idx) => {
+          console.log(`📋 Offer ${idx + 1}:`, {
+            id: offer.id,
+            title: offer.title,
+            itemsCount: offer.items?.length || 0,
+            hasItems: !!offer.items && Array.isArray(offer.items) && offer.items.length > 0
+          });
+        });
+      }
+      
+      console.log("✅ Offers data loaded:", offersData.length, "offers");
+      
+      // Helper function to get full image URL
+      const getImageUrl = (imagePath) => {
+        if (!imagePath) return null;
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+          return imagePath;
+        }
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const BASE_URL = API_URL.replace('/api', '');
+        return `${BASE_URL}${imagePath.startsWith('/') ? imagePath : '/uploads/' + imagePath}`;
+      };
+      
+      // Flatten all offer items into a single array
+      const items = [];
+      offersData.forEach(offer => {
+        const itemsCount = offer.items?.length || 0;
+        console.log("🔄 Processing offer:", offer.id, offer.title, "with", itemsCount, "items");
+        
+        if (offer.items && Array.isArray(offer.items) && offer.items.length > 0) {
+          offer.items.forEach(item => {
+            // Parse item images
+            let itemImages = [];
+            if (item.images) {
+              try {
+                const parsedImages = typeof item.images === 'string' 
+                  ? JSON.parse(item.images) 
+                  : item.images;
+                if (Array.isArray(parsedImages)) {
+                  itemImages = parsedImages
+                    .map(img => {
+                      const imgUrl = typeof img === 'string' ? img : (img?.url || img?.src || img);
+                      return getImageUrl(imgUrl);
+                    })
+                    .filter(img => img !== null && img !== undefined);
+                }
+              } catch (e) {
+                console.warn("Error parsing item images:", e);
+                itemImages = [];
+              }
+            }
+            
+            // If no item images, try offer images as fallback
+            if (itemImages.length === 0 && offer.images) {
+              try {
+                const offerImages = typeof offer.images === 'string' 
+                  ? JSON.parse(offer.images) 
+                  : offer.images;
+                if (Array.isArray(offerImages) && offerImages.length > 0) {
+                  const imgUrl = typeof offerImages[0] === 'string' 
+                    ? offerImages[0] 
+                    : (offerImages[0]?.url || offerImages[0]?.src);
+                  if (imgUrl) {
+                    itemImages = [getImageUrl(imgUrl)];
+                  }
+                }
+              } catch (e) {
+                console.warn("Error parsing offer images as fallback:", e);
+              }
+            }
+            
+            items.push({
+              ...item,
+              offerId: offer.id,
+              offerTitle: offer.title,
+              // Map to product format
+              id: item.id,
+              image: itemImages.length > 0 
+                ? itemImages[0] 
+                : "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80",
+              thumbnails: itemImages.length > 1 ? itemImages.slice(1, 4) : [],
+              images: itemImages, // Store all images
+              title: item.productName || item.description || t("sellerProducts.product"),
+              itemNumber: item.itemNo || item.itemNumber || `#${item.id?.substring(0, 8) || 'N/A'}`,
+              country: offer.country || "🇨🇳",
+              description: item.description || item.notes || "",
+              quantity: parseInt(item.quantity) || 0,
+              piecesPerCarton: parseInt(item.packageQuantity || item.cartons || item.piecesPerCarton || 1),
+              pricePerPiece: parseFloat(item.unitPrice) || 0,
+              cbm: parseFloat(item.totalCBM || item.cbm || item.volume || 0),
+              soldOut: false, // Can be enhanced with deal status check
+              negotiationPrice: "",
+              negotiationQuantity: "",
+              currency: item.currency || offer.items?.[0]?.currency || 'SAR'
+            });
+          });
+        } else {
+          console.warn("⚠️ Offer has no items or items array is empty:", {
+            offerId: offer.id,
+            offerTitle: offer.title,
+            items: offer.items,
+            itemsType: typeof offer.items,
+            isArray: Array.isArray(offer.items)
+          });
+        }
+      });
+      
+      console.log("✅ Total items extracted:", items.length);
+      setAllItems(items);
+    } catch (err) {
+      console.error('❌ Error fetching trader offers:', err);
+      console.error('Error response:', err.response);
+      console.error('Error data:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      setError(err.response?.data?.message || err.message || t("sellerProducts.failedToLoad"));
+      setAllItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [sellerId, i18n.language]);
 
-  const [productData, setProductData] = useState(products);
+  // Fetch trader offers on mount
+  useEffect(() => {
+    if (sellerId) {
+      console.log("🔄 useEffect triggered - sellerId:", sellerId);
+      fetchTraderOffers();
+    } else {
+      console.warn("⚠️ No sellerId provided in URL params");
+      setError(t("sellerProducts.sellerIdNotFound"));
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sellerId]); // Only depend on sellerId, fetchTraderOffers is stable due to useCallback
+
+  // Use API data only - no static fallback
+  const [productState, setProductState] = useState([]);
+  
+  // Update state when allItems changes
+  useEffect(() => {
+    if (allItems.length > 0) {
+      console.log("✅ Setting productState with", allItems.length, "items from API");
+      setProductState(allItems);
+    } else {
+      console.log("⚠️ No items to display");
+      setProductState([]);
+    }
+  }, [allItems]);
 
   const handleNegotiationChange = (productId, field, value) => {
-    setProductData((prev) =>
-      prev.map((p) =>
-        p.id === productId ? { ...p, [field]: value } : p
-      )
+    setProductState((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          const updated = { ...p, [field]: value };
+          // Recalculate totals for this product when values change
+          console.log(`Updated ${field} for product ${productId}:`, value);
+          return updated;
+        }
+        return p;
+      })
     );
   };
 
   const calculateTotals = () => {
-    const selectedProducts = productData.filter(
+    const selectedProducts = productState.filter(
       (p) => !p.soldOut && (p.negotiationQuantity || p.negotiationPrice)
     );
 
@@ -165,7 +253,7 @@ export default function SellerProductsPage() {
     });
 
     // Add sold out items
-    productData
+    productState
       .filter((p) => p.soldOut)
       .forEach((p) => {
         totalQuantity += p.negotiationQuantity || 0;
@@ -176,9 +264,60 @@ export default function SellerProductsPage() {
     return { totalQuantity, totalPrice, totalCbm };
   };
 
+  const handleSendNegotiationRequest = async () => {
+    // Get selected items with negotiation data
+    const selectedItems = productState.filter(
+      (p) => !p.soldOut && (p.negotiationQuantity || p.negotiationPrice)
+    );
+
+    if (selectedItems.length === 0) {
+      alert(t("sellerProducts.pleaseSelectProducts"));
+      return;
+    }
+
+    // Group items by offerId
+    const itemsByOffer = {};
+    selectedItems.forEach(item => {
+      if (!itemsByOffer[item.offerId]) {
+        itemsByOffer[item.offerId] = [];
+      }
+      itemsByOffer[item.offerId].push({
+        offerItemId: item.id,
+        quantity: parseInt(item.negotiationQuantity) || item.quantity,
+        negotiatedPrice: parseFloat(item.negotiationPrice) || item.pricePerPiece,
+        notes: item.notes || null
+      });
+    });
+
+    try {
+      setSubmitting(true);
+      
+      // Send negotiation request for each offer
+      const promises = Object.keys(itemsByOffer).map(offerId =>
+        offerService.requestNegotiationPublic(offerId, {
+          name: prompt(t("sellerProducts.name")) || "Guest",
+          email: prompt(t("sellerProducts.email")) || null,
+          phone: prompt(t("sellerProducts.phone")) || null,
+          notes: notes,
+          items: itemsByOffer[offerId]
+        })
+      );
+
+      await Promise.all(promises);
+      
+      alert(t("sellerProducts.negotiationSentSuccess"));
+      navigate(ROUTES.REQUEST_SENT);
+    } catch (error) {
+      console.error('Error sending negotiation request:', error);
+      alert(t("sellerProducts.errorSendingRequest"));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const { totalQuantity, totalPrice, totalCbm } = calculateTotals();
 
-  const summaryData = productData
+  const summaryData = productState
     .filter((p) => p.soldOut || p.negotiationQuantity || p.negotiationPrice)
     .map((p) => ({
       id: p.id,
@@ -197,30 +336,102 @@ export default function SellerProductsPage() {
         <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-8">
           {/* Header */}
           <div className="bg-[#EEF4FF] rounded-lg px-6 py-4 mb-6 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-slate-900">
-              {t("seller.allSellerProducts")} {sellerId || "x"}
-            </h1>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">
+                {t("seller.allSellerProducts")}
+              </h1>
+              {/* Debug indicator - remove in production */}
+              {process.env.NODE_ENV === 'development' && productState.length > 0 && (
+                <div className="text-xs text-green-600 mt-1">
+                  ✅ {productState.length} {t("sellerProducts.productsLoaded")}
+                </div>
+              )}
+            </div>
             <Link
               to={ROUTES.HOME}
               className="p-2 hover:bg-white/50 rounded-full transition-colors"
-              aria-label={t("seller.close")}
+              aria-label={t("common.close")}
             >
               <X className="h-5 w-5 text-slate-600" />
             </Link>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <span className="ml-3 text-gray-600">
+                {t("common.loading")}
+              </span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <h3 className="text-red-800 font-semibold mb-1">
+                    {t("sellerProducts.errorLoadingData")}
+                  </h3>
+                  <p className="text-red-700 text-sm">{error}</p>
+                  {sellerId && (
+                    <p className="text-red-600 text-xs mt-2">
+                      Seller ID: {sellerId}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    if (sellerId) {
+                      fetchTraderOffers();
+                    } else {
+                      console.error("Cannot retry: sellerId is missing");
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 text-sm"
+                >
+                  {t("sellerProducts.retry")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Products List */}
-          <div className="space-y-6 mb-8">
-            {productData.map((product, index) => {
-              const totalQty = product.soldOut
-                ? product.negotiationQuantity
-                : parseInt(product.negotiationQuantity) || 0;
-              const totalCbmForProduct = product.soldOut
-                ? ((product.negotiationQuantity || 0) / product.quantity) * product.cbm
-                : ((parseInt(product.negotiationQuantity) || 0) / product.quantity) * product.cbm || 0;
-              const totalPriceForProduct = product.soldOut
-                ? (product.negotiationQuantity || 0) * (product.negotiationPrice || 0)
-                : (parseInt(product.negotiationQuantity) || 0) * (parseFloat(product.negotiationPrice) || product.pricePerPiece);
+          {!loading && !error && (
+            <div className="space-y-6 mb-8">
+              {productState.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+                    <p className="text-yellow-800 font-semibold mb-2">
+                      {t("sellerProducts.noProductsAvailable")}
+                    </p>
+                    <p className="text-yellow-700 text-sm">
+                      {t("sellerProducts.noProductsFound")}
+                    </p>
+                    {sellerId && (
+                      <p className="text-yellow-600 text-xs mt-2">
+                        Seller ID: {sellerId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                productState.map((product, index) => {
+              // Calculate totals for this product
+              const negotiationQty = product.soldOut 
+                ? (parseInt(product.negotiationQuantity) || 0)
+                : (parseInt(product.negotiationQuantity) || 0);
+              const negotiationPrice = product.soldOut
+                ? (parseFloat(product.negotiationPrice) || 0)
+                : (parseFloat(product.negotiationPrice) || product.pricePerPiece || 0);
+              
+              const totalQty = negotiationQty;
+              const totalCbmForProduct = product.quantity > 0 
+                ? (negotiationQty / product.quantity) * product.cbm 
+                : 0;
+              const totalPriceForProduct = negotiationQty * negotiationPrice;
 
               return (
                 <div
@@ -243,16 +454,24 @@ export default function SellerProductsPage() {
                         src={product.image}
                         alt={product.title}
                         className="w-full h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80";
+                        }}
                       />
                       <div className="flex gap-2">
-                        {product.thumbnails.map((thumb, idx) => (
-                          <img
-                            key={idx}
-                            src={thumb}
-                            alt={`${product.title} ${idx + 1}`}
-                            className="w-16 h-16 object-cover rounded border border-slate-200"
-                          />
-                        ))}
+                        {product.thumbnails && product.thumbnails.length > 0 ? (
+                          product.thumbnails.map((thumb, idx) => (
+                            <img
+                              key={idx}
+                              src={thumb}
+                              alt={`${product.title} ${idx + 1}`}
+                              className="w-16 h-16 object-cover rounded border border-slate-200"
+                              onError={(e) => {
+                                e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=100&q=80";
+                              }}
+                            />
+                          ))
+                        ) : null}
                         <div className="w-16 h-16 rounded border border-slate-200 flex items-center justify-center bg-slate-50">
                           <span className="text-xs">🎥</span>
                         </div>
@@ -384,68 +603,81 @@ export default function SellerProductsPage() {
                   </div>
                 </div>
               );
-            })}
-          </div>
+            })
+          )}
+            </div>
+          )}
 
-          {/* Order Summary Table */}
-          <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-            <h2 className="text-xl font-bold text-slate-900 mb-4">{t("sellerProducts.orderSummary")}</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                      {t("sellerProducts.serial")}
-                    </th>
-                    <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                      {t("sellerProducts.itemNumber")}
-                    </th>
-                    <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                      {t("sellerProducts.quantity")}
-                    </th>
-                    <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                      {t("sellerProducts.price")}
-                    </th>
-                    <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                      CBM
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {summaryData.map((item, idx) => (
-                    <tr key={item.id} className="border-b border-slate-100">
-                      <td className="py-3 px-4 text-sm text-slate-900">{idx + 1}</td>
-                      <td className="py-3 px-4 text-sm text-slate-900">{item.itemNumber}</td>
-                      <td className="py-3 px-4 text-sm text-slate-900">{item.quantity}</td>
-                      <td className="py-3 px-4 text-sm text-slate-900">
-                        {item.price} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+          {/* Order Summary Table - Only show if there are items with negotiation values */}
+          {summaryData.length > 0 && (
+            <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">{t("sellerProducts.orderSummary")}</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("sellerProducts.serial")}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("sellerProducts.itemNumber")}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("sellerProducts.quantity")}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("sellerProducts.price")}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        CBM
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryData.map((item, idx) => (
+                      <tr key={item.id} className="border-b border-slate-100">
+                        <td className="py-3 px-4 text-sm text-slate-900">{idx + 1}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">{item.itemNumber}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">{item.quantity}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">
+                          {item.price} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-900">
+                          {item.cbm.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-slate-50 font-semibold">
+                      <td className="py-3 px-4 text-sm text-slate-900" colSpan={2}>
+                        {t("sellerProducts.total")}
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-900">
-                        {item.cbm.toFixed(2)}
+                        {totalQuantity.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-900">
+                        {totalPrice.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-900">
+                        {totalCbm.toFixed(2)}
                       </td>
                     </tr>
-                  ))}
-                  <tr className="bg-slate-50 font-semibold">
-                    <td className="py-3 px-4 text-sm text-slate-900" colSpan={2}>
-                      {t("sellerProducts.total")}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-slate-900">
-                      {totalQuantity.toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-slate-900">
-                      {totalPrice.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
-                    </td>
-                    <td className="py-3 px-4 text-sm text-slate-900">
-                      {totalCbm.toFixed(2)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-sm text-slate-600">
+                {t("sellerProducts.siteFee")}
+              </p>
             </div>
-            <p className="mt-4 text-sm text-slate-600">
-              {t("sellerProducts.siteFee")}
-            </p>
-          </div>
+          )}
+          
+          {/* Show message when no items are selected for negotiation */}
+          {summaryData.length === 0 && productState.length > 0 && !loading && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-blue-800 text-sm">
+                {t("sellerProducts.enterNegotiationData")}
+              </p>
+            </div>
+          )}
 
           {/* Notes and Submit */}
           <div className="space-y-4">
@@ -463,13 +695,18 @@ export default function SellerProductsPage() {
             </div>
             <button
               type="button"
-              onClick={() => {
-                alert(i18n.language === 'ar' ? "تم إرسال طلب التفاوض بنجاح!" : "Negotiation request sent successfully!");
-                navigate(ROUTES.ORDER_CHECKOUT);
-              }}
-              className="w-full bg-[#F5AF00] hover:bg-[#E5A000] text-[#194386] font-bold py-4 px-6 rounded-lg transition-colors text-lg"
+              onClick={handleSendNegotiationRequest}
+              disabled={submitting || loading}
+              className="w-full bg-[#F5AF00] hover:bg-[#E5A000] text-[#194386] font-bold py-4 px-6 rounded-lg transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {t("sellerProducts.sendNegotiationRequest")}
+              {submitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {t("sellerProducts.sending")}
+                </>
+              ) : (
+                t("sellerProducts.sendNegotiationRequest")
+              )}
             </button>
           </div>
         </div>
