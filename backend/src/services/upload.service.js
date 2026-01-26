@@ -17,8 +17,10 @@ const storage = multer.diskStorage({
     let uploadPath = process.env.UPLOAD_DIR || './uploads';
     
     // Determine subdirectory based on file type
-    if (file.fieldname === 'productImages' || file.fieldname === 'images') {
+    if (file.fieldname === 'productImages' || file.fieldname === 'images' || file.fieldname === 'thumbnail') {
       uploadPath = path.join(uploadPath, 'products');
+    } else if (file.fieldname === 'video') {
+      uploadPath = path.join(uploadPath, 'videos');
     } else if (file.fieldname === 'receipt' || file.fieldname === 'receipts') {
       uploadPath = path.join(uploadPath, 'receipts');
     }
@@ -34,13 +36,20 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = (process.env.ALLOWED_IMAGE_TYPES || 'image/jpeg,image/png,image/webp').split(',');
+  const allowedImageTypes = (process.env.ALLOWED_IMAGE_TYPES || 'image/jpeg,image/png,image/webp').split(',');
+  const allowedVideoTypes = (process.env.ALLOWED_VIDEO_TYPES || 'video/mp4,video/webm,video/ogg').split(',');
   
   if (file.mimetype.startsWith('image/')) {
-    if (allowedTypes.includes(file.mimetype)) {
+    if (allowedImageTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid image type. Allowed types: ' + allowedTypes.join(', ')), false);
+      cb(new Error('Invalid image type. Allowed types: ' + allowedImageTypes.join(', ')), false);
+    }
+  } else if (file.mimetype.startsWith('video/')) {
+    if (allowedVideoTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid video type. Allowed types: ' + allowedVideoTypes.join(', ')), false);
     }
   } else if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
              file.mimetype === 'application/vnd.ms-excel' ||

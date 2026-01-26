@@ -44,6 +44,10 @@ import AdminSliders from "./pages/stockship/admin/AdminSliders";
 import CreateSlider from "./pages/stockship/admin/CreateSlider";
 import EditSlider from "./pages/stockship/admin/EditSlider";
 import ViewSlider from "./pages/stockship/admin/ViewSlider";
+import AdminVideoAds from "./pages/stockship/admin/AdminVideoAds";
+import CreateVideoAd from "./pages/stockship/admin/CreateVideoAd";
+import EditVideoAd from "./pages/stockship/admin/EditVideoAd";
+import AdminVideoAdDetails from "./pages/stockship/admin/AdminVideoAdDetails";
 import CreateCategory from "./pages/stockship/admin/CreateCategory";
 import EditCategory from "./pages/stockship/admin/EditCategory";
 import ViewCategory from "./pages/stockship/admin/ViewCategory";
@@ -661,6 +665,46 @@ function AppRoutes() {
           </MultiProtectedRoute>
         }
       />
+      <Route
+        path="/stockship/admin/video-ads"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <AdminVideoAds />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/admin/video-ads/create"
+        element={
+          <MultiProtectedRoute requireAdmin>
+            <StockshipAdminLayout>
+              <CreateVideoAd />
+            </StockshipAdminLayout>
+          </MultiProtectedRoute>
+        }
+      />
+             <Route
+               path="/stockship/admin/video-ads/:id/edit"
+               element={
+                 <MultiProtectedRoute requireAdmin>
+                   <StockshipAdminLayout>
+                     <EditVideoAd />
+                   </StockshipAdminLayout>
+                 </MultiProtectedRoute>
+               }
+             />
+             <Route
+               path="/stockship/admin/video-ads/:id/view"
+               element={
+                 <MultiProtectedRoute requireAdmin>
+                   <StockshipAdminLayout>
+                     <AdminVideoAdDetails />
+                   </StockshipAdminLayout>
+                 </MultiProtectedRoute>
+               }
+             />
       <Route
         path="/stockship/admin/users/:id/view"
         element={

@@ -779,6 +779,31 @@ model Slider {
 }
 
 // ============================================
+// HOME VIDEO ADS MANAGEMENT
+// ============================================
+
+model VideoAd {
+  id            String   @id @default(uuid())
+  titleAr       String   @db.Text
+  titleEn       String   @db.Text
+  descriptionAr String?  @db.Text
+  descriptionEn String?  @db.Text
+  contentAr     String?  @db.LongText
+  contentEn     String?  @db.LongText
+  videoUrl      String
+  thumbnailUrl  String?
+  linkUrl       String?
+  displayOrder  Int      @default(0)
+  isActive      Boolean  @default(true)
+  views         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([displayOrder])
+}
+
+// ============================================
 // NOTIFICATION SYSTEM
 // ============================================
 

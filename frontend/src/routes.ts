@@ -13,6 +13,7 @@ export const ROUTES = {
   PRODUCTS_LIST: "/ProductsListPage",
   SELLER_PRODUCTS: "/SellerProducts",
   OFFER_DETAILS: "/offers",
+  VIDEO_AD_DETAILS: "/video-ads",
   
   // Auth pages
   LOGIN: "/login",

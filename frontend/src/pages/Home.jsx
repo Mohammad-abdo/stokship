@@ -7,6 +7,7 @@ import FeaturedCategories from '../components/FeaturedCategories'
 import ProductsList from '../components/ProductsList'
 import RecommendedProducts from '../components/RecommendedProducts'
 import NewArrivalsBannerWithSwiper from '../components/NewArrivalsBannerWithSwiper'
+import VideoAdsSection from '../components/VideoAdsSection'
 import CtaBanner from '../components/CtaBanner'
 import PopularGoodsChips from '../components/PopularGoodsChips'
 import { MainLayout } from '../components/Layout'
@@ -119,6 +120,7 @@ export default function Home() {
       )}
       
        <NewArrivalsBannerWithSwiper/>
+      <VideoAdsSection/>
       <RecommendedProducts/>
       {isAuthenticated && user?.userType !== 'TRADER' && <CtaBanner/>}
       <PopularGoodsChips onSelect={handleCategorySelect}/>

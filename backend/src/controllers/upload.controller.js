@@ -10,7 +10,14 @@ const { successResponse, errorResponse } = require('../utils/response');
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = process.env.UPLOAD_DIR || './uploads';
-    const subfolder = file.fieldname === 'images' ? 'images' : file.fieldname === 'excel' ? 'excel' : 'files';
+    let subfolder = 'files';
+    if (file.fieldname === 'images' || file.fieldname === 'thumbnail') {
+      subfolder = 'images';
+    } else if (file.fieldname === 'excel') {
+      subfolder = 'excel';
+    } else if (file.fieldname === 'video') {
+      subfolder = 'videos';
+    }
     const fullPath = path.join(uploadPath, subfolder);
     
     if (!fs.existsSync(fullPath)) {
@@ -61,10 +68,16 @@ const upload = multer({
 // @route   POST /api/upload/images
 // @access  Private
 const uploadImages = asyncHandler(async (req, res) => {
-  const uploadMiddleware = upload.array('images', 10);
+  // Use upload.any() to handle different field names (images, video, thumbnail, etc.)
+  const uploadMiddleware = upload.any();
 
   uploadMiddleware(req, res, async (err) => {
     if (err) {
+      // Provide more helpful error message for large files
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 10485760;
+        return errorResponse(res, `File too large. Max size allowed is ${Math.round(maxSize / 1024 / 1024)}MB`, 400);
+      }
       return errorResponse(res, err.message, 400);
     }
 
@@ -72,16 +85,29 @@ const uploadImages = asyncHandler(async (req, res) => {
       return errorResponse(res, 'No files uploaded', 400);
     }
 
-    const uploadedFiles = req.files.map(file => ({
-      filename: file.filename,
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      path: file.path,
-      url: `/uploads/images/${file.filename}`
-    }));
+    const uploadedFiles = req.files.map(file => {
+      // Determine URL based on subfolder
+      let subfolder = 'files';
+      if (file.fieldname === 'images' || file.fieldname === 'thumbnail') {
+        subfolder = 'images';
+      } else if (file.fieldname === 'video') {
+        subfolder = 'videos';
+      } else if (file.fieldname === 'excel') {
+        subfolder = 'excel';
+      }
+      
+      return {
+        filename: file.filename,
+        fieldname: file.fieldname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: file.path,
+        url: `/uploads/${subfolder}/${file.filename}`
+      };
+    });
 
-    successResponse(res, { files: uploadedFiles }, 'Images uploaded successfully', 201);
+    successResponse(res, { files: uploadedFiles }, 'Files uploaded successfully', 201);
   });
 });
 

@@ -219,6 +219,13 @@ export const adminApi = {
   updateSlider: (id, data) => stockshipApi.put(`/sliders/${id}`, data),
   deleteSlider: (id) => stockshipApi.delete(`/sliders/${id}`),
   
+  // Video Ads
+  getVideoAds: (params) => stockshipApi.get("/video-ads", { params }),
+  getVideoAd: (id) => stockshipApi.get(`/video-ads/${id}`),
+  createVideoAd: (data) => stockshipApi.post("/video-ads", data),
+  updateVideoAd: (id, data) => stockshipApi.put(`/video-ads/${id}`, data),
+  deleteVideoAd: (id) => stockshipApi.delete(`/video-ads/${id}`),
+  
   // Orders
   getOrders: (params) => stockshipApi.get("/orders/admin", { params }),
   getOrder: (id) => stockshipApi.get(`/orders/admin/${id}`),
