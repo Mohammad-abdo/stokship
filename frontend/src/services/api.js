@@ -11,6 +11,17 @@ const api = axios.create({
   },
 });
 
+// Helper to get full URL for files (images, videos, etc.)
+export const getFileUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http')) return path;
+  // Remove leading slash if present
+  const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+  // Use the base URL from API_URL (removing /api)
+  const baseUrl = API_URL.replace(/\/api$/, '');
+  return `${baseUrl}/${cleanPath}`;
+};
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {

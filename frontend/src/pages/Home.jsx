@@ -2,11 +2,12 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import Banner from '../components/Banner'
+import HomeSlider from '../components/HomeSlider'
 import FeaturedCategories from '../components/FeaturedCategories'
 import ProductsList from '../components/ProductsList'
 import RecommendedProducts from '../components/RecommendedProducts'
 import NewArrivalsBannerWithSwiper from '../components/NewArrivalsBannerWithSwiper'
+import VideoAdsSection from '../components/VideoAdsSection'
 import CtaBanner from '../components/CtaBanner'
 import PopularGoodsChips from '../components/PopularGoodsChips'
 import { MainLayout } from '../components/Layout'
@@ -93,7 +94,8 @@ export default function Home() {
   
   return (
     <MainLayout>
-      <Banner/>
+      <HomeSlider/>
+      <VideoAdsSection/>
       <FeaturedCategories/>
       
       {/* Display products from preferred categories or default categories */}

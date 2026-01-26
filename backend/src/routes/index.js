@@ -42,6 +42,7 @@ const securityRoutes = require('./security.routes');
 const realtimeRoutes = require('./realtime.routes');
 const mediationRoutes = require('./mediation.routes');
 const sliderRoutes = require('./slider.routes');
+const videoAdRoutes = require('./videoAd.routes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -87,6 +88,7 @@ router.use('/audit', activityLogRoutes);
 router.use('/security', securityRoutes);
 router.use('/realtime', realtimeRoutes);
 router.use('/sliders', sliderRoutes);
+router.use('/video-ads', videoAdRoutes);
 
 module.exports = router;
 

@@ -28,9 +28,10 @@ import {
   ShoppingCart,
   FileText,
   FolderTree,
-  Image as ImageIcon,
+  Image as   ImageIcon,
   Truck,
   MapPin,
+  Video,
 } from "lucide-react";
 
 const StockshipAdminLayout = ({ children }) => {
@@ -61,6 +62,7 @@ const StockshipAdminLayout = ({ children }) => {
     { icon: Store, label: t('mediation.traders.title'), path: "/stockship/admin/traders" },
     { icon: FolderTree, label: t('sidebar.categories') || 'Categories', path: "/stockship/admin/categories" },
     { icon: ImageIcon, label: t('sidebar.sliders') || 'Sliders', path: "/stockship/admin/sliders" },
+    { icon: Video, label: t('sidebar.videoAds') || 'Video Ads', path: "/stockship/admin/video-ads" },
     { icon: Users, label: t('admin.users'), path: "/stockship/admin/users" },
     { icon: Gift, label: t('mediation.offers.title'), path: "/stockship/admin/offers" },
     { icon: ShoppingCart, label: t('mediation.deals.title'), path: "/stockship/admin/deals" },
