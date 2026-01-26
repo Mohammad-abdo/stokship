@@ -415,27 +415,35 @@ export default function NegotiationDetailPage() {
                           </div>
 
                           {/* Product Info Grid */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                             <div>
-                              <div className="text-slate-500 mb-1">{t("negotiations.quantity") || "الكمية"}</div>
+                              <div className="text-slate-500 mb-1">
+                                {t("negotiations.quantity") || "الكمية"}
+                              </div>
                               <div className="font-semibold text-slate-900">
-                                {product.quantity.toLocaleString()}
-                                <span className="text-xs font-normal text-slate-500">
-                                  {" "}
+                                {product.quantity.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                                <span className="text-xs font-normal text-slate-500 mx-1">
                                   ({product.piecesPerCarton} {t("negotiations.piecesInCarton") || "قطع/كرتون"})
                                 </span>
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">{t("negotiations.pricePerPiece") || "سعر القطعة"}</div>
+                              <div className="text-slate-500 mb-1">
+                                {t("negotiations.pricePerPiece") || "سعر القطعة"}
+                              </div>
                               <div className="font-semibold text-slate-900">
-                                {product.pricePerPiece.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                                {product.pricePerPiece.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2
+                                })} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-slate-500 mb-1">{t("negotiations.cbm") || "CBM"}</div>
+                              <div className="text-slate-500 mb-1">
+                                {t("negotiations.cbm") || "CBM"}
+                              </div>
                               <div className="font-semibold text-slate-900">
-                                {product.cbm} CBM
+                                {product.cbm.toFixed(2)} CBM
                               </div>
                             </div>
                           </div>
@@ -530,9 +538,11 @@ export default function NegotiationDetailPage() {
           {/* Order Summary Table */}
           {summaryData.length > 0 && (
             <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">{t("negotiations.orderSummary") || "ملخص الطلب"}</h2>
+              <h2 className={`text-xl font-bold text-slate-900 mb-4 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                {t("negotiations.orderSummary") || "ملخص الطلب"}
+              </h2>
               <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full" dir={currentDir}>
                   <thead>
                     <tr className="border-b border-slate-200">
                       <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
@@ -555,35 +565,47 @@ export default function NegotiationDetailPage() {
                   <tbody>
                     {summaryData.map((item, idx) => (
                       <tr key={item.id} className="border-b border-slate-100">
-                        <td className="py-3 px-4 text-sm text-slate-900">{idx + 1}</td>
-                        <td className="py-3 px-4 text-sm text-slate-900">{item.itemNumber}</td>
-                        <td className="py-3 px-4 text-sm text-slate-900">{item.quantity}</td>
-                        <td className="py-3 px-4 text-sm text-slate-900">
-                          {item.price} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                        <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                          {idx + 1}
                         </td>
-                        <td className="py-3 px-4 text-sm text-slate-900">
+                        <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                          {item.itemNumber}
+                        </td>
+                        <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                          {item.quantity.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                        </td>
+                        <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                          {item.price.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                        </td>
+                        <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
                           {item.cbm.toFixed(2)}
                         </td>
                       </tr>
                     ))}
                     <tr className="bg-slate-50 font-semibold">
-                      <td className="py-3 px-4 text-sm text-slate-900" colSpan={2}>
+                      <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`} colSpan={2}>
                         {t("negotiations.total") || "المجموع"}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-900">
-                        {totalQuantity.toLocaleString()}
+                      <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {totalQuantity.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-900">
-                        {totalPrice.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                      <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {totalPrice.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
                       </td>
-                      <td className="py-3 px-4 text-sm text-slate-900">
+                      <td className={`py-3 px-4 text-sm text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
                         {totalCbm.toFixed(2)}
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
-              <p className="mt-4 text-sm text-slate-600">
+              <p className={`mt-4 text-sm text-slate-600 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
                 {t("negotiations.siteFee") || "سيتم احتساب رسوم الموقع"}
               </p>
             </div>
@@ -662,8 +684,8 @@ export default function NegotiationDetailPage() {
                       <div className="flex-1 pb-4">
                         <div className="flex items-center gap-2 mb-1">
                           <span className={`text-sm font-semibold ${isClient ? 'text-blue-700' :
-                              isTrader ? 'text-green-700' :
-                                'text-purple-700'
+                            isTrader ? 'text-green-700' :
+                              'text-purple-700'
                             }`}>
                             {isClient && (t("negotiations.client") || "العميل")}
                             {isTrader && (t("negotiations.trader") || "التاجر")}

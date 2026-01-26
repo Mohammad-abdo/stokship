@@ -131,8 +131,8 @@ export default function NegotiationsPage() {
                   type="button"
                   onClick={() => setActiveStatus(tab.key)}
                   className={`rounded-md px-4 py-2 text-sm font-semibold transition ${active
-                      ? "bg-blue-100 text-blue-900"
-                      : "bg-transparent text-slate-600 hover:bg-slate-100"
+                    ? "bg-blue-100 text-blue-900"
+                    : "bg-transparent text-slate-600 hover:bg-slate-100"
                     }`}
                 >
                   {tab.label}
@@ -238,25 +238,32 @@ export default function NegotiationsPage() {
                                         e.target.src = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80';
                                       }}
                                     />
-                                    <h5 className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">
+                                    <h5 className={`text-sm font-semibold text-slate-900 mb-1 line-clamp-2 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
                                       {offerItem.productName || offerItem.description || t("negotiations.product") || "منتج"}
                                     </h5>
-                                    <div className="text-xs text-slate-600 space-y-1">
+                                    <div className={`text-xs text-slate-600 space-y-1 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
                                       {offerItem.itemNo && (
-                                        <div>{offerItem.itemNo}</div>
+                                        <div className="font-mono text-slate-500">{offerItem.itemNo}</div>
                                       )}
-                                      <div className="flex justify-between">
+                                      <div className={`flex justify-between ${currentDir === 'rtl' ? 'flex-row-reverse' : 'flex-row'}`}>
                                         <span>{t("negotiations.quantity") || "الكمية"}:</span>
-                                        <span className="font-semibold">{dealItem.quantity || offerItem.quantity}</span>
+                                        <span className="font-semibold">
+                                          {parseInt(dealItem.quantity || offerItem.quantity || 0).toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                                        </span>
                                       </div>
                                       {dealItem.negotiatedPrice && (
-                                        <div className="flex justify-between">
+                                        <div className={`flex justify-between ${currentDir === 'rtl' ? 'flex-row-reverse' : 'flex-row'}`}>
                                           <span>{t("negotiations.price") || "السعر"}:</span>
-                                          <span className="font-semibold">{dealItem.negotiatedPrice} {offerItem.currency || 'SAR'}</span>
+                                          <span className="font-semibold">
+                                            {parseFloat(dealItem.negotiatedPrice).toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2
+                                            })} {i18n.language === 'ar' ? 'ر.س' : (offerItem.currency || 'SAR')}
+                                          </span>
                                         </div>
                                       )}
                                       {offerItem.totalCBM && (
-                                        <div className="flex justify-between">
+                                        <div className={`flex justify-between ${currentDir === 'rtl' ? 'flex-row-reverse' : 'flex-row'}`}>
                                           <span>CBM:</span>
                                           <span className="font-semibold">{parseFloat(offerItem.totalCBM).toFixed(2)}</span>
                                         </div>
@@ -271,15 +278,19 @@ export default function NegotiationsPage() {
 
 
                         {negotiation.notes && (
-                          <div className="mt-3 flex items-start gap-2">
+                          <div className={`mt-3 flex items-start gap-2 ${currentDir === 'rtl' ? 'flex-row-reverse text-right' : 'text-left'}`}>
                             <MessageSquare className="h-4 w-4 text-slate-400 mt-1 shrink-0" />
                             <p className="text-sm text-slate-600">{negotiation.notes}</p>
                           </div>
                         )}
 
                         {negotiation.createdAt && (
-                          <div className="mt-2 text-xs text-slate-500">
-                            {t("negotiations.requestedAt") || "تاريخ الطلب"}: {new Date(negotiation.createdAt).toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
+                          <div className={`mt-2 text-xs text-slate-500 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                            {t("negotiations.requestedAt") || "تاريخ الطلب"}: {new Date(negotiation.createdAt).toLocaleDateString(i18n.language === 'ar' ? 'ar-SA' : 'en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
                           </div>
                         )}
                       </div>

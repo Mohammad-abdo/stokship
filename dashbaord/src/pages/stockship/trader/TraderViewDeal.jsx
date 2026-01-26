@@ -403,27 +403,32 @@ const TraderViewDeal = () => {
                       </div>
 
                       {/* Product Info Grid */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <div className="text-slate-500 mb-1">{t("mediation.deals.quantity") || "الكمية"}</div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                        <div className={isRTL ? 'text-right' : 'text-left'}>
+                          <div className="text-slate-500 mb-1">
+                            {t("mediation.deals.quantity") || "الكمية"}
+                          </div>
                           <div className="font-semibold text-slate-900">
-                            {product.quantity.toLocaleString()}
-                            <span className="text-xs font-normal text-slate-500">
-                              {" "}
+                            {product.quantity.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
+                            <span className="text-xs font-normal text-slate-500 mx-1">
                               ({product.piecesPerCarton} {t("mediation.deals.piecesInCarton") || "قطع/كرتون"})
                             </span>
                           </div>
                         </div>
-                        <div>
-                          <div className="text-slate-500 mb-1">{t("mediation.deals.pricePerPiece") || "سعر القطعة"}</div>
+                        <div className={isRTL ? 'text-right' : 'text-left'}>
+                          <div className="text-slate-500 mb-1">
+                            {t("mediation.deals.pricePerPiece") || "سعر القطعة"}
+                          </div>
                           <div className="font-semibold text-slate-900">
                             ${formatCurrency(product.pricePerPiece)}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-slate-500 mb-1">{t("mediation.deals.cbm") || "CBM"}</div>
+                        <div className={isRTL ? 'text-right' : 'text-left'}>
+                          <div className="text-slate-500 mb-1">
+                            {t("mediation.deals.cbm") || "CBM"}
+                          </div>
                           <div className="font-semibold text-slate-900">
-                            {product.cbm} CBM
+                            {product.cbm.toFixed(2)} CBM
                           </div>
                         </div>
                       </div>
@@ -650,8 +655,8 @@ const TraderViewDeal = () => {
                   <div className="flex-1 pb-4">
                     <div className="flex items-center gap-2 mb-1">
                       <span className={`text-sm font-semibold ${isClient ? 'text-blue-700' :
-                          isTrader ? 'text-green-700' :
-                            'text-purple-700'
+                        isTrader ? 'text-green-700' :
+                          'text-purple-700'
                         }`}>
                         {isClient && (t("mediation.deals.client") || "العميل")}
                         {isTrader && (t("mediation.deals.trader") || "التاجر")}
