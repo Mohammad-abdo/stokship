@@ -10,7 +10,6 @@ import SignUp from "./pages/SignUp";
 import TermsPoliciesPage from "./pages/TermsPoliciesPage";
 import Notification from "./pages/Notification";
 import CompanyProfilePage from "./pages/CompanyProfilePage";
-import VideoAdDetails from "./pages/VideoAdDetails";
 import OrderCheckout from "./pages/OrderCheckout";
 import OrdersPage from "./pages/OrdersPage";
 import ProductsListPage from "./pages/ProductsListPage";
@@ -49,7 +48,6 @@ function AppContent() {
       <Route path={ROUTES.HOME_ALT} element={<Home />} />
       <Route path={`${ROUTES.PRODUCT_DETAILS}/:id`} element={<ProductDetails />} />
       <Route path={`${ROUTES.OFFER_DETAILS}/:id`} element={<ProductDetails />} />
-      <Route path={`${ROUTES.VIDEO_AD_DETAILS}/:id`} element={<VideoAdDetails />} />
       <Route path={ROUTES.LOGIN} element={<LogIn />} />
       <Route path={ROUTES.MULTI_LOGIN} element={<LogIn />} />
       <Route path={ROUTES.SIGNUP} element={<SignUp />} />
