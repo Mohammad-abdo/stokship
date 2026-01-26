@@ -10,30 +10,30 @@ import { Clock, CheckCircle, XCircle, MessageSquare, Building2 } from "lucide-re
 
 const getStatusBadge = (status, t) => {
   const statusMap = {
-    'PENDING': { 
-      label: t("negotiations.status.pending") || "قيد الانتظار", 
+    'PENDING': {
+      label: t("negotiations.status.pending") || "قيد الانتظار",
       className: "bg-amber-100 text-amber-900",
       icon: Clock
     },
-    'ACCEPTED': { 
-      label: t("negotiations.status.accepted") || "مقبول", 
+    'ACCEPTED': {
+      label: t("negotiations.status.accepted") || "مقبول",
       className: "bg-green-100 text-green-900",
       icon: CheckCircle
     },
-    'REJECTED': { 
-      label: t("negotiations.status.rejected") || "مرفوض", 
+    'REJECTED': {
+      label: t("negotiations.status.rejected") || "مرفوض",
       className: "bg-red-100 text-red-900",
       icon: XCircle
     },
-    'CANCELLED': { 
-      label: t("negotiations.status.cancelled") || "ملغي", 
+    'CANCELLED': {
+      label: t("negotiations.status.cancelled") || "ملغي",
       className: "bg-slate-100 text-slate-900",
       icon: XCircle
     },
   };
-  
-  return statusMap[status] || { 
-    label: status, 
+
+  return statusMap[status] || {
+    label: status,
     className: "bg-slate-100 text-slate-900",
     icon: Clock
   };
@@ -58,7 +58,7 @@ export default function NegotiationsPage() {
     try {
       setLoading(true);
       const response = await offerService.getMyNegotiations();
-      
+
       if (response.data && response.data.success) {
         // The response contains deals with NEGOTIATION status
         // Transform deals to negotiation format
@@ -67,10 +67,10 @@ export default function NegotiationsPage() {
           id: deal.id,
           dealId: deal.id,
           offerId: deal.offerId,
-          status: deal.status === 'NEGOTIATION' ? 'PENDING' : 
-                  deal.status === 'APPROVED' ? 'ACCEPTED' : 
-                  deal.status === 'REJECTED' ? 'REJECTED' : 
-                  deal.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING',
+          status: deal.status === 'NEGOTIATION' ? 'PENDING' :
+            deal.status === 'APPROVED' ? 'ACCEPTED' :
+              deal.status === 'REJECTED' ? 'REJECTED' :
+                deal.status === 'CANCELLED' ? 'CANCELLED' : 'PENDING',
           offer: deal.offer,
           trader: deal.trader,
           items: deal.items || [],
@@ -78,7 +78,7 @@ export default function NegotiationsPage() {
           createdAt: deal.createdAt,
           updatedAt: deal.updatedAt
         }));
-        
+
         setNegotiations(negotiationsData);
       }
     } catch (error) {
@@ -96,8 +96,8 @@ export default function NegotiationsPage() {
     { key: "REJECTED", label: t("negotiations.tabs.rejected") || "مرفوض" },
   ];
 
-  const filteredNegotiations = activeStatus === "all" 
-    ? negotiations 
+  const filteredNegotiations = activeStatus === "all"
+    ? negotiations
     : negotiations.filter(n => n.status === activeStatus);
 
   if (!isAuthenticated) {
@@ -130,11 +130,10 @@ export default function NegotiationsPage() {
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveStatus(tab.key)}
-                  className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-                    active
+                  className={`rounded-md px-4 py-2 text-sm font-semibold transition ${active
                       ? "bg-blue-100 text-blue-900"
                       : "bg-transparent text-slate-600 hover:bg-slate-100"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -192,12 +191,84 @@ export default function NegotiationsPage() {
                           </div>
                         )}
 
+
                         {negotiation.items && negotiation.items.length > 0 && (
-                          <div className="mt-3 text-sm text-slate-600">
-                            <span className="font-semibold">{t("negotiations.itemsCount") || "عدد العناصر"}: </span>
-                            {negotiation.items.length}
+                          <div className="mt-4">
+                            <h4 className="text-sm font-semibold text-slate-700 mb-3">
+                              {t("negotiations.products") || "المنتجات المتفاوض عليها"} ({negotiation.items.length})
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {negotiation.items.map((dealItem, idx) => {
+                                const { offerItem } = dealItem;
+                                if (!offerItem) return null;
+
+                                // Parse images
+                                let images = [];
+                                try {
+                                  const parsedImages = typeof offerItem.images === 'string'
+                                    ? JSON.parse(offerItem.images)
+                                    : offerItem.images;
+                                  if (Array.isArray(parsedImages)) {
+                                    images = parsedImages.map(img => {
+                                      const imgUrl = typeof img === 'string' ? img : (img?.url || img?.src || img);
+                                      if (!imgUrl) return null;
+                                      if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+                                        return imgUrl;
+                                      }
+                                      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                                      const BASE_URL = API_URL.replace('/api', '');
+                                      return `${BASE_URL}${imgUrl.startsWith('/') ? imgUrl : '/uploads/' + imgUrl}`;
+                                    }).filter(Boolean);
+                                  }
+                                } catch (e) {
+                                  console.warn('Error parsing images:', e);
+                                }
+
+                                const imageUrl = images.length > 0
+                                  ? images[0]
+                                  : 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80';
+
+                                return (
+                                  <div key={dealItem.id || idx} className="border border-slate-200 rounded-lg p-3 hover:shadow-md transition-shadow">
+                                    <img
+                                      src={imageUrl}
+                                      alt={offerItem.productName || 'Product'}
+                                      className="w-full h-32 object-cover rounded-md mb-2"
+                                      onError={(e) => {
+                                        e.target.src = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80';
+                                      }}
+                                    />
+                                    <h5 className="text-sm font-semibold text-slate-900 mb-1 line-clamp-2">
+                                      {offerItem.productName || offerItem.description || t("negotiations.product") || "منتج"}
+                                    </h5>
+                                    <div className="text-xs text-slate-600 space-y-1">
+                                      {offerItem.itemNo && (
+                                        <div>{offerItem.itemNo}</div>
+                                      )}
+                                      <div className="flex justify-between">
+                                        <span>{t("negotiations.quantity") || "الكمية"}:</span>
+                                        <span className="font-semibold">{dealItem.quantity || offerItem.quantity}</span>
+                                      </div>
+                                      {dealItem.negotiatedPrice && (
+                                        <div className="flex justify-between">
+                                          <span>{t("negotiations.price") || "السعر"}:</span>
+                                          <span className="font-semibold">{dealItem.negotiatedPrice} {offerItem.currency || 'SAR'}</span>
+                                        </div>
+                                      )}
+                                      {offerItem.totalCBM && (
+                                        <div className="flex justify-between">
+                                          <span>CBM:</span>
+                                          <span className="font-semibold">{parseFloat(offerItem.totalCBM).toFixed(2)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
+
 
                         {negotiation.notes && (
                           <div className="mt-3 flex items-start gap-2">
@@ -221,12 +292,12 @@ export default function NegotiationsPage() {
                               // Pass the original deal status along with the negotiation data
                               const dealData = {
                                 ...negotiation,
-                                status: negotiation.status === 'PENDING' ? 'NEGOTIATION' : 
-                                        negotiation.status === 'ACCEPTED' ? 'APPROVED' : 
-                                        negotiation.status,
-                                originalStatus: negotiation.status === 'PENDING' ? 'NEGOTIATION' : 
-                                               negotiation.status === 'ACCEPTED' ? 'APPROVED' : 
-                                               negotiation.status
+                                status: negotiation.status === 'PENDING' ? 'NEGOTIATION' :
+                                  negotiation.status === 'ACCEPTED' ? 'APPROVED' :
+                                    negotiation.status,
+                                originalStatus: negotiation.status === 'PENDING' ? 'NEGOTIATION' :
+                                  negotiation.status === 'ACCEPTED' ? 'APPROVED' :
+                                    negotiation.status
                               };
                               navigate(`${ROUTES.NEGOTIATION_DETAIL}/${negotiation.dealId}`, {
                                 state: { deal: dealData, negotiation: negotiation }
@@ -243,72 +314,72 @@ export default function NegotiationsPage() {
                         {negotiation.status === 'ACCEPTED' && (
                           <button
                             onClick={async () => {
-                            try {
-                              let dealData = null;
-                              let offerData = negotiation.offer;
+                              try {
+                                let dealData = null;
+                                let offerData = negotiation.offer;
 
-                              // Try to fetch deal if dealId exists
-                              if (negotiation.dealId) {
-                                try {
-                                  const dealResponse = await dealService.getDealById(negotiation.dealId);
-                                  if (dealResponse.data?.success && dealResponse.data?.data) {
-                                    dealData = dealResponse.data.data;
-                                    // Use offer from deal if available
-                                    if (dealData.offer) {
-                                      offerData = dealData.offer;
+                                // Try to fetch deal if dealId exists
+                                if (negotiation.dealId) {
+                                  try {
+                                    const dealResponse = await dealService.getDealById(negotiation.dealId);
+                                    if (dealResponse.data?.success && dealResponse.data?.data) {
+                                      dealData = dealResponse.data.data;
+                                      // Use offer from deal if available
+                                      if (dealData.offer) {
+                                        offerData = dealData.offer;
+                                      }
                                     }
+                                  } catch (error) {
+                                    console.error('Error fetching deal:', error);
                                   }
-                                } catch (error) {
-                                  console.error('Error fetching deal:', error);
                                 }
-                              }
 
-                              // If no deal found but we have offerId, try to find deal by offerId
-                              if (!dealData && negotiation.offerId) {
-                                try {
-                                  const dealsResponse = await dealService.getDeals({ offerId: negotiation.offerId });
-                                  if (dealsResponse.data?.success && dealsResponse.data?.data?.length > 0) {
-                                    dealData = dealsResponse.data.data[0];
-                                    if (dealData.offer) {
-                                      offerData = dealData.offer;
+                                // If no deal found but we have offerId, try to find deal by offerId
+                                if (!dealData && negotiation.offerId) {
+                                  try {
+                                    const dealsResponse = await dealService.getDeals({ offerId: negotiation.offerId });
+                                    if (dealsResponse.data?.success && dealsResponse.data?.data?.length > 0) {
+                                      dealData = dealsResponse.data.data[0];
+                                      if (dealData.offer) {
+                                        offerData = dealData.offer;
+                                      }
                                     }
+                                  } catch (error) {
+                                    console.error('Error fetching deal by offerId:', error);
                                   }
-                                } catch (error) {
-                                  console.error('Error fetching deal by offerId:', error);
                                 }
-                              }
 
-                              // If still no offer data, try to fetch offer by ID
-                              if (!offerData && negotiation.offerId) {
-                                try {
-                                  const offerResponse = await offerService.getOfferById(negotiation.offerId);
-                                  if (offerResponse.data?.success) {
-                                    offerData = offerResponse.data.data?.offer || offerResponse.data.data;
+                                // If still no offer data, try to fetch offer by ID
+                                if (!offerData && negotiation.offerId) {
+                                  try {
+                                    const offerResponse = await offerService.getOfferById(negotiation.offerId);
+                                    if (offerResponse.data?.success) {
+                                      offerData = offerResponse.data.data?.offer || offerResponse.data.data;
+                                    }
+                                  } catch (error) {
+                                    console.error('Error fetching offer:', error);
                                   }
-                                } catch (error) {
-                                  console.error('Error fetching offer:', error);
                                 }
-                              }
 
-                              // Navigate to checkout with all available data
-                              navigate(ROUTES.ORDER_CHECKOUT, {
-                                state: {
-                                  offer: offerData,
-                                  deal: dealData,
-                                  negotiation: negotiation
-                                }
-                              });
-                            } catch (error) {
-                              console.error('Error preparing checkout:', error);
-                              // Fallback: navigate with basic negotiation data
-                              navigate(ROUTES.ORDER_CHECKOUT, {
-                                state: {
-                                  offer: negotiation.offer,
-                                  negotiation: negotiation
-                                }
-                              });
-                            }
-                          }}
+                                // Navigate to checkout with all available data
+                                navigate(ROUTES.ORDER_CHECKOUT, {
+                                  state: {
+                                    offer: offerData,
+                                    deal: dealData,
+                                    negotiation: negotiation
+                                  }
+                                });
+                              } catch (error) {
+                                console.error('Error preparing checkout:', error);
+                                // Fallback: navigate with basic negotiation data
+                                navigate(ROUTES.ORDER_CHECKOUT, {
+                                  state: {
+                                    offer: negotiation.offer,
+                                    negotiation: negotiation
+                                  }
+                                });
+                              }
+                            }}
                             className="inline-block rounded-md bg-green-900 px-5 py-2 text-sm font-semibold text-white hover:bg-green-800 whitespace-nowrap"
                           >
                             {t("negotiations.proceedToCheckout") || "المتابعة للدفع"}

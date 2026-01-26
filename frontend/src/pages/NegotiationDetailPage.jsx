@@ -1,42 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { dealService } from "../services/dealService";
 import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "../components/Layout";
-import { ArrowLeft, Send, MessageSquare, DollarSign, Package, Clock, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
 import { ROUTES } from "../routes";
-
-const getStatusBadge = (status, t) => {
-  const statusMap = {
-    'PENDING': { 
-      label: t("negotiations.status.pending") || "قيد الانتظار", 
-      className: "bg-amber-100 text-amber-900",
-      icon: Clock
-    },
-    'ACCEPTED': { 
-      label: t("negotiations.status.accepted") || "مقبول", 
-      className: "bg-green-100 text-green-900",
-      icon: CheckCircle
-    },
-    'REJECTED': { 
-      label: t("negotiations.status.rejected") || "مرفوض", 
-      className: "bg-red-100 text-red-900",
-      icon: XCircle
-    },
-    'NEGOTIATION': { 
-      label: t("negotiations.status.negotiating") || "قيد التفاوض", 
-      className: "bg-blue-100 text-blue-900",
-      icon: MessageSquare
-    },
-  };
-  
-  return statusMap[status] || { 
-    label: status, 
-    className: "bg-slate-100 text-slate-900",
-    icon: Clock
-  };
-};
 
 export default function NegotiationDetailPage() {
   const { t, i18n } = useTranslation();
@@ -45,91 +14,107 @@ export default function NegotiationDetailPage() {
   const navigate = useNavigate();
   const { dealId } = useParams();
   const location = useLocation();
-  const messagesEndRef = useRef(null);
-  
-  const [deal, setDeal] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [messageText, setMessageText] = useState("");
-  const [proposedPrice, setProposedPrice] = useState("");
-  const [proposedQuantity, setProposedQuantity] = useState("");
-  const [messageType, setMessageType] = useState("TEXT");
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const [deal, setDeal] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [productState, setProductState] = useState([]);
+  const [notes, setNotes] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+
 
   const fetchDeal = async () => {
     try {
-      // Always fetch the latest deal data from the API to get the correct status
       const response = await dealService.getDealById(dealId);
-      console.log("✅ Full API Response:", response.data);
-      
-      // The API returns data in response.data.data, which contains { deal, platformSettings }
       let dealData = null;
       if (response.data?.success && response.data?.data) {
-        // The backend returns { deal, platformSettings }, so we need to access .deal
         if (response.data.data.deal) {
           dealData = response.data.data.deal;
         } else if (response.data.data.id) {
-          // Fallback: if data is the deal itself (not nested)
           dealData = response.data.data;
         }
       }
-      
+
       if (dealData) {
-        console.log("✅ Deal fetched from API - Full Deal:", dealData);
-        console.log("✅ Deal Status:", dealData.status, "Deal ID:", dealData.id);
-        
-        // Ensure status exists, if not set a default
         if (!dealData.status) {
-          console.warn("⚠️ Deal status is missing, setting default to NEGOTIATION");
           dealData.status = 'NEGOTIATION';
         }
-        
         setDeal(dealData);
-        return;
-      } else {
-        console.warn("⚠️ No deal data found in API response");
+        setNotes(dealData.notes || "");
+
+        // Transform deal items to product format
+        if (dealData.items && dealData.items.length > 0) {
+          const products = dealData.items.map((dealItem, index) => {
+            const { offerItem } = dealItem;
+            if (!offerItem) return null;
+
+            // Parse images
+            let images = [];
+            try {
+              const parsedImages = typeof offerItem.images === 'string'
+                ? JSON.parse(offerItem.images)
+                : offerItem.images;
+              if (Array.isArray(parsedImages)) {
+                images = parsedImages.map(img => {
+                  const imgUrl = typeof img === 'string' ? img : (img?.url || img?.src || img);
+                  if (!imgUrl) return null;
+                  if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+                    return imgUrl;
+                  }
+                  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+                  const BASE_URL = API_URL.replace('/api', '');
+                  return `${BASE_URL}${imgUrl.startsWith('/') ? imgUrl : '/uploads/' + imgUrl}`;
+                }).filter(Boolean);
+              }
+            } catch (e) {
+              console.warn('Error parsing images:', e);
+            }
+
+            const imageUrl = images.length > 0
+              ? images[0]
+              : 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80';
+
+            return {
+              id: dealItem.id,
+              dealItemId: dealItem.id,
+              offerItemId: offerItem.id,
+              image: imageUrl,
+              thumbnails: images.length > 1 ? images.slice(1, 4) : [],
+              images: images,
+              title: offerItem.productName || offerItem.description || t("negotiations.product") || "منتج",
+              itemNumber: offerItem.itemNo || `#${offerItem.id?.substring(0, 8) || 'N/A'}`,
+              country: dealData.offer?.country || "🇨🇳",
+              description: offerItem.description || offerItem.notes || "",
+              quantity: parseInt(offerItem.quantity) || 0,
+              piecesPerCarton: parseInt(offerItem.packageQuantity || offerItem.cartons || 1),
+              pricePerPiece: parseFloat(offerItem.unitPrice) || 0,
+              cbm: parseFloat(offerItem.totalCBM || offerItem.cbm || 0),
+              negotiationPrice: dealItem.negotiatedPrice ? parseFloat(dealItem.negotiatedPrice) : "",
+              negotiationQuantity: dealItem.quantity || "",
+              currency: offerItem.currency || 'SAR',
+              soldOut: false
+            };
+          }).filter(Boolean);
+
+          setProductState(products);
+        }
       }
     } catch (error) {
-      console.error("❌ Error fetching deal:", error);
-    }
-    
-    // Fallback: use deal from location.state if API call fails
-    if (location.state?.deal) {
-      const dealFromState = { ...location.state.deal };
-      console.log("⚠️ Using deal from state - Full Deal:", dealFromState);
-      
-      // Map back the status: if it was PENDING in negotiations page, it's actually NEGOTIATION in DB
-      // Also check for originalStatus if it was passed
-      if (dealFromState.originalStatus) {
-        dealFromState.status = dealFromState.originalStatus;
-      } else if (dealFromState.status === 'PENDING') {
-        dealFromState.status = 'NEGOTIATION';
-      } else if (dealFromState.status === 'ACCEPTED') {
-        dealFromState.status = 'APPROVED';
-      } else if (!dealFromState.status) {
-        console.warn("⚠️ Deal status is missing in state, setting default to NEGOTIATION");
-        dealFromState.status = 'NEGOTIATION';
-      }
-      console.log("⚠️ Using deal from state - Status:", dealFromState.status);
-      setDeal(dealFromState);
+      console.error("Error fetching deal:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fetchMessages = async (showLoading = true) => {
+  const fetchMessages = async () => {
     try {
-      if (showLoading) setLoading(true);
+      setMessagesLoading(true);
       const response = await dealService.getNegotiationMessages(dealId, {
         page: 1,
         limit: 100
       });
-      
+
       if (response.data?.success && response.data?.data) {
-        // Backend returns messages in descending order (newest first) and reverses them
-        // So we need to ensure they're sorted by createdAt (oldest first) for display
         const messagesData = Array.isArray(response.data.data) ? response.data.data : [];
         const sortedMessages = [...messagesData].sort((a, b) => {
           return new Date(a.createdAt) - new Date(b.createdAt);
@@ -139,91 +124,61 @@ export default function NegotiationDetailPage() {
     } catch (error) {
       console.error("Error fetching messages:", error);
     } finally {
-      if (showLoading) setLoading(false);
-    }
-  };
-
-  const markMessagesAsRead = async () => {
-    try {
-      await dealService.markMessagesAsRead(dealId);
-    } catch (error) {
-      console.error("Error marking messages as read:", error);
-      // Don't show error to user, this is a background operation
+      setMessagesLoading(false);
     }
   };
 
   useEffect(() => {
     if (isAuthenticated && dealId) {
-      const loadData = async () => {
-        await Promise.all([fetchDeal(), fetchMessages()]);
-        // Mark messages as read when opening the page
-        markMessagesAsRead();
-      };
-      loadData();
-      
-      // Poll for new messages and deal updates every 5 seconds
-      const interval = setInterval(() => {
-        fetchMessages(false);
-        fetchDeal(); // Also refresh deal data
-      }, 5000);
-      return () => clearInterval(interval);
+      fetchDeal();
+      fetchMessages();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, dealId]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const handleSendMessage = async () => {
-    // Validate input based on message type
-    if (messageType === "TEXT" && !messageText.trim()) {
-      return;
-    }
-    if (messageType === "PRICE_PROPOSAL" && !proposedPrice) {
-      alert(t("negotiations.enterPrice") || "يرجى إدخال السعر المقترح");
-      return;
-    }
-    if (messageType === "QUANTITY_PROPOSAL" && !proposedQuantity) {
-      alert(t("negotiations.enterQuantity") || "يرجى إدخال الكمية المقترحة");
-      return;
-    }
-    if (!messageText.trim() && !proposedPrice && !proposedQuantity) {
-      return;
-    }
-
-    try {
-      setSending(true);
-      const messageData = {
-        message: messageText.trim() || null,
-        messageType: messageType,
-        proposedPrice: proposedPrice ? parseFloat(proposedPrice) : null,
-        proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : null
-      };
-
-      console.log("📤 Sending negotiation message:", messageData);
-      const response = await dealService.sendNegotiationMessage(dealId, messageData);
-      console.log("✅ Message sent successfully:", response.data);
-      
-      // Clear form
-      setMessageText("");
-      setProposedPrice("");
-      setProposedQuantity("");
-      setMessageType("TEXT");
-      
-      // Refresh messages and deal data
-      await Promise.all([
-        fetchMessages(false),
-        fetchDeal() // Refresh deal to get updated status and negotiatedAmount
-      ]);
-    } catch (error) {
-      console.error("❌ Error sending message:", error);
-      const errorMessage = error.response?.data?.message || error.message || "حدث خطأ أثناء إرسال الرسالة";
-      alert(t("negotiations.errorSendingMessage", errorMessage) || errorMessage);
-    } finally {
-      setSending(false);
-    }
+  const handleNegotiationChange = (productId, field, value) => {
+    setProductState((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          return { ...p, [field]: value };
+        }
+        return p;
+      })
+    );
   };
+
+  const calculateTotals = () => {
+    const selectedProducts = productState.filter(
+      (p) => !p.soldOut && (p.negotiationQuantity || p.negotiationPrice)
+    );
+
+    let totalQuantity = 0;
+    let totalPrice = 0;
+    let totalCbm = 0;
+
+    selectedProducts.forEach((p) => {
+      const qty = parseInt(p.negotiationQuantity) || 0;
+      const price = parseFloat(p.negotiationPrice) || p.pricePerPiece;
+      totalQuantity += qty;
+      totalPrice += qty * price;
+      totalCbm += (qty / p.quantity) * p.cbm;
+    });
+
+    return { totalQuantity, totalPrice, totalCbm };
+  };
+
+  const { totalQuantity, totalPrice, totalCbm } = calculateTotals();
+
+  const summaryData = productState
+    .filter((p) => p.soldOut || p.negotiationQuantity || p.negotiationPrice)
+    .map((p) => ({
+      id: p.id,
+      itemNumber: p.itemNumber,
+      quantity: p.soldOut ? p.negotiationQuantity : p.negotiationQuantity || 1,
+      price: p.soldOut ? p.negotiationPrice : p.negotiationPrice || p.pricePerPiece,
+      cbm: p.soldOut
+        ? ((p.negotiationQuantity || 0) / p.quantity) * p.cbm
+        : ((parseInt(p.negotiationQuantity) || 0) / p.quantity) * p.cbm || p.cbm,
+    }));
 
   if (!isAuthenticated) {
     return (
@@ -267,253 +222,408 @@ export default function NegotiationDetailPage() {
     );
   }
 
-  // Get the actual status from deal (should be from database)
-  // Add fallback in case status is missing
-  const dealStatus = deal?.status || 'NEGOTIATION';
-  
-  // Normalize deal status for display and logic
-  // Map PENDING/ACCEPTED (display status) back to NEGOTIATION/APPROVED (DB status)
-  const normalizedStatus = dealStatus === 'PENDING' ? 'NEGOTIATION' : 
-                          dealStatus === 'ACCEPTED' ? 'APPROVED' : 
-                          dealStatus;
-  
-  // Determine if current user is client or trader
-  const isClient = user?.id === deal?.clientId;
-  const isTrader = user?.id === deal?.traderId;
-  const otherParty = isClient ? deal?.trader : deal?.client;
-  
-  // Check if negotiation is allowed
-  // The deal status should be NEGOTIATION or APPROVED from the database
-  // Also handle display statuses PENDING (maps to NEGOTIATION) and ACCEPTED (maps to APPROVED)
-  const canNegotiate = normalizedStatus === 'NEGOTIATION' || normalizedStatus === 'APPROVED';
-  
-  console.log("🔍 Negotiation Status Check:", {
-    dealId: deal?.id,
-    dealStatus: dealStatus,
-    normalizedStatus: normalizedStatus,
-    canNegotiate: canNegotiate,
-    isClient: isClient,
-    isTrader: isTrader,
-    userId: user?.id,
-    dealClientId: deal?.clientId,
-    dealTraderId: deal?.traderId
-  });
-  
-  const badge = getStatusBadge(normalizedStatus, t);
-  const StatusIcon = badge.icon;
-
   return (
     <MainLayout>
-      <div className="min-h-screen bg-white mt-40">
-        <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-8">
+      <div dir={currentDir} className="min-h-screen bg-white pt-40">
+        <div className="mx-auto max-w-[1440px] px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 2xl:px-20 py-8">
           {/* Header */}
-          <div className="mb-6">
+          <div className="bg-[#EEF4FF] rounded-lg px-6 py-4 mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">
+                {deal.offer?.title || t("negotiations.negotiationDetails") || "تفاصيل التفاوض"}
+              </h1>
+              {deal.dealNumber && (
+                <div className="text-sm text-slate-600 mt-1">
+                  {t("negotiations.dealNumber") || "رقم الصفقة"}: {deal.dealNumber}
+                </div>
+              )}
+              {productState.length > 0 && (
+                <div className="text-xs text-green-600 mt-1">
+                  ✅ {productState.length} {t("negotiations.products") || "منتجات"}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => navigate(ROUTES.NEGOTIATIONS)}
-              className={`flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-4 ${currentDir === 'rtl' ? 'flex-row-reverse' : 'flex-row'}`}
+              className="p-2 hover:bg-white/50 rounded-full transition-colors"
+              aria-label={t("common.close")}
             >
-              <ArrowLeft className="h-5 w-5" />
-              <span>{t("negotiations.backToNegotiations") || "العودة إلى طلبات التفاوض"}</span>
+              <X className="h-5 w-5 text-slate-600" />
             </button>
-
-            <div className="flex items-center gap-3 mb-4">
-              <StatusIcon className={`h-5 w-5 ${badge.className.split(' ')[1]}`} />
-              <span className={`inline-flex rounded-md px-3 py-1 text-xs font-semibold ${badge.className}`}>
-                {badge.label}
-              </span>
-            </div>
-
-            {deal.offer && (
-              <h1 className={`text-2xl sm:text-3xl font-bold text-slate-900 mb-2 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                {deal.offer.title || t("negotiations.offer") || "عرض"}
-              </h1>
-            )}
-
-            {otherParty && (
-              <div className="text-slate-600">
-                {t("negotiations.negotiatingWith") || "التفاوض مع"}:{" "}
-                <span className="font-semibold">
-                  {otherParty.companyName || otherParty.name || t("negotiations.trader") || "تاجر"}
-                </span>
-              </div>
-            )}
-
-            {deal.dealNumber && (
-              <div className="text-sm text-slate-500 mt-2">
-                {t("negotiations.dealNumber") || "رقم الصفقة"}: {deal.dealNumber}
-              </div>
-            )}
           </div>
 
-          {/* Messages Area */}
-          <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-200 mb-6">
-            <div className="p-4 border-b border-slate-200">
-              <h2 className={`text-lg font-semibold text-slate-900 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
-                {t("negotiations.messages") || "الرسائل"}
-              </h2>
-            </div>
-
-            <div className="h-96 overflow-y-auto p-4 space-y-4">
-              {loading && messages.length === 0 ? (
-                <div className="text-center text-slate-500 py-8">
-                  {t("common.loading") || "جاري التحميل..."}
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="text-center text-slate-500 py-8">
-                  {t("negotiations.noMessages") || "لا توجد رسائل بعد"}
+          {/* Products List */}
+          {!loading && (
+            <div className="space-y-6 mb-8">
+              {productState.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+                    <p className="text-yellow-800 font-semibold mb-2">
+                      {t("negotiations.noProducts") || "لا توجد منتجات"}
+                    </p>
+                  </div>
                 </div>
               ) : (
-                messages.map((message) => {
-                  // Check if message was sent by current user
-                  // Check by senderId first (most reliable), then by senderType and specific IDs
-                  const isMyMessage = message.senderId === user?.id || 
-                    (message.senderType === 'CLIENT' && message.clientId === user?.id && isClient) ||
-                    (message.senderType === 'TRADER' && message.traderId === user?.id && isTrader) ||
-                    (message.senderType === 'EMPLOYEE' && message.employeeId === user?.id);
-                  
-                  // Determine sender name
-                  let senderName = t("negotiations.you") || "أنت";
-                  if (!isMyMessage) {
-                    if (message.senderType === 'CLIENT') {
-                      senderName = deal.client?.name || message.client?.name || t("negotiations.otherParty") || "الطرف الآخر";
-                    } else if (message.senderType === 'TRADER') {
-                      senderName = deal.trader?.companyName || deal.trader?.name || message.trader?.companyName || message.trader?.name || t("negotiations.otherParty") || "الطرف الآخر";
-                    } else {
-                      senderName = t("negotiations.otherParty") || "الطرف الآخر";
-                    }
-                  }
+                productState.map((product, index) => {
+                  const negotiationQty = product.soldOut
+                    ? (parseInt(product.negotiationQuantity) || 0)
+                    : (parseInt(product.negotiationQuantity) || 0);
+                  const negotiationPrice = product.soldOut
+                    ? (parseFloat(product.negotiationPrice) || 0)
+                    : (parseFloat(product.negotiationPrice) || product.pricePerPiece || 0);
+
+                  const totalQty = negotiationQty;
+                  const totalCbmForProduct = product.quantity > 0
+                    ? (negotiationQty / product.quantity) * product.cbm
+                    : 0;
+                  const totalPriceForProduct = negotiationQty * negotiationPrice;
 
                   return (
                     <div
-                      key={message.id}
-                      className={`flex ${isMyMessage ? (currentDir === 'rtl' ? 'justify-start' : 'justify-end') : (currentDir === 'rtl' ? 'justify-end' : 'justify-start')}`}
+                      key={product.id}
+                      className="relative bg-white rounded-lg border border-slate-200 p-6 shadow-sm"
                     >
-                      <div
-                        className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                          isMyMessage
-                            ? "bg-blue-900 text-white"
-                            : "bg-slate-100 text-slate-900"
-                        }`}
-                      >
-                        <div className="text-xs opacity-75 mb-1">{senderName}</div>
-                        
-                        {message.message && (
-                          <div className="mb-2">{message.message}</div>
-                        )}
-
-                        {message.proposedPrice && (
-                          <div className="flex items-center gap-2 text-sm mb-1">
-                            <DollarSign className="h-4 w-4" />
-                            <span>
-                              {t("negotiations.proposedPrice") || "السعر المقترح"}: {message.proposedPrice.toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
-                            </span>
+                      {product.soldOut && (
+                        <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center z-10 pointer-events-none">
+                          <div className="bg-red-600 text-white px-8 py-4 rounded-lg text-2xl font-bold">
+                            {t("negotiations.soldOut") || "نفذت الكمية"}
                           </div>
-                        )}
-
-                        {message.proposedQuantity && (
-                          <div className="flex items-center gap-2 text-sm mb-1">
-                            <Package className="h-4 w-4" />
-                            <span>
-                              {t("negotiations.proposedQuantity") || "الكمية المقترحة"}: {message.proposedQuantity}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="text-xs opacity-75 mt-2">
-                          {new Date(message.createdAt).toLocaleString(i18n.language === 'ar' ? 'ar-SA' : 'en-US')}
                         </div>
+                      )}
+
+                      <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
+                        {/* Product Image Section */}
+                        <div className="space-y-2">
+                          <img
+                            src={product.image}
+                            alt={product.title}
+                            className="w-full h-48 object-cover rounded-lg"
+                            onError={(e) => {
+                              e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80";
+                            }}
+                          />
+                          <div className="flex gap-2">
+                            {product.thumbnails && product.thumbnails.length > 0 ? (
+                              product.thumbnails.map((thumb, idx) => (
+                                <img
+                                  key={idx}
+                                  src={thumb}
+                                  alt={`${product.title} ${idx + 1}`}
+                                  className="w-16 h-16 object-cover rounded border border-slate-200"
+                                  onError={(e) => {
+                                    e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=100&q=80";
+                                  }}
+                                />
+                              ))
+                            ) : null}
+                            <div className="w-16 h-16 rounded border border-slate-200 flex items-center justify-center bg-slate-50">
+                              <span className="text-xs">🎥</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Product Details */}
+                        <div className="space-y-4">
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl">{product.country}</span>
+                              <h3 className="text-lg font-bold text-slate-900">
+                                {product.title}
+                              </h3>
+                              <span className="text-sm text-slate-500">
+                                {product.itemNumber}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                              {product.description}
+                            </p>
+                          </div>
+
+                          {/* Product Info Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <div className="text-slate-500 mb-1">{t("negotiations.quantity") || "الكمية"}</div>
+                              <div className="font-semibold text-slate-900">
+                                {product.quantity.toLocaleString()}
+                                <span className="text-xs font-normal text-slate-500">
+                                  {" "}
+                                  ({product.piecesPerCarton} {t("negotiations.piecesInCarton") || "قطع/كرتون"})
+                                </span>
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500 mb-1">{t("negotiations.pricePerPiece") || "سعر القطعة"}</div>
+                              <div className="font-semibold text-slate-900">
+                                {product.pricePerPiece.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500 mb-1">{t("negotiations.cbm") || "CBM"}</div>
+                              <div className="font-semibold text-slate-900">
+                                {product.cbm} CBM
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Negotiation Fields */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm text-slate-700 mb-2">
+                                {t("negotiations.negotiationPrice") || "السعر المتفاوض عليه"}
+                              </label>
+                              {product.soldOut ? (
+                                <div className="px-4 py-2 bg-slate-50 rounded-md text-slate-900 font-semibold">
+                                  {product.negotiationPrice} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                                </div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={product.negotiationPrice}
+                                  onChange={(e) =>
+                                    handleNegotiationChange(
+                                      product.id,
+                                      "negotiationPrice",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder={t("negotiations.enterPrice") || "أدخل السعر"}
+                                  disabled={true}
+                                />
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-sm text-slate-700 mb-2">
+                                {t("negotiations.negotiationQuantity") || "الكمية المتفاوض عليها"}
+                              </label>
+                              {product.soldOut ? (
+                                <div className="px-4 py-2 bg-slate-50 rounded-md text-slate-900 font-semibold">
+                                  {product.negotiationQuantity}
+                                </div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  value={product.negotiationQuantity}
+                                  onChange={(e) =>
+                                    handleNegotiationChange(
+                                      product.id,
+                                      "negotiationQuantity",
+                                      e.target.value
+                                    )
+                                  }
+                                  className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder={t("negotiations.enterQuantity") || "أدخل الكمية"}
+                                  disabled={true}
+                                />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Summary */}
+                          <div className="bg-slate-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-slate-500 mb-1">{t("negotiations.totalQuantity") || "الكمية الإجمالية"}</div>
+                              <div className="font-semibold text-slate-900">
+                                {totalQty.toLocaleString()} {t("negotiations.piece") || "قطعة"}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500 mb-1">{t("negotiations.totalCbm") || "إجمالي CBM"}</div>
+                              <div className="font-semibold text-slate-900">
+                                {totalCbmForProduct.toFixed(2)} CBM
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-slate-500 mb-1">{t("negotiations.totalPrice") || "السعر الإجمالي"}</div>
+                              <div className="font-semibold text-slate-900">
+                                {totalPriceForProduct.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Product Number */}
+                      <div className="absolute top-4 left-4 bg-blue-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                        {index + 1}
                       </div>
                     </div>
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
+            </div>
+          )}
+
+          {/* Order Summary Table */}
+          {summaryData.length > 0 && (
+            <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">{t("negotiations.orderSummary") || "ملخص الطلب"}</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("negotiations.serial") || "م"}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("negotiations.itemNumber") || "رقم الصنف"}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("negotiations.quantity") || "الكمية"}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        {t("negotiations.price") || "السعر"}
+                      </th>
+                      <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                        CBM
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryData.map((item, idx) => (
+                      <tr key={item.id} className="border-b border-slate-100">
+                        <td className="py-3 px-4 text-sm text-slate-900">{idx + 1}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">{item.itemNumber}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">{item.quantity}</td>
+                        <td className="py-3 px-4 text-sm text-slate-900">
+                          {item.price} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-slate-900">
+                          {item.cbm.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-slate-50 font-semibold">
+                      <td className="py-3 px-4 text-sm text-slate-900" colSpan={2}>
+                        {t("negotiations.total") || "المجموع"}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-900">
+                        {totalQuantity.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-900">
+                        {totalPrice.toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                      </td>
+                      <td className="py-3 px-4 text-sm text-slate-900">
+                        {totalCbm.toFixed(2)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-4 text-sm text-slate-600">
+                {t("negotiations.siteFee") || "سيتم احتساب رسوم الموقع"}
+              </p>
+            </div>
+          )}
+
+          {/* Notes Section */}
+          <div className="space-y-4 mb-8">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                {t("negotiations.notes") || "ملاحظات"}
+              </label>
+              <textarea
+                value={notes}
+                readOnly
+                rows={4}
+                className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-slate-50"
+                placeholder={t("negotiations.noNotes") || "لا توجد ملاحظات"}
+              />
             </div>
           </div>
 
-          {/* Message Input */}
-          {/* Allow negotiation if status is NEGOTIATION or APPROVED */}
-          {canNegotiate ? (
-            <div className="bg-white rounded-lg shadow-sm ring-1 ring-slate-200 p-4">
-              <div className="mb-4">
-                <div className="flex gap-2 mb-2">
-                  <button
-                    onClick={() => setMessageType("TEXT")}
-                    className={`px-3 py-1 rounded text-sm ${
-                      messageType === "TEXT"
-                        ? "bg-blue-900 text-white"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {t("negotiations.textMessage") || "رسالة نصية"}
-                  </button>
-                  <button
-                    onClick={() => setMessageType("PRICE_PROPOSAL")}
-                    className={`px-3 py-1 rounded text-sm ${
-                      messageType === "PRICE_PROPOSAL"
-                        ? "bg-blue-900 text-white"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {t("negotiations.priceProposal") || "اقتراح سعر"}
-                  </button>
-                  <button
-                    onClick={() => setMessageType("QUANTITY_PROPOSAL")}
-                    className={`px-3 py-1 rounded text-sm ${
-                      messageType === "QUANTITY_PROPOSAL"
-                        ? "bg-blue-900 text-white"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {t("negotiations.quantityProposal") || "اقتراح كمية"}
-                  </button>
-                </div>
+          {/* Negotiation History Timeline */}
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              {t("negotiations.history") || "سجل التفاوض"}
+            </h2>
+
+            {messagesLoading ? (
+              <div className="text-center py-8 text-slate-500">
+                {t("common.loading") || "جاري التحميل..."}
               </div>
-
-              <div className="space-y-3">
-                <textarea
-                  value={messageText}
-                  onChange={(e) => setMessageText(e.target.value)}
-                  placeholder={t("negotiations.typeMessage") || "اكتب رسالتك هنا..."}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
-                  rows={3}
-                />
-
-                {messageType === "PRICE_PROPOSAL" && (
-                  <input
-                    type="number"
-                    value={proposedPrice}
-                    onChange={(e) => setProposedPrice(e.target.value)}
-                    placeholder={t("negotiations.enterPrice") || "أدخل السعر المقترح"}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
-                  />
-                )}
-
-                {messageType === "QUANTITY_PROPOSAL" && (
-                  <input
-                    type="number"
-                    value={proposedQuantity}
-                    onChange={(e) => setProposedQuantity(e.target.value)}
-                    placeholder={t("negotiations.enterQuantity") || "أدخل الكمية المقترحة"}
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-900 focus:outline-none focus:ring-1 focus:ring-blue-900"
-                  />
-                )}
-
-                <button
-                  onClick={handleSendMessage}
-                  disabled={sending || (!messageText.trim() && !proposedPrice && !proposedQuantity)}
-                  className={`flex items-center gap-2 rounded-md bg-blue-900 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed ${currentDir === 'rtl' ? 'flex-row-reverse ml-auto' : 'flex-row'}`}
-                >
-                  <Send className="h-4 w-4" />
-                  {sending ? (t("negotiations.sending") || "جاري الإرسال...") : (t("negotiations.send") || "إرسال")}
-                </button>
+            ) : messages.length === 0 ? (
+              <div className="text-center py-8 text-slate-500">
+                {t("negotiations.noMessages") || "لا توجد رسائل تفاوض"}
               </div>
-            </div>
-          ) : (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center text-amber-800">
-              {t("negotiations.negotiationClosed") || "تم إغلاق التفاوض على هذه الصفقة"}
-            </div>
-          )}
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message, index) => {
+                  const isClient = message.senderType === 'CLIENT';
+                  const isTrader = message.senderType === 'TRADER';
+                  const isEmployee = message.senderType === 'EMPLOYEE';
+
+                  return (
+                    <div
+                      key={message.id || index}
+                      className={`flex gap-3 ${currentDir === 'rtl' ? 'flex-row-reverse' : 'flex-row'}`}
+                    >
+                      {/* Timeline Dot */}
+                      <div className="flex flex-col items-center">
+                        <div className={`w-3 h-3 rounded-full mt-1 ${isClient ? 'bg-blue-500' :
+                            isTrader ? 'bg-green-500' :
+                              'bg-purple-500'
+                          }`} />
+                        {index < messages.length - 1 && (
+                          <div className="w-0.5 h-full bg-slate-200 mt-1" />
+                        )}
+                      </div>
+
+                      {/* Message Content */}
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-sm font-semibold ${isClient ? 'text-blue-700' :
+                              isTrader ? 'text-green-700' :
+                                'text-purple-700'
+                            }`}>
+                            {isClient && (t("negotiations.client") || "العميل")}
+                            {isTrader && (t("negotiations.trader") || "التاجر")}
+                            {isEmployee && (t("negotiations.employee") || "الموظف")}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {new Date(message.createdAt).toLocaleString(
+                              i18n.language === 'ar' ? 'ar-SA' : 'en-US',
+                              {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }
+                            )}
+                          </span>
+                        </div>
+
+                        {message.message && (
+                          <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700">
+                            {message.message}
+                          </div>
+                        )}
+
+                        {message.proposedPrice && (
+                          <div className="mt-2 text-sm">
+                            <span className="text-slate-600">{t("negotiations.proposedPrice") || "السعر المقترح"}: </span>
+                            <span className="font-semibold text-green-700">
+                              {parseFloat(message.proposedPrice).toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                            </span>
+                          </div>
+                        )}
+
+                        {message.counterOffer !== null && message.counterOffer !== undefined && (
+                          <div className="mt-1 text-sm">
+                            <span className="text-slate-600">{t("negotiations.counterOffer") || "عرض مضاد"}: </span>
+                            <span className="font-semibold text-orange-700">
+                              {parseFloat(message.counterOffer).toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </MainLayout>
