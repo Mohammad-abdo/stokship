@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { dealService } from "../services/dealService";
 import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "../components/Layout";
-import { ArrowLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { ROUTES } from "../routes";
 
 export default function NegotiationDetailPage() {
@@ -13,7 +13,6 @@ export default function NegotiationDetailPage() {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const { dealId } = useParams();
-  const location = useLocation();
 
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,7 +20,7 @@ export default function NegotiationDetailPage() {
   const [notes, setNotes] = useState("");
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
-
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchDeal = async () => {
     try {
@@ -167,6 +166,82 @@ export default function NegotiationDetailPage() {
   };
 
   const { totalQuantity, totalPrice, totalCbm } = calculateTotals();
+
+  const handleSendNegotiationMessage = async () => {
+    if (!notes.trim() && !productState.some(p => p.negotiationPrice || p.negotiationQuantity)) {
+      alert(t("negotiations.pleaseEnterData") || "يرجى إدخال رسالة أو تحديث الأسعار/الكميات");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Collect product changes for detailed history
+      const productChanges = productState
+        .filter(p => p.negotiationPrice || p.negotiationQuantity)
+        .map(p => ({
+          itemNumber: p.itemNumber,
+          title: p.title,
+          oldPrice: p.pricePerPiece,
+          newPrice: parseFloat(p.negotiationPrice) || p.pricePerPiece,
+          oldQuantity: p.quantity,
+          newQuantity: parseInt(p.negotiationQuantity) || 0,
+          priceChanged: p.negotiationPrice && parseFloat(p.negotiationPrice) !== p.pricePerPiece,
+          quantityChanged: p.negotiationQuantity && parseInt(p.negotiationQuantity) !== p.quantity
+        }));
+
+      // Calculate proposed price from products
+      let proposedPrice = null;
+      const hasNegotiation = productState.some(p => p.negotiationPrice || p.negotiationQuantity);
+      if (hasNegotiation) {
+        proposedPrice = totalPrice > 0 ? totalPrice : null;
+      }
+
+      // Build detailed message with changes
+      let detailedMessage = notes.trim() || '';
+      if (productChanges.length > 0) {
+        const changesText = productChanges.map((change, idx) => {
+          let productText = `${idx + 1}. ${change.title} (${change.itemNumber}):\n`;
+          if (change.quantityChanged) {
+            productText += `   الكمية: ${change.newQuantity.toLocaleString()}\n`;
+          }
+          if (change.priceChanged) {
+            productText += `   السعر: ${change.newPrice.toLocaleString()} ${i18n.language === 'ar' ? 'ر.س' : 'SAR'}\n`;
+          }
+          return productText;
+        }).join('\n');
+
+        if (detailedMessage) {
+          detailedMessage += '\n\n--- تفاصيل المنتجات ---\n' + changesText;
+        } else {
+          detailedMessage = '--- تفاصيل المنتجات ---\n' + changesText;
+        }
+      }
+
+      // Send negotiation message
+      await dealService.sendNegotiationMessage(dealId, {
+        message: detailedMessage,
+        proposedPrice: proposedPrice,
+        counterOffer: null,
+        productChanges: JSON.stringify(productChanges) // Send as metadata
+      });
+
+      // Refresh data
+      await fetchMessages();
+      await fetchDeal(); // Re-fetch to get updated product data
+
+      // Clear the message field
+      setNotes("");
+
+      alert(t("negotiations.messageSentSuccess") || "تم إرسال رسالة التفاوض بنجاح");
+    } catch (error) {
+      console.error("Error sending negotiation message:", error);
+      const errorMessage = error.response?.data?.message || error.message || t("negotiations.errorSendingMessage") || "حدث خطأ أثناء إرسال الرسالة";
+      alert(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const summaryData = productState
     .filter((p) => p.soldOut || p.negotiationQuantity || p.negotiationPrice)
@@ -388,7 +463,6 @@ export default function NegotiationDetailPage() {
                                   }
                                   className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   placeholder={t("negotiations.enterPrice") || "أدخل السعر"}
-                                  disabled={true}
                                 />
                               )}
                             </div>
@@ -413,7 +487,6 @@ export default function NegotiationDetailPage() {
                                   }
                                   className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                   placeholder={t("negotiations.enterQuantity") || "أدخل الكمية"}
-                                  disabled={true}
                                 />
                               )}
                             </div>
@@ -516,20 +589,36 @@ export default function NegotiationDetailPage() {
             </div>
           )}
 
-          {/* Notes Section */}
-          <div className="space-y-4 mb-8">
+          {/* Message Section */}
+          <div className="space-y-4 mb-6">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
-                {t("negotiations.notes") || "ملاحظات"}
+                {t("negotiations.addMessage") || "رسالة التفاوض"}
               </label>
               <textarea
                 value={notes}
-                readOnly
+                onChange={(e) => setNotes(e.target.value)}
                 rows={4}
-                className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-slate-50"
-                placeholder={t("negotiations.noNotes") || "لا توجد ملاحظات"}
+                className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder={t("negotiations.enterMessage") || "أدخل رسالتك للتفاوض..."}
               />
             </div>
+
+            <button
+              type="button"
+              onClick={handleSendNegotiationMessage}
+              disabled={submitting}
+              className="w-full bg-[#F5AF00] hover:bg-[#E5A000] text-[#194386] font-bold py-4 px-6 rounded-lg transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-[#194386] border-t-transparent rounded-full animate-spin" />
+                  {t("negotiations.sending") || "جاري الإرسال..."}
+                </>
+              ) : (
+                t("negotiations.sendMessage") || "إرسال رسالة التفاوض"
+              )}
+            </button>
           </div>
 
           {/* Negotiation History Timeline */}
@@ -561,8 +650,8 @@ export default function NegotiationDetailPage() {
                       {/* Timeline Dot */}
                       <div className="flex flex-col items-center">
                         <div className={`w-3 h-3 rounded-full mt-1 ${isClient ? 'bg-blue-500' :
-                            isTrader ? 'bg-green-500' :
-                              'bg-purple-500'
+                          isTrader ? 'bg-green-500' :
+                            'bg-purple-500'
                           }`} />
                         {index < messages.length - 1 && (
                           <div className="w-0.5 h-full bg-slate-200 mt-1" />
@@ -594,29 +683,33 @@ export default function NegotiationDetailPage() {
                           </span>
                         </div>
 
+                        {/* Display message with product changes highlighted */}
                         {message.message && (
                           <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700">
-                            {message.message}
+                            <div className="whitespace-pre-wrap">{message.message}</div>
                           </div>
                         )}
 
-                        {message.proposedPrice && (
-                          <div className="mt-2 text-sm">
-                            <span className="text-slate-600">{t("negotiations.proposedPrice") || "السعر المقترح"}: </span>
-                            <span className="font-semibold text-green-700">
-                              {parseFloat(message.proposedPrice).toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
-                            </span>
-                          </div>
-                        )}
+                        {/* Price and Quantity Info */}
+                        <div className="mt-2 space-y-1">
+                          {message.proposedPrice && (
+                            <div className="text-sm bg-green-50 border border-green-200 rounded px-3 py-2">
+                              <span className="text-slate-600 font-medium">{t("negotiations.proposedPrice") || "السعر المقترح"}: </span>
+                              <span className="font-bold text-green-700">
+                                {parseFloat(message.proposedPrice).toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                              </span>
+                            </div>
+                          )}
 
-                        {message.counterOffer !== null && message.counterOffer !== undefined && (
-                          <div className="mt-1 text-sm">
-                            <span className="text-slate-600">{t("negotiations.counterOffer") || "عرض مضاد"}: </span>
-                            <span className="font-semibold text-orange-700">
-                              {parseFloat(message.counterOffer).toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
-                            </span>
-                          </div>
-                        )}
+                          {message.counterOffer !== null && message.counterOffer !== undefined && (
+                            <div className="text-sm bg-orange-50 border border-orange-200 rounded px-3 py-2">
+                              <span className="text-slate-600 font-medium">{t("negotiations.counterOffer") || "عرض مضاد"}: </span>
+                              <span className="font-bold text-orange-700">
+                                {parseFloat(message.counterOffer).toLocaleString()} {i18n.language === 'ar' ? 'ر.س' : 'SAR'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

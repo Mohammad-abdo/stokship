@@ -2,14 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMultiAuth } from '@/contexts/MultiAuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { dealApi, negotiationApi, shippingTrackingApi } from '@/lib/mediationApi';
+import { dealApi, negotiationApi } from '@/lib/mediationApi';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Building2, User, Calendar, DollarSign, Package, CheckCircle, MessageSquare, CreditCard, FileText, AlertCircle, MapPin, Truck, Clock, CheckCircle2, Loader, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import showToast from '@/lib/toast';
-import StandardDataTable from '@/components/StandardDataTable';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 
 const TraderViewDeal = () => {
   const { id } = useParams();
@@ -17,97 +13,23 @@ const TraderViewDeal = () => {
   const { t, language, isRTL } = useLanguage();
   const { getAuth } = useMultiAuth();
   const { user } = getAuth('trader');
+
   const [loading, setLoading] = useState(true);
   const [deal, setDeal] = useState(null);
-  const [platformSettings, setPlatformSettings] = useState(null);
-  const [shippingTracking, setShippingTracking] = useState(null);
+  const [productState, setProductState] = useState([]);
+  const [notes, setNotes] = useState('');
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [proposedPrice, setProposedPrice] = useState('');
-  const [proposedQuantity, setProposedQuantity] = useState('');
-  const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // 'details' or 'negotiation'
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchDeal();
-      fetchShippingTracking();
-      fetchMessages();
-      const interval = setInterval(fetchMessages, 10000); // Polling for messages
-      return () => clearInterval(interval);
-    }
-  }, [id, user]);
-
-  const fetchShippingTracking = async () => {
-    try {
-      const response = await shippingTrackingApi.getShippingTracking(id);
-      const data = response.data.data || response.data;
-      setShippingTracking(data);
-    } catch (error) {
-      // It's okay if tracking doesn't exist yet
-      if (error.response?.status !== 404) {
-        console.error('Error fetching shipping tracking:', error);
-      }
-    }
-  };
-
-  const fetchMessages = async () => {
-    try {
-      const res = await negotiationApi.getMessages(id);
-      setMessages(res.data?.data || res.data || []);
-    } catch (err) {
-      console.error("Error fetching messages:", err);
-    }
-  };
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim() && !proposedPrice && !proposedQuantity) {
-      showToast.error(
-        t('mediation.deals.negotiationForm.required') || 'Required',
-        t('mediation.deals.negotiationForm.provideMessageOrProposal') || 'Please provide a message, price, or quantity'
-      );
-      return;
-    }
-
-    try {
-      setSending(true);
-      const payload = {
-        content: newMessage.trim() || undefined,
-        proposedPrice: proposedPrice ? parseFloat(proposedPrice) : undefined,
-        proposedQuantity: proposedQuantity ? parseInt(proposedQuantity) : undefined,
-        messageType: proposedPrice || proposedQuantity ? 'PRICE_PROPOSAL' : 'TEXT'
-      };
-      await negotiationApi.sendMessage(id, payload);
-      setNewMessage('');
-      setProposedPrice('');
-      setProposedQuantity('');
-      await fetchMessages();
-      showToast.success(
-        t('mediation.deals.negotiationForm.messageSent') || 'Message Sent',
-        t('mediation.deals.negotiationForm.messageSentSuccess') || 'Your message has been sent successfully'
-      );
-    } catch (error) {
-      console.error("Error sending message:", error);
-      showToast.error(
-        t('admin.support.sendFailed') || t('chat.sendFailed') || "Failed to send message",
-        error.response?.data?.message || t('common.errorOccurred') || 'An error occurred'
-      );
-    } finally {
-      setSending(false);
-    }
-  };
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchDeal = async () => {
     try {
       setLoading(true);
       const response = await dealApi.getDealById(id);
       const responseData = response.data?.data || response.data;
-      
-      // Extract deal and platformSettings from response
+
       const dealData = responseData.deal || responseData;
-      const settings = responseData.platformSettings || null;
-      
+
       // Verify this deal belongs to the current trader
       if (dealData.traderId !== user.id) {
         showToast.error(
@@ -117,9 +39,65 @@ const TraderViewDeal = () => {
         navigate('/stockship/trader/deals');
         return;
       }
-        
+
       setDeal(dealData);
-      setPlatformSettings(settings);
+      setNotes(dealData.notes || '');
+
+      // Transform deal items to product format
+      if (dealData.items && dealData.items.length > 0) {
+        const products = dealData.items.map((dealItem) => {
+          const { offerItem } = dealItem;
+          if (!offerItem) return null;
+
+          // Parse images
+          let images = [];
+          try {
+            const parsedImages = typeof offerItem.images === 'string'
+              ? JSON.parse(offerItem.images)
+              : offerItem.images;
+            if (Array.isArray(parsedImages)) {
+              images = parsedImages.map(img => {
+                const imgUrl = typeof img === 'string' ? img : (img?.url || img?.src || img);
+                if (!imgUrl) return null;
+                if (imgUrl.startsWith('http://') || imgUrl.startsWith('https://')) {
+                  return imgUrl;
+                }
+                const BASE_URL = 'http://localhost:5000';
+                return `${BASE_URL}${imgUrl.startsWith('/') ? imgUrl : '/uploads/' + imgUrl}`;
+              }).filter(Boolean);
+            }
+          } catch (e) {
+            console.warn('Error parsing images:', e);
+          }
+
+          const imageUrl = images.length > 0
+            ? images[0]
+            : 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80';
+
+          return {
+            id: dealItem.id,
+            dealItemId: dealItem.id,
+            offerItemId: offerItem.id,
+            image: imageUrl,
+            thumbnails: images.length > 1 ? images.slice(1, 4) : [],
+            images: images,
+            title: offerItem.productName || offerItem.description || t("mediation.deals.product") || "منتج",
+            itemNumber: offerItem.itemNo || `#${offerItem.id?.substring(0, 8) || 'N/A'}`,
+            country: dealData.offer?.country || "🇨🇳",
+            description: offerItem.description || offerItem.notes || "",
+            quantity: parseInt(offerItem.quantity) || 0,
+            piecesPerCarton: parseInt(offerItem.packageQuantity || offerItem.cartons || 1),
+            pricePerPiece: parseFloat(offerItem.unitPrice) || 0,
+            cbm: parseFloat(offerItem.totalCBM || offerItem.cbm || 0),
+            negotiationPrice: dealItem.negotiatedPrice ? parseFloat(dealItem.negotiatedPrice) : "",
+            negotiationQuantity: dealItem.quantity || "",
+            currency: offerItem.currency || 'SAR',
+            soldOut: false
+          };
+        }).filter(Boolean);
+
+        setProductState(products);
+      }
     } catch (error) {
       console.error('Error fetching deal:', error);
       showToast.error(
@@ -132,86 +110,153 @@ const TraderViewDeal = () => {
     }
   };
 
-  const handleApprove = async () => {
-    if (!confirm(t('mediation.deals.approveConfirm') || 'Are you sure you want to approve this deal?')) {
-      return;
+  const fetchMessages = async () => {
+    try {
+      setMessagesLoading(true);
+      const res = await negotiationApi.getMessages(id);
+      const messagesData = res.data?.data || res.data || [];
+      const sortedMessages = [...messagesData].sort((a, b) => {
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      });
+      setMessages(sortedMessages);
+    } catch (err) {
+      console.error("Error fetching messages:", err);
+    } finally {
+      setMessagesLoading(false);
     }
+  };
 
-    // Ensure we have a negotiatedAmount - use totalAmount as fallback
-    let negotiatedAmount = deal.negotiatedAmount || deal.totalAmount;
-    
-    // Convert to number if it's a string
-    if (typeof negotiatedAmount === 'string') {
-      negotiatedAmount = parseFloat(negotiatedAmount);
+  useEffect(() => {
+    if (user?.id) {
+      fetchDeal();
+      fetchMessages();
     }
-    
-    // Validate the amount is a valid number and greater than 0
-    if (!negotiatedAmount || isNaN(negotiatedAmount) || negotiatedAmount <= 0) {
-      console.error('Invalid negotiatedAmount:', deal.negotiatedAmount, deal.totalAmount, negotiatedAmount);
+  }, [id, user]);
+
+  const handleNegotiationChange = (productId, field, value) => {
+    setProductState((prev) =>
+      prev.map((p) => {
+        if (p.id === productId) {
+          return { ...p, [field]: value };
+        }
+        return p;
+      })
+    );
+  };
+
+  const calculateTotals = () => {
+    const selectedProducts = productState.filter(
+      (p) => !p.soldOut && (p.negotiationQuantity || p.negotiationPrice)
+    );
+
+    let totalQuantity = 0;
+    let totalPrice = 0;
+    let totalCbm = 0;
+
+    selectedProducts.forEach((p) => {
+      const qty = parseInt(p.negotiationQuantity) || 0;
+      const price = parseFloat(p.negotiationPrice) || p.pricePerPiece;
+      totalQuantity += qty;
+      totalPrice += qty * price;
+      totalCbm += (qty / p.quantity) * p.cbm;
+    });
+
+    return { totalQuantity, totalPrice, totalCbm };
+  };
+
+  const { totalQuantity, totalPrice, totalCbm } = calculateTotals();
+
+  const handleSendNegotiationMessage = async () => {
+    if (!notes.trim() && !productState.some(p => p.negotiationPrice || p.negotiationQuantity)) {
       showToast.error(
-        t('mediation.deals.approveFailed') || 'Failed to approve deal',
-        t('mediation.deals.negotiatedAmountRequired') || 'Negotiated amount is required to approve the deal'
+        t('mediation.deals.negotiationForm.required') || 'Required',
+        t('mediation.deals.negotiationForm.provideMessageOrProposal') || 'Please provide a message or update prices/quantities'
       );
       return;
     }
 
     try {
-      await dealApi.approveDeal(deal.id, {
-        negotiatedAmount: negotiatedAmount
-      });
+      setSubmitting(true);
+
+      // Collect product changes for detailed history
+      const productChanges = productState
+        .filter(p => p.negotiationPrice || p.negotiationQuantity)
+        .map(p => ({
+          itemNumber: p.itemNumber,
+          title: p.title,
+          oldPrice: p.pricePerPiece,
+          newPrice: parseFloat(p.negotiationPrice) || p.pricePerPiece,
+          oldQuantity: p.quantity,
+          newQuantity: parseInt(p.negotiationQuantity) || 0,
+          priceChanged: p.negotiationPrice && parseFloat(p.negotiationPrice) !== p.pricePerPiece,
+          quantityChanged: p.negotiationQuantity && parseInt(p.negotiationQuantity) !== p.quantity
+        }));
+
+      let proposedPrice = null;
+      const hasNegotiation = productState.some(p => p.negotiationPrice || p.negotiationQuantity);
+      if (hasNegotiation) {
+        proposedPrice = totalPrice > 0 ? totalPrice : null;
+      }
+
+      // Build detailed message with changes
+      let detailedMessage = notes.trim() || '';
+      if (productChanges.length > 0) {
+        const changesText = productChanges.map((change, idx) => {
+          let productText = `${idx + 1}. ${change.title} (${change.itemNumber}):\n`;
+          if (change.quantityChanged) {
+            productText += `   الكمية: ${change.newQuantity.toLocaleString()}\n`;
+          }
+          if (change.priceChanged) {
+            productText += `   السعر: $${formatCurrency(change.newPrice)}\n`;
+          }
+          return productText;
+        }).join('\n');
+
+        if (detailedMessage) {
+          detailedMessage += '\n\n--- تفاصيل المنتجات ---\n' + changesText;
+        } else {
+          detailedMessage = '--- تفاصيل المنتجات ---\n' + changesText;
+        }
+      }
+
+      const payload = {
+        content: detailedMessage,
+        proposedPrice: proposedPrice,
+        messageType: proposedPrice ? 'PRICE_PROPOSAL' : 'TEXT',
+        productChanges: JSON.stringify(productChanges)
+      };
+
+      await negotiationApi.sendMessage(id, payload);
+      setNotes('');
+      await fetchMessages();
+      await fetchDeal(); // Re-fetch to get updated product data
+
       showToast.success(
-        t('mediation.deals.dealApproved') || 'Deal Approved',
-        t('mediation.deals.approveSuccess') || 'Deal has been approved successfully'
+        t('mediation.deals.negotiationForm.messageSent') || 'Message Sent',
+        t('mediation.deals.negotiationForm.messageSentSuccess') || 'Your message has been sent successfully'
       );
-      fetchDeal(); // Reload deal data
     } catch (error) {
-      console.error('Error approving deal:', error);
+      console.error("Error sending negotiation message:", error);
       showToast.error(
-        t('mediation.deals.approveFailed') || 'Failed to approve deal',
+        t('admin.support.sendFailed') || 'Failed to send message',
         error.response?.data?.message || t('common.errorOccurred') || 'An error occurred'
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      NEGOTIATION: { 
-        bg: 'bg-yellow-100', 
-        text: 'text-yellow-800', 
-        label: t('mediation.deals.status.negotiation') || 'Negotiation' 
-      },
-      APPROVED: { 
-        bg: 'bg-blue-100', 
-        text: 'text-blue-800', 
-        label: t('mediation.deals.status.approved') || 'Approved' 
-      },
-      PAID: { 
-        bg: 'bg-green-100', 
-        text: 'text-green-800', 
-        label: t('mediation.deals.status.paid') || 'Paid' 
-      },
-      SETTLED: { 
-        bg: 'bg-gray-100', 
-        text: 'text-gray-800', 
-        label: t('mediation.deals.status.settled') || 'Settled' 
-      },
-      CANCELLED: { 
-        bg: 'bg-red-100', 
-        text: 'text-red-800', 
-        label: t('mediation.deals.status.cancelled') || 'Cancelled' 
-      }
-    };
-    const config = statusConfig[status] || { 
-      bg: 'bg-gray-100', 
-      text: 'text-gray-800', 
-      label: status || t('common.unknown') || 'Unknown' 
-    };
-    return (
-      <span className={`px-3 py-1 rounded-full text-sm font-medium ${config.bg} ${config.text}`}>
-        {config.label}
-      </span>
-    );
-  };
+  const summaryData = productState
+    .filter((p) => p.soldOut || p.negotiationQuantity || p.negotiationPrice)
+    .map((p) => ({
+      id: p.id,
+      itemNumber: p.itemNumber,
+      quantity: p.soldOut ? p.negotiationQuantity : p.negotiationQuantity || 1,
+      price: p.soldOut ? p.negotiationPrice : p.negotiationPrice || p.pricePerPiece,
+      cbm: p.soldOut
+        ? ((p.negotiationQuantity || 0) / p.quantity) * p.cbm
+        : ((parseInt(p.negotiationQuantity) || 0) / p.quantity) * p.cbm || p.cbm,
+    }));
 
   const formatCurrency = (amount) => {
     if (!amount) return '0.00';
@@ -222,18 +267,7 @@ const TraderViewDeal = () => {
     }).format(num);
   };
 
-  const formatDate = (date) => {
-    if (!date) return t('common.notAvailable') || 'N/A';
-    return new Date(date).toLocaleString(isRTL ? 'ar-SA' : 'en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  if (loading) {
+  if (loading && !deal) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -247,60 +281,6 @@ const TraderViewDeal = () => {
   if (!deal) {
     return null;
   }
-
-  // Deal items table columns
-  const dealItemsColumns = [
-    {
-      header: t('mediation.deals.itemNo') || 'Item No',
-      accessor: (item) => item.offerItem?.itemNo || item.itemNo || '-',
-      className: 'font-mono'
-    },
-    {
-      header: t('mediation.deals.description') || 'Description',
-      accessor: (item) => item.offerItem?.description || item.description || '-',
-      className: 'max-w-xs truncate'
-    },
-    {
-      header: t('mediation.deals.quantity') || 'Quantity',
-      accessor: (item) => (item.quantity || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US'),
-      className: isRTL ? 'text-right' : 'text-left'
-    },
-    {
-      header: t('mediation.deals.unit') || 'Unit',
-      accessor: (item) => item.offerItem?.unit || item.unit || '-'
-    },
-    {
-      header: t('mediation.deals.unitPrice') || 'Unit Price',
-      accessor: (item) => {
-        const price = item.offerItem?.unitPrice || item.unitPrice || 0;
-        const currency = item.offerItem?.currency || item.currency || 'USD';
-        return `${currency} ${formatCurrency(price)}`;
-      },
-      className: isRTL ? 'text-right' : 'text-left'
-    },
-    {
-      header: t('mediation.deals.amount') || 'Amount',
-      accessor: (item) => {
-        const amount = item.offerItem?.amount || item.amount || 0;
-        const currency = item.offerItem?.currency || item.currency || 'USD';
-        return `${currency} ${formatCurrency(amount)}`;
-      },
-      className: isRTL ? 'text-right' : 'text-left'
-    },
-    {
-      header: t('mediation.deals.cartons') || 'Cartons',
-      accessor: (item) => (item.cartons || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US'),
-      className: isRTL ? 'text-right' : 'text-left'
-    },
-    {
-      header: t('mediation.deals.cbm') || 'CBM',
-      accessor: (item) => {
-        const cbm = item.offerItem?.totalCBM || item.totalCBM || item.cbm || 0;
-        return formatCurrency(cbm);
-      },
-      className: isRTL ? 'text-right' : 'text-left'
-    }
-  ];
 
   return (
     <motion.div
@@ -323,684 +303,410 @@ const TraderViewDeal = () => {
           </motion.button>
           <div className={isRTL ? 'text-right' : 'text-left'}>
             <h1 className="text-3xl font-bold text-gray-900">
-              {t('mediation.deals.dealDetails') || 'Deal Details'}
+              {deal.offer?.title || t('mediation.deals.dealDetails') || 'تفاصيل الصفقة'}
             </h1>
             <p className="text-muted-foreground mt-2">{deal.dealNumber || 'N/A'}</p>
+            {productState.length > 0 && (
+              <div className="text-xs text-green-600 mt-1">
+                ✅ {productState.length} {t("mediation.deals.products") || "منتجات"}
+              </div>
+            )}
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {deal.status === 'NEGOTIATION' && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleApprove}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-            >
-              <CheckCircle className="w-4 h-4" />
-              {t('mediation.deals.approve') || 'Approve Deal'}
-            </motion.button>
-          )}
-          {getStatusBadge(deal.status)}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <div className={`flex gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-          <button
-            onClick={() => setActiveTab('details')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-              activeTab === 'details'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {t('mediation.deals.dealInfo') || 'Deal Information'}
-          </button>
-          <button
-            onClick={() => setActiveTab('negotiation')}
-            className={`px-4 py-2 font-medium border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === 'negotiation'
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4" />
-            {t('mediation.deals.negotiation') || 'Negotiation'}
-            {messages.length > 0 && (
-              <span className="bg-blue-100 text-blue-600 text-xs px-2 py-0.5 rounded-full">
-                {messages.length}
-              </span>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'negotiation' ? (
-        <div className="flex flex-col h-[calc(100vh-300px)] bg-white rounded-lg border border-gray-200 shadow-sm">
-          {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.length === 0 ? (
-              <div className="text-center text-gray-400 mt-10">
-                <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>{t('mediation.deals.noMessages') || 'No messages yet. Start the conversation.'}</p>
+      {/* Products List */}
+      {!loading && (
+        <div className="space-y-6 mb-8">
+          {productState.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 max-w-md mx-auto">
+                <p className="text-yellow-800 font-semibold mb-2">
+                  {t("mediation.deals.noProducts") || "لا توجد منتجات"}
+                </p>
               </div>
-            ) : (
-              messages.map((msg, idx) => {
-                // Determine if message is from current trader
-                const isMe = msg.traderId === user?.id || msg.senderType === 'TRADER';
-                const messageContent = msg.content || msg.message || '';
-                const hasPrice = msg.proposedPrice !== null && msg.proposedPrice !== undefined;
-                const hasQuantity = msg.proposedQuantity !== null && msg.proposedQuantity !== undefined;
-                
-                return (
-                  <div key={idx} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-3 shadow-sm ${
-                      isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'
-                    }`}>
-                      {(hasPrice || hasQuantity) && (
-                        <div className={`mb-2 pb-2 border-b ${isMe ? 'border-blue-400' : 'border-gray-300'}`}>
-                          {hasPrice && (
-                            <div className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                              <DollarSign className={`w-4 h-4 ${isMe ? 'text-blue-100' : 'text-gray-600'}`} />
-                              <span className="font-semibold">
-                                {t('mediation.deals.negotiationForm.proposedPrice') || 'Proposed Price'}: ${formatCurrency(msg.proposedPrice)}
-                              </span>
-                            </div>
-                          )}
-                          {hasQuantity && (
-                            <div className={`flex items-center gap-2 mt-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                              <Package className={`w-4 h-4 ${isMe ? 'text-blue-100' : 'text-gray-600'}`} />
-                              <span className="font-semibold">
-                                {t('mediation.deals.negotiationForm.proposedQuantity') || 'Proposed Quantity'}: {msg.proposedQuantity?.toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {messageContent && (
-                        <p className="text-sm whitespace-pre-wrap">{messageContent}</p>
-                      )}
-                      <p className={`text-[10px] mt-2 ${isMe ? 'text-blue-100' : 'text-gray-500'}`}>
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+            </div>
+          ) : (
+            productState.map((product, index) => {
+              const negotiationQty = product.soldOut
+                ? (parseInt(product.negotiationQuantity) || 0)
+                : (parseInt(product.negotiationQuantity) || 0);
+              const negotiationPrice = product.soldOut
+                ? (parseFloat(product.negotiationPrice) || 0)
+                : (parseFloat(product.negotiationPrice) || product.pricePerPiece || 0);
 
-          {/* Message Input */}
-          <div className="bg-gray-50 p-4 border-t border-gray-200">
-            <form onSubmit={handleSendMessage} className="space-y-3">
-              {/* Price and Quantity Proposals */}
-              <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t('mediation.deals.negotiationForm.proposedPrice') || 'Proposed Price (Optional)'}
-                  </label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input 
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={proposedPrice}
-                      onChange={(e) => setProposedPrice(e.target.value)}
-                      placeholder={t('mediation.deals.negotiationForm.pricePlaceholder') || "0.00"}
-                      className={`pl-10 ${isRTL ? 'text-right' : 'text-left'}`}
-                      dir={isRTL ? 'rtl' : 'ltr'}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    {t('mediation.deals.negotiationForm.proposedQuantity') || 'Proposed Quantity (Optional)'}
-                  </label>
-                  <div className="relative">
-                    <Package className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <Input 
-                      type="number"
-                      min="1"
-                      value={proposedQuantity}
-                      onChange={(e) => setProposedQuantity(e.target.value)}
-                      placeholder={t('mediation.deals.negotiationForm.quantityPlaceholder') || "0"}
-                      className={`pl-10 ${isRTL ? 'text-right' : 'text-left'}`}
-                      dir={isRTL ? 'rtl' : 'ltr'}
-                    />
-                  </div>
-                </div>
-              </div>
-              
-              {/* Message Input */}
-              <div className={`flex gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Input 
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder={t('mediation.deals.negotiationForm.messagePlaceholder') || "Type your message or proposal..."}
-                  className="flex-1"
-                  dir={isRTL ? 'rtl' : 'ltr'}
-                />
-                <Button 
-                  type="submit" 
-                  disabled={sending || (!newMessage.trim() && !proposedPrice && !proposedQuantity)} 
-                  className="bg-blue-600 hover:bg-blue-700"
+              const totalQty = negotiationQty;
+              const totalCbmForProduct = product.quantity > 0
+                ? (negotiationQty / product.quantity) * product.cbm
+                : 0;
+              const totalPriceForProduct = negotiationQty * negotiationPrice;
+
+              return (
+                <div
+                  key={product.id}
+                  className="relative bg-white rounded-lg border border-slate-200 p-6 shadow-sm"
                 >
-                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className={`w-4 h-4 ${isRTL ? 'rotate-180' : ''}`} />}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Information */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Deal Info */}
-          <Card className="border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <ShoppingCart className="w-5 h-5 text-gray-600" />
-                {t('mediation.deals.dealInfo') || 'Deal Information'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={isRTL ? 'text-right' : 'text-left'}>
-                  <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.dealNumber') || 'Deal Number'}</p>
-                  <p className="font-mono font-semibold text-gray-900">{deal.dealNumber || 'N/A'}</p>
-                </div>
-                <div className={isRTL ? 'text-right' : 'text-left'}>
-                  <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.negotiatedAmount') || 'Negotiated Amount'}</p>
-                  <p className="font-semibold text-lg text-gray-900">
-                    ${formatCurrency(deal.negotiatedAmount || deal.totalAmount || 0)}
-                  </p>
-                </div>
-                <div className={isRTL ? 'text-right' : 'text-left'}>
-                  <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.totalCBM') || 'Total CBM'}</p>
-                  <p className="font-medium text-gray-900">{formatCurrency(deal.totalCBM || deal.cbm || 0)}</p>
-                </div>
-                <div className={isRTL ? 'text-right' : 'text-left'}>
-                  <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.totalCartons') || 'Total Cartons'}</p>
-                  <p className="font-medium text-gray-900">{(deal.totalCartons || deal.cartons || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}</p>
-                </div>
-                {deal.financialTransactions && deal.financialTransactions.length > 0 && (() => {
-                  const transaction = deal.financialTransactions[0];
-                  const platformCommission = parseFloat(transaction.platformCommission || 0);
-                  const employeeCommission = parseFloat(transaction.employeeCommission || 0);
-                  const traderAmount = parseFloat(transaction.traderAmount || 0);
-                  const totalAmount = parseFloat(transaction.amount || 0);
-                  const platformCommissionRate = totalAmount > 0 ? ((platformCommission / totalAmount) * 100).toFixed(2) : 0;
-                  
-                  return (
-                    <>
-                      <div className={isRTL ? 'text-right' : 'text-left'}>
-                        <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.platformCommission') || 'Platform Commission'}</p>
-                        <p className="font-medium text-gray-900">
-                          ${formatCurrency(platformCommission)} ({platformCommissionRate}%)
+                  {product.soldOut && (
+                    <div className="absolute inset-0 bg-red-500/20 rounded-lg flex items-center justify-center z-10 pointer-events-none">
+                      <div className="bg-red-600 text-white px-8 py-4 rounded-lg text-2xl font-bold">
+                        {t("mediation.deals.soldOut") || "نفذت الكمية"}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
+                    {/* Product Image Section */}
+                    <div className="space-y-2">
+                      <img
+                        src={product.image}
+                        alt={product.title}
+                        className="w-full h-48 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80";
+                        }}
+                      />
+                      <div className="flex gap-2">
+                        {product.thumbnails && product.thumbnails.length > 0 ? (
+                          product.thumbnails.map((thumb, idx) => (
+                            <img
+                              key={idx}
+                              src={thumb}
+                              alt={`${product.title} ${idx + 1}`}
+                              className="w-16 h-16 object-cover rounded border border-slate-200"
+                              onError={(e) => {
+                                e.target.src = "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=100&q=80";
+                              }}
+                            />
+                          ))
+                        ) : null}
+                        <div className="w-16 h-16 rounded border border-slate-200 flex items-center justify-center bg-slate-50">
+                          <span className="text-xs">🎥</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Product Details */}
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-2xl">{product.country}</span>
+                          <h3 className="text-lg font-bold text-slate-900">
+                            {product.title}
+                          </h3>
+                          <span className="text-sm text-slate-500">
+                            {product.itemNumber}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600 leading-relaxed">
+                          {product.description}
                         </p>
                       </div>
-                      <div className={isRTL ? 'text-right' : 'text-left'}>
-                        <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.employeeCommission') || 'Employee Commission'}</p>
-                        <p className="font-medium text-gray-900">${formatCurrency(employeeCommission)}</p>
-                      </div>
-                      <div className={isRTL ? 'text-right' : 'text-left'}>
-                        <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.traderAmount') || 'Your Amount'}</p>
-                        <p className="font-semibold text-lg text-green-600">${formatCurrency(traderAmount)}</p>
-                      </div>
-                    </>
-                  );
-                })()}
-                <div className={isRTL ? 'text-right' : 'text-left'}>
-                  <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.createdAt') || 'Created At'}</p>
-                  <div className={`flex items-center gap-1 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    <p className="text-sm text-gray-900">{formatDate(deal.createdAt)}</p>
-                  </div>
-                </div>
-                {deal.offer && (
-                  <div className={isRTL ? 'text-right' : 'text-left'}>
-                    <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.offer') || 'Offer'}</p>
-                    <p className="font-medium text-gray-900">{deal.offer.title || t('common.untitled') || 'Untitled'}</p>
-                  </div>
-                )}
-              </div>
-              {deal.notes && (
-                <div className={`mt-4 p-3 bg-gray-50 rounded-lg ${isRTL ? 'text-right' : 'text-left'}`}>
-                  <p className="text-sm text-gray-500 mb-1">{t('mediation.deals.notes') || 'Notes'}</p>
-                  <p className="text-sm text-gray-900">{deal.notes}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Parties */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Client Card */}
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <User className="w-5 h-5 text-gray-600" />
-                  {t('mediation.deals.client') || 'Client'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">{t('mediation.employees.name') || 'Name'}</p>
-                    <p className="font-medium text-gray-900">{deal.client?.name || t('common.notAvailable') || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">{t('mediation.employees.email') || 'Email'}</p>
-                    <p className="text-sm text-gray-900">{deal.client?.email || t('common.notAvailable') || 'N/A'}</p>
-                  </div>
-                  {deal.client?.phone && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">{t('mediation.employees.phone') || 'Phone'}</p>
-                      <p className="text-sm text-gray-900">{deal.client.phone}</p>
-                    </div>
-                  )}
-                  {deal.client?.country && (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">{t('common.location') || 'Location'}</p>
-                      <p className="text-sm text-gray-900">
-                        {[deal.client.city, deal.client.country].filter(Boolean).join(', ') || t('common.notAvailable') || 'N/A'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Employee/Guarantor Card */}
-            {deal.employee && (
-              <Card className="border-gray-200 shadow-sm">
-                <CardHeader>
-                  <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                    <Building2 className="w-5 h-5 text-gray-600" />
-                    {t('mediation.deals.guarantor') || 'Employee Guarantor'}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">{t('mediation.employees.name') || 'Name'}</p>
-                      <p className="font-medium text-gray-900">{deal.employee.name || t('common.notAvailable') || 'N/A'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">{t('mediation.employees.employeeCode') || 'Employee Code'}</p>
-                      <p className="text-sm text-gray-900 font-mono">{deal.employee.employeeCode || t('common.notAvailable') || 'N/A'}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Deal Items */}
-          {deal.items && deal.items.length > 0 && (
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <Package className="w-5 h-5 text-gray-600" />
-                  {t('mediation.deals.dealItems') || 'Deal Items'}
-                  <span className="text-sm font-normal text-gray-500">({deal.items.length})</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StandardDataTable
-                  data={deal.items || []}
-                  columns={dealItemsColumns}
-                  searchable={true}
-                  searchPlaceholder={t('mediation.deals.searchItems') || 'Search items...'}
-                  className="mt-4"
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Payment Info */}
-          {deal.payments && deal.payments.length > 0 && (
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <CreditCard className="w-5 h-5 text-gray-600" />
-                  {t('mediation.deals.payments') || 'Payments'}
-                  <span className="text-sm font-normal text-gray-500">({deal.payments.length})</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {deal.payments.map((payment, index) => (
-                    <div 
-                      key={payment.id || index} 
-                      className={`p-4 border border-gray-200 rounded-lg ${isRTL ? 'text-right' : 'text-left'}`}
-                    >
-                      <div className={`flex items-center justify-between mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                      {/* Product Info Grid */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <p className="font-medium text-gray-900">
-                            ${formatCurrency(payment.amount || 0)}
-                          </p>
-                          {payment.paymentMethod && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {t('mediation.deals.paymentMethod') || 'Method'}: {payment.paymentMethod}
-                            </p>
+                          <div className="text-slate-500 mb-1">{t("mediation.deals.quantity") || "الكمية"}</div>
+                          <div className="font-semibold text-slate-900">
+                            {product.quantity.toLocaleString()}
+                            <span className="text-xs font-normal text-slate-500">
+                              {" "}
+                              ({product.piecesPerCarton} {t("mediation.deals.piecesInCarton") || "قطع/كرتون"})
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">{t("mediation.deals.pricePerPiece") || "سعر القطعة"}</div>
+                          <div className="font-semibold text-slate-900">
+                            ${formatCurrency(product.pricePerPiece)}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">{t("mediation.deals.cbm") || "CBM"}</div>
+                          <div className="font-semibold text-slate-900">
+                            {product.cbm} CBM
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Negotiation Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm text-slate-700 mb-2">
+                            {t("mediation.deals.negotiationPrice") || "السعر المتفاوض عليه"}
+                          </label>
+                          {product.soldOut ? (
+                            <div className="px-4 py-2 bg-slate-50 rounded-md text-slate-900 font-semibold">
+                              ${formatCurrency(product.negotiationPrice)}
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              value={product.negotiationPrice}
+                              onChange={(e) =>
+                                handleNegotiationChange(
+                                  product.id,
+                                  "negotiationPrice",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={t("mediation.deals.enterPrice") || "أدخل السعر"}
+                            />
                           )}
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          payment.status === 'VERIFIED' || payment.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                          payment.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                          payment.status === 'FAILED' || payment.status === 'CANCELLED' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {payment.status || t('common.unknown') || 'Unknown'}
-                        </span>
-                      </div>
-                      <div className={`flex items-center gap-1 text-xs text-gray-500 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
-                        <Calendar className="w-3 h-3" />
-                        <span>{formatDate(payment.createdAt || payment.paymentDate)}</span>
-                      </div>
-                      {payment.referenceNumber && (
-                        <p className="text-xs text-gray-500 mt-2 font-mono">
-                          {t('mediation.deals.referenceNumber') || 'Reference'}: {payment.referenceNumber}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Status History */}
-          {deal.statusHistory && deal.statusHistory.length > 0 && (
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <FileText className="w-5 h-5 text-gray-600" />
-                  {t('mediation.deals.statusHistory') || 'Status History'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {deal.statusHistory.map((history, index) => (
-                    <div 
-                      key={history.id || index}
-                      className={`flex items-start gap-3 p-3 border border-gray-200 rounded-lg ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}
-                    >
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
-                      <div className="flex-1 min-w-0">
-                        <div className={`flex items-center gap-2 mb-1 ${isRTL ? 'flex-row-reverse justify-end' : ''}`}>
-                          {getStatusBadge(history.status)}
-                          <span className="text-xs text-gray-500">{formatDate(history.createdAt)}</span>
-                        </div>
-                        {history.description && (
-                          <p className="text-sm text-gray-700 mt-1">{history.description}</p>
-                        )}
-                        {history.changedByType && (
-                          <p className="text-xs text-gray-500 mt-1">
-                            {t('mediation.deals.changedBy') || 'Changed by'}: {history.changedByType}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Shipping Tracking */}
-          {deal.shippingCompany && (
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <MapPin className="w-5 h-5 text-gray-600" />
-                  {t('mediation.deals.shippingTracking') || 'Shipping Tracking'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {shippingTracking ? (
-                  <div className="space-y-4">
-                    {/* Current Status */}
-                    <div className={`p-4 bg-blue-50 border border-blue-200 rounded-lg ${isRTL ? 'text-right' : 'text-left'}`}>
-                      <div className={`flex items-center gap-2 mb-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        {shippingTracking.status === 'DELIVERED' ? (
-                          <CheckCircle2 className="w-5 h-5 text-green-500" />
-                        ) : shippingTracking.status === 'IN_TRANSIT' || shippingTracking.status === 'OUT_FOR_DELIVERY' ? (
-                          <Truck className="w-5 h-5 text-blue-500" />
-                        ) : (
-                          <Clock className="w-5 h-5 text-gray-500" />
-                        )}
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          shippingTracking.status === 'DELIVERED' ? 'bg-green-100 text-green-800' :
-                          shippingTracking.status === 'IN_TRANSIT' || shippingTracking.status === 'OUT_FOR_DELIVERY' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {shippingTracking.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      {shippingTracking.trackingNumber && (
-                        <div className="mb-2">
-                          <label className="text-sm font-medium text-gray-700">{t('mediation.deals.trackingNumber') || 'Tracking Number'}:</label>
-                          <p className="mt-1 font-mono text-sm">{shippingTracking.trackingNumber}</p>
-                        </div>
-                      )}
-                      {shippingTracking.currentLocation && (
-                        <div className="mb-2">
-                          <label className="text-sm font-medium text-gray-700">{t('mediation.deals.currentLocation') || 'Current Location'}:</label>
-                          <p className="mt-1 text-sm">{shippingTracking.currentLocation}</p>
-                        </div>
-                      )}
-                      {shippingTracking.estimatedDelivery && (
-                        <div className="mb-2">
-                          <label className="text-sm font-medium text-gray-700">{t('mediation.deals.estimatedDelivery') || 'Estimated Delivery'}:</label>
-                          <p className="mt-1 text-sm">{formatDate(shippingTracking.estimatedDelivery)}</p>
-                        </div>
-                      )}
-                      {shippingTracking.actualDelivery && (
-                        <div className="mb-2">
-                          <label className="text-sm font-medium text-gray-700">{t('mediation.deals.deliveredOn') || 'Delivered On'}:</label>
-                          <p className="mt-1 text-sm text-green-600 font-semibold">{formatDate(shippingTracking.actualDelivery)}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status History */}
-                    {shippingTracking.statusHistory && shippingTracking.statusHistory.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold mb-2">{t('mediation.deals.statusHistory') || 'Status History'}</h4>
-                        <div className="space-y-2">
-                          {shippingTracking.statusHistory.map((history) => (
-                            <div key={history.id} className={`flex items-start gap-3 p-3 bg-gray-50 rounded-lg ${isRTL ? 'flex-row-reverse text-right' : 'text-left'}`}>
-                              <div className="flex-shrink-0 mt-1">
-                                {history.status === 'DELIVERED' ? (
-                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
-                                ) : (
-                                  <Clock className="w-4 h-4 text-gray-500" />
-                                )}
-                              </div>
-                              <div className="flex-1">
-                                <div className={`flex items-center justify-between mb-1 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                  <span className={`text-xs font-medium px-2 py-1 rounded ${
-                                    history.status === 'DELIVERED' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {history.status.replace('_', ' ')}
-                                  </span>
-                                  <span className="text-xs text-gray-500">{formatDate(history.createdAt)}</span>
-                                </div>
-                                {history.location && (
-                                  <p className="text-xs text-gray-600 mb-1">
-                                    <MapPin className="w-3 h-3 inline mr-1" />
-                                    {history.location}
-                                  </p>
-                                )}
-                                {history.description && (
-                                  <p className="text-xs text-gray-600">{history.description}</p>
-                                )}
-                              </div>
+                        <div>
+                          <label className="block text-sm text-slate-700 mb-2">
+                            {t("mediation.deals.negotiationQuantity") || "الكمية المتفاوض عليها"}
+                          </label>
+                          {product.soldOut ? (
+                            <div className="px-4 py-2 bg-slate-50 rounded-md text-slate-900 font-semibold">
+                              {product.negotiationQuantity}
                             </div>
-                          ))}
+                          ) : (
+                            <input
+                              type="number"
+                              value={product.negotiationQuantity}
+                              onChange={(e) =>
+                                handleNegotiationChange(
+                                  product.id,
+                                  "negotiationQuantity",
+                                  e.target.value
+                                )
+                              }
+                              className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder={t("mediation.deals.enterQuantity") || "أدخل الكمية"}
+                            />
+                          )}
                         </div>
                       </div>
+
+                      {/* Summary */}
+                      <div className="bg-slate-50 rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <div className="text-slate-500 mb-1">{t("mediation.deals.totalQuantity") || "الكمية الإجمالية"}</div>
+                          <div className="font-semibold text-slate-900">
+                            {totalQty.toLocaleString()} {t("mediation.deals.piece") || "قطعة"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">{t("mediation.deals.totalCbm") || "إجمالي CBM"}</div>
+                          <div className="font-semibold text-slate-900">
+                            {totalCbmForProduct.toFixed(2)} CBM
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-500 mb-1">{t("mediation.deals.totalPrice") || "السعر الإجمالي"}</div>
+                          <div className="font-semibold text-slate-900">
+                            ${formatCurrency(totalPriceForProduct)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Product Number */}
+                  <div className="absolute top-4 left-4 bg-blue-900 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Order Summary Table */}
+      {summaryData.length > 0 && (
+        <div className="bg-white rounded-lg border border-slate-200 p-6 mb-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-4">{t("mediation.deals.orderSummary") || "ملخص الطلب"}</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                    {t("mediation.deals.serial") || "م"}
+                  </th>
+                  <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                    {t("mediation.deals.itemNumber") || "رقم الصنف"}
+                  </th>
+                  <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                    {t("mediation.deals.quantity") || "الكمية"}
+                  </th>
+                  <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                    {t("mediation.deals.price") || "السعر"}
+                  </th>
+                  <th className={`py-3 px-4 text-sm font-semibold text-slate-700 ${isRTL ? 'text-right' : 'text-left'}`}>
+                    CBM
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {summaryData.map((item, idx) => (
+                  <tr key={item.id} className="border-b border-slate-100">
+                    <td className="py-3 px-4 text-sm text-slate-900">{idx + 1}</td>
+                    <td className="py-3 px-4 text-sm text-slate-900">{item.itemNumber}</td>
+                    <td className="py-3 px-4 text-sm text-slate-900">{item.quantity}</td>
+                    <td className="py-3 px-4 text-sm text-slate-900">
+                      ${formatCurrency(item.price)}
+                    </td>
+                    <td className="py-3 px-4 text-sm text-slate-900">
+                      {item.cbm.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-slate-50 font-semibold">
+                  <td className="py-3 px-4 text-sm text-slate-900" colSpan={2}>
+                    {t("mediation.deals.total") || "المجموع"}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-slate-900">
+                    {totalQuantity.toLocaleString()}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-slate-900">
+                    ${formatCurrency(totalPrice)}
+                  </td>
+                  <td className="py-3 px-4 text-sm text-slate-900">
+                    {totalCbm.toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 text-sm text-slate-600">
+            {t("mediation.deals.siteFee") || "سيتم احتساب رسوم الموقع"}
+          </p>
+        </div>
+      )}
+
+      {/* Message Section */}
+      <div className="space-y-4 mb-6">
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            {t("mediation.deals.negotiationForm.message") || "رسالة التفاوض"}
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            className="w-full px-4 py-3 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            placeholder={t("mediation.deals.negotiationForm.messagePlaceholder") || "أدخل رسالتك للتفاوض..."}
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={handleSendNegotiationMessage}
+          disabled={submitting}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {submitting ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {t("mediation.deals.negotiationForm.sending") || "جاري الإرسال..."}
+            </>
+          ) : (
+            t("mediation.deals.negotiationForm.sendMessage") || "إرسال رسالة التفاوض"
+          )}
+        </button>
+      </div>
+
+      {/* Negotiation History Timeline */}
+      <div className="bg-white rounded-lg border border-slate-200 p-6">
+        <h2 className="text-xl font-bold text-slate-900 mb-4">
+          {t("mediation.deals.negotiationHistory") || "سجل التفاوض"}
+        </h2>
+
+        {messagesLoading ? (
+          <div className="text-center py-8 text-slate-500">
+            {t("common.loading") || "جاري التحميل..."}
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center py-8 text-slate-500">
+            {t("mediation.deals.noMessages") || "لا توجد رسائل تفاوض"}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((message, index) => {
+              const isClient = message.senderType === 'CLIENT' || message.clientId;
+              const isTrader = message.senderType === 'TRADER' || message.traderId;
+              const isEmployee = message.senderType === 'EMPLOYEE' || message.employeeId;
+
+              return (
+                <div
+                  key={message.id || index}
+                  className={`flex gap-3 ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}
+                >
+                  {/* Timeline Dot */}
+                  <div className="flex flex-col items-center">
+                    <div className={`w-3 h-3 rounded-full mt-1 ${isClient ? 'bg-blue-500' :
+                      isTrader ? 'bg-green-500' :
+                        'bg-purple-500'
+                      }`} />
+                    {index < messages.length - 1 && (
+                      <div className="w-0.5 h-full bg-slate-200 mt-1" />
                     )}
                   </div>
-                ) : (
-                  <div className={`p-4 bg-gray-50 border border-gray-200 rounded-lg ${isRTL ? 'text-right' : 'text-left'}`}>
-                    <div className={`flex items-center gap-2 text-gray-600 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                      <AlertCircle className="w-5 h-5" />
-                      <span>{t('mediation.deals.noTrackingInfo') || 'No tracking information available yet'}</span>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
-          {/* Negotiations */}
-          {deal.negotiations && deal.negotiations.length > 0 && (
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <MessageSquare className="w-5 h-5 text-gray-600" />
-                  {t('mediation.deals.negotiations') || 'Negotiation Messages'}
-                  <span className="text-sm font-normal text-gray-500">({deal.negotiations.length})</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {deal.negotiations.map((negotiation, index) => (
-                    <div 
-                      key={negotiation.id || index}
-                      className={`p-4 border border-gray-200 rounded-lg ${
-                        negotiation.senderType === 'TRADER' 
-                          ? `bg-blue-50 ${isRTL ? 'text-right' : 'text-left'}` 
-                          : `bg-gray-50 ${isRTL ? 'text-right' : 'text-left'}`
-                      }`}
-                    >
-                      <div className={`flex items-center justify-between mb-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <p className="text-xs font-medium text-gray-700">
-                          {negotiation.senderType === 'TRADER' 
-                            ? t('mediation.deals.trader') || 'Trader'
-                            : t('mediation.deals.client') || 'Client'
+                  {/* Message Content */}
+                  <div className="flex-1 pb-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`text-sm font-semibold ${isClient ? 'text-blue-700' :
+                          isTrader ? 'text-green-700' :
+                            'text-purple-700'
+                        }`}>
+                        {isClient && (t("mediation.deals.client") || "العميل")}
+                        {isTrader && (t("mediation.deals.trader") || "التاجر")}
+                        {isEmployee && (t("mediation.deals.employee") || "الموظف")}
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        {new Date(message.createdAt).toLocaleString(
+                          isRTL ? 'ar-SA' : 'en-US',
+                          {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
                           }
-                        </p>
-                        <span className="text-xs text-gray-500">{formatDate(negotiation.createdAt)}</span>
-                      </div>
-                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{negotiation.message || negotiation.content}</p>
+                        )}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Status Card */}
-          <Card className="border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <CheckCircle className="w-5 h-5 text-gray-600" />
-                {t('common.status') || 'Status'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className={isRTL ? 'text-right' : 'text-left'}>
-              {getStatusBadge(deal.status)}
-              {deal.status === 'NEGOTIATION' && (
-                <p className="text-xs text-gray-500 mt-3">
-                  {t('mediation.deals.negotiationHint') || 'You can approve this deal to proceed'}
-                </p>
-              )}
-            </CardContent>
-          </Card>
+                    {/* Display message with product changes highlighted */}
+                    {(message.content || message.message) && (
+                      <div className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700">
+                        <div className="whitespace-pre-wrap">{message.content || message.message}</div>
+                      </div>
+                    )}
 
-          {/* Quick Stats */}
-          <Card className="border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Package className="w-5 h-5 text-gray-600" />
-                {t('mediation.deals.quickStats') || 'Quick Stats'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`space-y-4 ${isRTL ? 'text-right' : 'text-left'}`}>
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-sm text-gray-600">{t('mediation.deals.totalAmount') || 'Total Amount'}</p>
-                  <p className="font-semibold text-gray-900">
-                    ${formatCurrency(deal.negotiatedAmount || deal.totalAmount || 0)}
-                  </p>
-                </div>
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-sm text-gray-600">{t('mediation.deals.totalCBM') || 'Total CBM'}</p>
-                  <p className="font-medium text-gray-900">{formatCurrency(deal.totalCBM || deal.cbm || 0)}</p>
-                </div>
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-sm text-gray-600">{t('mediation.deals.totalCartons') || 'Total Cartons'}</p>
-                  <p className="font-medium text-gray-900">
-                    {(deal.totalCartons || deal.cartons || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
-                  </p>
-                </div>
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-sm text-gray-600">{t('mediation.deals.items') || 'Items'}</p>
-                  <p className="font-medium text-gray-900">
-                    {(deal.items?.length || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
-                  </p>
-                </div>
-                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
-                  <p className="text-sm text-gray-600">{t('mediation.deals.payments') || 'Payments'}</p>
-                  <p className="font-medium text-gray-900">
-                    {(deal.payments?.length || 0).toLocaleString(isRTL ? 'ar-SA' : 'en-US')}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                    {/* Price and Quantity Info */}
+                    <div className="mt-2 space-y-1">
+                      {message.proposedPrice && (
+                        <div className="text-sm bg-green-50 border border-green-200 rounded px-3 py-2">
+                          <span className="text-slate-600 font-medium">{t("mediation.deals.proposedPrice") || "السعر المقترح"}: </span>
+                          <span className="font-bold text-green-700">
+                            ${formatCurrency(message.proposedPrice)}
+                          </span>
+                        </div>
+                      )}
 
-          {/* Important Dates */}
-          <Card className="border-gray-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                <Calendar className="w-5 h-5 text-gray-600" />
-                {t('mediation.deals.importantDates') || 'Important Dates'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`space-y-3 ${isRTL ? 'text-right' : 'text-left'}`}>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t('mediation.deals.createdAt') || 'Created'}</p>
-                  <p className="text-sm font-medium text-gray-900">{formatDate(deal.createdAt)}</p>
+                      {message.counterOffer !== null && message.counterOffer !== undefined && (
+                        <div className="text-sm bg-orange-50 border border-orange-200 rounded px-3 py-2">
+                          <span className="text-slate-600 font-medium">{t("mediation.deals.counterOffer") || "عرض مضاد"}: </span>
+                          <span className="font-bold text-orange-700">
+                            ${formatCurrency(message.counterOffer)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                {deal.updatedAt && deal.updatedAt !== deal.createdAt && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{t('common.updatedAt') || 'Last Updated'}</p>
-                    <p className="text-sm font-medium text-gray-900">{formatDate(deal.updatedAt)}</p>
-                  </div>
-                )}
-                {deal.approvedAt && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{t('mediation.deals.approvedAt') || 'Approved At'}</p>
-                    <p className="text-sm font-medium text-gray-900">{formatDate(deal.approvedAt)}</p>
-                  </div>
-                )}
-                {deal.settledAt && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">{t('mediation.deals.settledAt') || 'Settled At'}</p>
-                    <p className="text-sm font-medium text-gray-900">{formatDate(deal.settledAt)}</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-      )}
     </motion.div>
   );
 };
 
 export default TraderViewDeal;
-
