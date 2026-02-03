@@ -69,9 +69,10 @@ enum PaymentStatus {
 }
 
 enum PaymentMethod {
-  BANK_TRANSFER
-  BANK_CARD
+  BANK_TRANSFER  // تحويل بنكي
+  BANK_CARD      // فيزا / بطاقة بنكية
   WALLET
+  PAYBAL         // باي بال
 }
 
 enum TransactionType {
@@ -399,6 +400,7 @@ model Deal {
   clientId           String
   employeeId         String // Guarantor employee
   shippingCompanyId  String? // Assigned shipping company
+  shippingType       ShippingType? // LAND (بري) or SEA (بحري)
   status             DealStatus @default(NEGOTIATION)
   negotiatedAmount   Decimal?   @db.Decimal(10, 2) // Agreed amount
   totalCartons       Int        @default(0)
@@ -977,6 +979,11 @@ model ShippingCompany {
   @@index([status])
   @@index([nameAr])
   @@index([nameEn])
+}
+
+enum ShippingType {
+  LAND   // بري
+  SEA    // بحري
 }
 
 enum ShippingStatus {

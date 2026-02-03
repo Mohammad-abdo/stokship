@@ -25,6 +25,7 @@ const DealPriceQuotePage = () => {
   const [platformSettings, setPlatformSettings] = useState(null);
   const [productState, setProductState] = useState([]);
   const [sendingToClient, setSendingToClient] = useState(false);
+  const [shippingType, setShippingType] = useState('LAND'); // LAND (بري) | SEA (بحري)
 
   useEffect(() => {
     fetchDeal();
@@ -81,7 +82,7 @@ const DealPriceQuotePage = () => {
   const handleSendToClient = async () => {
     try {
       setSendingToClient(true);
-      await dealApi.sendQuoteToClient(id);
+      await dealApi.sendQuoteToClient(id, { shippingType: shippingType || 'LAND' });
       showToast.success(t('mediation.deals.quoteSentToClient') || 'تم إرسال عرض السعر إلى العميل');
     } catch (error) {
       console.error('Send quote to client:', error);
@@ -185,7 +186,18 @@ const DealPriceQuotePage = () => {
             <p className="text-sm text-gray-500">{deal.dealNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <span>{t('mediation.deals.shippingType') || 'نوع الشحن'}:</span>
+            <select
+              value={shippingType}
+              onChange={(e) => setShippingType(e.target.value)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="LAND">{t('mediation.deals.shippingTypeLand') || 'بري'}</option>
+              <option value="SEA">{t('mediation.deals.shippingTypeSea') || 'بحري'}</option>
+            </select>
+          </label>
           <Button
             onClick={handleSendToClient}
             disabled={sendingToClient}

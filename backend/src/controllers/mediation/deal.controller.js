@@ -216,6 +216,9 @@ const approveDeal = asyncHandler(async (req, res) => {
     // Continue without QR code - it's not critical
   }
 
+  // Optional shipping type: LAND (بري) or SEA (بحري)
+  const shippingType = body.shippingType === 'SEA' || body.shippingType === 'LAND' ? body.shippingType : undefined;
+
   // Update deal
   const updatedDeal = await prisma.deal.update({
     where: { id: deal.id },
@@ -224,6 +227,7 @@ const approveDeal = asyncHandler(async (req, res) => {
       negotiatedAmount: amountToUse,
       totalCartons,
       totalCBM,
+      ...(shippingType && { shippingType }),
       invoiceNumber,
       barcode,
       qrCodeUrl,
@@ -1291,9 +1295,13 @@ const sendQuoteToClient = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Deal has no client', 400);
   }
 
+  const shippingType = req.body?.shippingType === 'SEA' || req.body?.shippingType === 'LAND' ? req.body.shippingType : undefined;
   await prisma.deal.update({
     where: { id },
-    data: { quoteSentAt: new Date() }
+    data: {
+      quoteSentAt: new Date(),
+      ...(shippingType && { shippingType })
+    }
   });
 
   await createNotification({

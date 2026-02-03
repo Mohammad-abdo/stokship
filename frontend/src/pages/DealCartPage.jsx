@@ -139,6 +139,9 @@ export default function DealCartPage() {
               <div><p className="text-gray-500">{t('negotiations.client') || 'العميل'}</p><p className="font-semibold text-gray-900">{deal.client?.name || '—'}</p></div>
               <div><p className="text-gray-500">{t('negotiations.trader') || 'التاجر'}</p><p className="font-semibold text-gray-900">{deal.trader?.name || deal.trader?.companyName || '—'}</p></div>
               <div><p className="text-gray-500">{t('negotiations.employee') || 'الموظف'}</p><p className="font-semibold text-gray-900">{deal.employee?.name || '—'}</p></div>
+              {deal.shippingType && (
+                <div><p className="text-gray-500">{t('payment.shippingType') || 'نوع الشحن'}</p><p className="font-semibold text-gray-900">{deal.shippingType === 'SEA' ? (t('payment.shippingTypeSea') || 'بحري') : (t('payment.shippingTypeLand') || 'بري')}</p></div>
+              )}
             </div>
           </div>
 

@@ -474,8 +474,8 @@ export const dealApi = {
   },
 
   // Send price quote to client (Employee/Admin) — notifies client to view quote
-  sendQuoteToClient: (id) => {
-    return api.post(`${BASE_URL}/deals/${id}/send-quote-to-client`);
+  sendQuoteToClient: (id, data = {}) => {
+    return api.post(`${BASE_URL}/deals/${id}/send-quote-to-client`, data);
   }
 };
 

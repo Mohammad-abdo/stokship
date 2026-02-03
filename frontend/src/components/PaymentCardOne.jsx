@@ -40,7 +40,7 @@ export default function PaymentCardForm({ deal = null, dealId = null, fromQuote 
     };
   }, [deal, fromQuote, i18n.language, platformSettings]);
 
-  const [method, setMethod] = useState("card"); // card | transfer
+  const [method, setMethod] = useState("card"); // card (فيزا) | transfer (تحويل بنكي) | paybal (باي بال)
   const [cardNumber, setCardNumber] = useState("");
   const [address, setAddress] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -57,10 +57,12 @@ export default function PaymentCardForm({ deal = null, dealId = null, fromQuote 
     setSubmitting(true);
     try {
       const amountToSend = Number(Number(summary.total).toFixed(2));
+      const methodValue = method === "card" ? "BANK_CARD" : method === "paybal" ? "PAYBAL" : "BANK_TRANSFER";
+      const transactionId = method === "transfer" ? (receipt?.name || `transfer-${Date.now()}`) : method === "paybal" ? `paybal-${Date.now()}` : (cardNumber || `card-${Date.now()}`);
       await dealService.processDealPayment(dealId, {
         amount: amountToSend,
-        method: method === "card" ? "BANK_CARD" : "BANK_TRANSFER",
-        transactionId: method === "transfer" ? (receipt?.name || `transfer-${Date.now()}`) : (cardNumber || `card-${Date.now()}`),
+        method: methodValue,
+        transactionId,
         receiptUrl: null
       });
       alert(t("payment.paymentSuccess") || "تم إرسال طلب الدفع بنجاح");
@@ -158,7 +160,22 @@ export default function PaymentCardForm({ deal = null, dealId = null, fromQuote 
           </div>
           {/* Left: form */}
           <div className="w-full lg:w-auto rounded-xl border border-slate-100 bg-white shadow-sm p-4 sm:p-6 md:p-8" dir={currentDir}>
-            <div className={`flex items-center justify-center gap-4 sm:gap-6 md:gap-10 text-xs sm:text-sm font-semibold ${currentDir === 'rtl' ? 'flex-row-reverse' : ''}`}>
+            <div className={`flex items-center justify-center gap-3 sm:gap-4 md:gap-6 text-xs sm:text-sm font-semibold flex-wrap ${currentDir === 'rtl' ? 'flex-row-reverse' : ''}`}>
+              <button 
+                type="button" 
+                onClick={() => setMethod("card")}
+                className={`relative pb-2 whitespace-nowrap ${
+                  method === "card"
+                    ? "text-blue-900"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {t("payment.visa")}
+                {method === "card" && (
+                  <span className="absolute -bottom-0.5 right-0 left-0 mx-auto h-[2px] w-10 sm:w-14 md:w-16 bg-amber-500" />
+                )}
+              </button>
+
               <button 
                 type="button" 
                 onClick={() => setMethod("transfer")}
@@ -170,22 +187,22 @@ export default function PaymentCardForm({ deal = null, dealId = null, fromQuote 
               >
                 {t("payment.bankTransfer")}
                 {method === "transfer" && (
-                  <span className="absolute -bottom-0.5 right-0 left-0 mx-auto h-[2px] w-12 sm:w-16 md:w-20 bg-amber-500" />
+                  <span className="absolute -bottom-0.5 right-0 left-0 mx-auto h-[2px] w-10 sm:w-14 md:w-16 bg-amber-500" />
                 )}
               </button>
 
               <button 
                 type="button" 
-                onClick={() => setMethod("card")}
+                onClick={() => setMethod("paybal")}
                 className={`relative pb-2 whitespace-nowrap ${
-                  method === "card"
+                  method === "paybal"
                     ? "text-blue-900"
                     : "text-slate-500 hover:text-slate-700"
                 }`}
               >
-                {t("payment.bankCard")}
-                {method === "card" && (
-                  <span className="absolute -bottom-0.5 right-0 left-0 mx-auto h-[2px] w-12 sm:w-16 md:w-20 bg-amber-500" />
+                {t("payment.paybal")}
+                {method === "paybal" && (
+                  <span className="absolute -bottom-0.5 right-0 left-0 mx-auto h-[2px] w-10 sm:w-14 md:w-16 bg-amber-500" />
                 )}
               </button>
             </div>
@@ -299,6 +316,26 @@ export default function PaymentCardForm({ deal = null, dealId = null, fromQuote 
             )}
 
             {/* Bank Transfer Form */}
+            {/* PayBal Form */}
+            {method === "paybal" && (
+              <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
+                <div className={`rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                  {t("payment.paybalNote")}
+                </div>
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => {
+                    if (fromQuote && dealId) handleSubmitPayment();
+                    else navigate(ROUTES.REQUEST_SENT);
+                  }}
+                  className="mt-4 w-full rounded-md bg-amber-500 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-blue-900 hover:bg-amber-600 transition-colors disabled:opacity-50"
+                >
+                  {submitting ? (i18n.language === 'ar' ? 'جاري الإرسال...' : 'Sending...') : t("payment.payWithPaybal")}
+                </button>
+              </div>
+            )}
+
             {method === "transfer" && (
               <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-5">
                 <div className={`space-y-1.5 sm:space-y-2 text-xs sm:text-sm text-slate-800 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
