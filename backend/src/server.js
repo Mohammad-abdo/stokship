@@ -14,6 +14,7 @@ const { logger } = require('./utils/logger');
 const routes = require('./routes');
 const { initWebSocket } = require('./services/websocket.service');
 const { initRedis } = require('./services/cache.service');
+const { initScheduledJobs } = require('./jobs');
 
 const app = express();
 //new
@@ -270,6 +271,9 @@ const server = app.listen(PORT, async () => {
   if (process.env.WEBSOCKET_ENABLED === 'true') {
     initWebSocket(server);
   }
+  
+  // Initialize scheduled jobs (cron jobs)
+  initScheduledJobs();
 });
 
 // Graceful shutdown

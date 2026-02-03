@@ -3,6 +3,7 @@ const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
 const { notifyDealCreated, notifyDealStatusChanged, createNotification } = require('../../utils/notificationHelper');
 const { generateDealQRCode } = require('../../services/qrcode.service');
+const { reserveInventory, releaseInventory } = require('../../services/inventory.service');
 
 /**
  * @desc    Request Negotiation (Create Deal) - Client
@@ -570,6 +571,14 @@ const addDealItems = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Deal not found or cannot be modified', 404);
   }
 
+  // إلغاء الحجوزات القديمة أولاً (إن وُجدت)
+  try {
+    await releaseInventory(deal.id);
+  } catch (releaseError) {
+    console.warn('تحذير: فشل إلغاء الحجوزات القديمة:', releaseError.message);
+    // نكمل حتى لو فشل الإلغاء
+  }
+
   // Validate and create deal items
   const dealItems = [];
   for (const item of items) {
@@ -587,6 +596,17 @@ const addDealItems = asyncHandler(async (req, res) => {
     const quantity = parseInt(item.quantity) || offerItem.quantity;
     const cartons = parseInt(item.cartons) || offerItem.cartons;
     const cbm = offerItem.cbm * quantity;
+
+    // ⭐ حجز الكمية من المخزون - جديد
+    try {
+      await reserveInventory(offerItem.id, quantity, deal.id);
+    } catch (reservationError) {
+      return errorResponse(
+        res,
+        `فشل حجز المخزون للمنتج "${offerItem.productName}": ${reservationError.message}`,
+        400
+      );
+    }
 
     dealItems.push({
       dealId: deal.id,
@@ -642,7 +662,7 @@ const addDealItems = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
     userAgent: req.get('user-agent')
   };
-  
+
   // Set the appropriate user ID field based on userType
   if (req.userType === 'CLIENT') {
     activityLogData.clientId = req.user.id;
@@ -653,7 +673,7 @@ const addDealItems = asyncHandler(async (req, res) => {
   } else if (req.userType === 'ADMIN') {
     activityLogData.adminId = req.user.id;
   }
-  
+
   await prisma.activityLog.create({ data: activityLogData });
 
   successResponse(res, updatedDeal, 'Deal items updated successfully');
@@ -725,7 +745,7 @@ const settleDeal = asyncHandler(async (req, res) => {
     ipAddress: req.ip,
     userAgent: req.get('user-agent')
   };
-  
+
   // Set the appropriate user ID field based on userType
   if (req.userType === 'CLIENT') {
     activityLogData.clientId = req.user.id;
@@ -736,7 +756,7 @@ const settleDeal = asyncHandler(async (req, res) => {
   } else if (req.userType === 'ADMIN') {
     activityLogData.adminId = req.user.id;
   }
-  
+
   await prisma.activityLog.create({ data: activityLogData });
 
   // Create audit trail
@@ -752,7 +772,7 @@ const settleDeal = asyncHandler(async (req, res) => {
     userAgent: req.get('user-agent'),
     success: true
   };
-  
+
   // Set the appropriate user ID field based on userType
   if (req.userType === 'CLIENT') {
     auditTrailData.clientId = req.user.id;
@@ -763,7 +783,7 @@ const settleDeal = asyncHandler(async (req, res) => {
   } else if (req.userType === 'ADMIN') {
     auditTrailData.adminId = req.user.id;
   }
-  
+
   await prisma.auditTrail.create({ data: auditTrailData });
 
   // Create status history
@@ -856,7 +876,7 @@ const assignShippingCompany = asyncHandler(async (req, res) => {
         action: 'DEAL_SHIPPING_ASSIGNED',
         entityType: 'DEAL',
         dealId: deal.id,
-        description: shippingCompanyId 
+        description: shippingCompanyId
           ? `${req.userType} assigned shipping company to deal ${deal.dealNumber}`
           : `${req.userType} removed shipping company assignment from deal ${deal.dealNumber}`,
         metadata: JSON.stringify({
@@ -866,7 +886,7 @@ const assignShippingCompany = asyncHandler(async (req, res) => {
         ipAddress: req.ip,
         userAgent: req.get('user-agent')
       };
-      
+
       // Set the appropriate user ID field based on userType
       if (req.userType === 'CLIENT') {
         activityLogData.clientId = req.user.id;
@@ -877,7 +897,7 @@ const assignShippingCompany = asyncHandler(async (req, res) => {
       } else if (req.userType === 'ADMIN') {
         activityLogData.adminId = req.user.id;
       }
-      
+
       await prisma.activityLog.create({ data: activityLogData });
       console.log('✅ Activity log created successfully');
     } catch (logError) {
@@ -885,8 +905,8 @@ const assignShippingCompany = asyncHandler(async (req, res) => {
       // Don't fail the request if logging fails
     }
 
-    successResponse(res, updatedDeal, shippingCompanyId 
-      ? 'Shipping company assigned successfully' 
+    successResponse(res, updatedDeal, shippingCompanyId
+      ? 'Shipping company assigned successfully'
       : 'Shipping company assignment removed successfully');
   } catch (updateError) {
     console.error('❌ Error updating deal:', updateError);

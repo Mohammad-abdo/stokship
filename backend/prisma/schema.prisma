@@ -69,10 +69,17 @@ enum PaymentStatus {
 }
 
 enum PaymentMethod {
-  BANK_TRANSFER  // تحويل بنكي
-  BANK_CARD      // فيزا / بطاقة بنكية
+  BANK_TRANSFER // تحويل بنكي
+  BANK_CARD // فيزا / بطاقة بنكية
   WALLET
-  PAYBAL         // باي بال
+  PAYBAL // باي بال
+}
+
+enum InventoryReservationStatus {
+  RESERVED // محجوز
+  CONFIRMED // مؤكد (تم الدفع)
+  RELEASED // تم الإلغاء
+  EXPIRED // منتهي
 }
 
 enum TransactionType {
@@ -249,15 +256,15 @@ model Trader {
   updatedAt         DateTime  @updatedAt
 
   // Relations
-  employee         Employee?             @relation(fields: [employeeId], references: [id])
-  client           Client?               @relation(fields: [clientId], references: [id])
-  offers           Offer[]
-  deals            Deal[]
-  dealNegotiations DealNegotiation[]     @relation("DealNegotiationTrader")
-  activityLogs     ActivityLog[]         @relation("ActivityLogTrader")
-  auditTrails      AuditTrail[]          @relation("AuditTrailTrader")
-  updateRequests   TraderUpdateRequest[]
-  offerSupportTickets OfferSupportTicket[] @relation("OfferSupportTicketTrader")
+  employee            Employee?             @relation(fields: [employeeId], references: [id])
+  client              Client?               @relation(fields: [clientId], references: [id])
+  offers              Offer[]
+  deals               Deal[]
+  dealNegotiations    DealNegotiation[]     @relation("DealNegotiationTrader")
+  activityLogs        ActivityLog[]         @relation("ActivityLogTrader")
+  auditTrails         AuditTrail[]          @relation("AuditTrailTrader")
+  updateRequests      TraderUpdateRequest[]
+  offerSupportTickets OfferSupportTicket[]  @relation("OfferSupportTicketTrader")
 
   @@index([employeeId])
   @@index([clientId])
@@ -329,11 +336,11 @@ model Offer {
   updatedAt          DateTime    @updatedAt
 
   // Relations
-  trader           Trader        @relation(fields: [traderId], references: [id])
-  categoryRelation Category?     @relation("OfferCategory", fields: [categoryId], references: [id])
+  trader           Trader               @relation(fields: [traderId], references: [id])
+  categoryRelation Category?            @relation("OfferCategory", fields: [categoryId], references: [id])
   items            OfferItem[]
   deals            Deal[]
-  activityLogs     ActivityLog[] @relation("ActivityLogOffer")
+  activityLogs     ActivityLog[]        @relation("ActivityLogOffer")
   updateRequests   OfferUpdateRequest[]
   supportTickets   OfferSupportTicket[]
 
@@ -343,46 +350,48 @@ model Offer {
 }
 
 model OfferItem {
-  id              String   @id @default(uuid())
-  offerId         String
+  id               String   @id @default(uuid())
+  offerId          String
   // Excel-based fields
-  itemNo          String? // Item number from Excel (ITEM NO.)
-  productName     String // Descriptive name only (DESCRIPTION)
-  description     String?  @db.Text
-  colour          String? // Colour from Excel
-  spec            String? // SPEC. from Excel
-  quantity        Int // QUANTITY from Excel
-  unit            String? // Unit from Excel (SET, PCS, etc.)
-  unitPrice       Decimal? @db.Decimal(10, 2) // UNIT PRICE from Excel
-  currency        String? // CURRENCY from Excel (USD, SR, etc.)
-  amount          Decimal? @db.Decimal(10, 2) // AMOUNT from Excel
-  packing         String? // PACKING from Excel
-  packageQuantity Int? // PACKAGE QUANTITY (CTN) from Excel
-  unitGW          Decimal? @db.Decimal(10, 2) // UNIT G.W. (KGS) from Excel
-  totalGW         Decimal? @db.Decimal(10, 2) // TOTAL G.W. (KGS) from Excel
+  itemNo           String? // Item number from Excel (ITEM NO.)
+  productName      String // Descriptive name only (DESCRIPTION)
+  description      String?  @db.Text
+  colour           String? // Colour from Excel
+  spec             String? // SPEC. from Excel
+  quantity         Int // QUANTITY from Excel - Total quantity
+  reservedQuantity Int      @default(0) // Quantity reserved in active deals
+  unit             String? // Unit from Excel (SET, PCS, etc.)
+  unitPrice        Decimal? @db.Decimal(10, 2) // UNIT PRICE from Excel
+  currency         String? // CURRENCY from Excel (USD, SR, etc.)
+  amount           Decimal? @db.Decimal(10, 2) // AMOUNT from Excel
+  packing          String? // PACKING from Excel
+  packageQuantity  Int? // PACKAGE QUANTITY (CTN) from Excel
+  unitGW           Decimal? @db.Decimal(10, 2) // UNIT G.W. (KGS) from Excel
+  totalGW          Decimal? @db.Decimal(10, 2) // TOTAL G.W. (KGS) from Excel
   // Carton dimensions
-  cartonLength    Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Length
-  cartonWidth     Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Width
-  cartonHeight    Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Height
-  totalCBM        Decimal  @db.Decimal(10, 4) // TOTAL CBM from Excel
+  cartonLength     Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Length
+  cartonWidth      Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Width
+  cartonHeight     Decimal? @db.Decimal(10, 2) // CARTON SIZE (CM) - Height
+  totalCBM         Decimal  @db.Decimal(10, 4) // TOTAL CBM from Excel
   // Legacy fields (for backward compatibility)
-  cartons         Int      @default(0) // Number of cartons
-  length          Decimal? @db.Decimal(10, 2) // cm (alias for cartonLength)
-  width           Decimal? @db.Decimal(10, 2) // cm (alias for cartonWidth)
-  height          Decimal? @db.Decimal(10, 2) // cm (alias for cartonHeight)
-  cbm             Decimal  @db.Decimal(10, 3) // Calculated: (L*W*H)/1,000,000 (alias for totalCBM)
-  weight          Decimal? @db.Decimal(10, 2) // kg (alias for totalGW)
-  country         String?
-  city            String?
-  images          String?  @db.Text // JSON array of image URLs (IMAGE from Excel)
-  notes           String?  @db.Text
-  displayOrder    Int      @default(0) // NO from Excel
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  cartons          Int      @default(0) // Number of cartons
+  length           Decimal? @db.Decimal(10, 2) // cm (alias for cartonLength)
+  width            Decimal? @db.Decimal(10, 2) // cm (alias for cartonWidth)
+  height           Decimal? @db.Decimal(10, 2) // cm (alias for cartonHeight)
+  cbm              Decimal  @db.Decimal(10, 3) // Calculated: (L*W*H)/1,000,000 (alias for totalCBM)
+  weight           Decimal? @db.Decimal(10, 2) // kg (alias for totalGW)
+  country          String?
+  city             String?
+  images           String?  @db.Text // JSON array of image URLs (IMAGE from Excel)
+  notes            String?  @db.Text
+  displayOrder     Int      @default(0) // NO from Excel
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  offer     Offer      @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  dealItems DealItem[]
+  offer                 Offer                  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  dealItems             DealItem[]
+  inventoryReservations InventoryReservation[]
 
   @@index([offerId])
   @@index([itemNo])
@@ -393,46 +402,47 @@ model OfferItem {
 // ============================================
 
 model Deal {
-  id                 String     @id @default(uuid())
-  dealNumber         String     @unique // Auto-generated (e.g., DEAL-2024-001)
+  id                 String        @id @default(uuid())
+  dealNumber         String        @unique // Auto-generated (e.g., DEAL-2024-001)
   offerId            String
   traderId           String
   clientId           String
   employeeId         String // Guarantor employee
   shippingCompanyId  String? // Assigned shipping company
   shippingType       ShippingType? // LAND (بري) or SEA (بحري)
-  status             DealStatus @default(NEGOTIATION)
-  negotiatedAmount   Decimal?   @db.Decimal(10, 2) // Agreed amount
-  totalCartons       Int        @default(0)
-  totalCBM           Decimal    @default(0) @db.Decimal(10, 3)
-  invoiceNumber      String?    @unique
+  status             DealStatus    @default(NEGOTIATION)
+  negotiatedAmount   Decimal?      @db.Decimal(10, 2) // Agreed amount
+  totalCartons       Int           @default(0)
+  totalCBM           Decimal       @default(0) @db.Decimal(10, 3)
+  invoiceNumber      String?       @unique
   invoiceUrl         String? // PDF invoice URL
-  barcode            String?    @unique
+  barcode            String?       @unique
   qrCodeUrl          String? // QR code for deal
-  notes              String?    @db.Text
-  quoteSentAt        DateTime?  // When price quote was sent to client (for 72h expiry)
+  notes              String?       @db.Text
+  quoteSentAt        DateTime? // When price quote was sent to client (for 72h expiry)
   approvedAt         DateTime?
   paidAt             DateTime?
   settledAt          DateTime?
   cancelledAt        DateTime?
-  cancellationReason String?    @db.Text
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  cancellationReason String?       @db.Text
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   // Relations
-  offer            Offer               @relation(fields: [offerId], references: [id])
-  trader           Trader              @relation(fields: [traderId], references: [id])
-  client           Client              @relation(fields: [clientId], references: [id])
-  employee         Employee            @relation(fields: [employeeId], references: [id])
-  shippingCompany  ShippingCompany?    @relation(fields: [shippingCompanyId], references: [id])
-  shippingTracking ShippingTracking?
-  items            DealItem[]
-  negotiations     DealNegotiation[]
-  payments         Payment[]
-  invoices         Invoice[]
-  statusHistory    DealStatusHistory[]
-  activityLogs     ActivityLog[]       @relation("ActivityLogDeal")
-  auditTrails      AuditTrail[]        @relation("AuditTrailDeal")
+  offer                 Offer                  @relation(fields: [offerId], references: [id])
+  trader                Trader                 @relation(fields: [traderId], references: [id])
+  client                Client                 @relation(fields: [clientId], references: [id])
+  employee              Employee               @relation(fields: [employeeId], references: [id])
+  shippingCompany       ShippingCompany?       @relation(fields: [shippingCompanyId], references: [id])
+  shippingTracking      ShippingTracking?
+  items                 DealItem[]
+  negotiations          DealNegotiation[]
+  payments              Payment[]
+  invoices              Invoice[]
+  statusHistory         DealStatusHistory[]
+  activityLogs          ActivityLog[]          @relation("ActivityLogDeal")
+  auditTrails           AuditTrail[]           @relation("AuditTrailDeal")
+  inventoryReservations InventoryReservation[]
 
   @@index([offerId])
   @@index([traderId])
@@ -476,6 +486,36 @@ model DealStatusHistory {
   deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
 
   @@index([dealId])
+}
+
+// ============================================
+// INVENTORY RESERVATION
+// ============================================
+
+model InventoryReservation {
+  id               String                     @id @default(uuid())
+  offerItemId      String
+  dealId           String
+  quantityReserved Int
+  status           InventoryReservationStatus @default(RESERVED)
+
+  reservedAt  DateTime  @default(now())
+  confirmedAt DateTime?
+  releasedAt  DateTime?
+  expiresAt   DateTime? // Optional: for temporary reservations
+
+  notes     String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  offerItem OfferItem @relation(fields: [offerItemId], references: [id])
+  deal      Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([offerItemId])
+  @@index([dealId])
+  @@index([status])
+  @@index([reservedAt])
 }
 
 // ============================================
@@ -598,7 +638,7 @@ model Invoice {
   status             InvoiceStatus @default(DRAFT)
   subtotal           Decimal       @db.Decimal(10, 2)
   platformCommission Decimal       @db.Decimal(10, 2)
-  shippingCommission Decimal       @db.Decimal(10, 2) @default(0) // Shipping commission (paid by buyer)
+  shippingCommission Decimal       @default(0) @db.Decimal(10, 2) // Shipping commission (paid by buyer)
   employeeCommission Decimal       @db.Decimal(10, 2)
   traderAmount       Decimal       @db.Decimal(10, 2)
   total              Decimal       @db.Decimal(10, 2)
@@ -805,9 +845,9 @@ model VideoAd {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  videoAdLikes     VideoAdLike[]
-  videoAdDislikes  VideoAdDislike[]
-  videoAdComments  VideoAdComment[]
+  videoAdLikes    VideoAdLike[]
+  videoAdDislikes VideoAdDislike[]
+  videoAdComments VideoAdComment[]
 
   @@index([isActive])
   @@index([displayOrder])
@@ -827,10 +867,10 @@ model VideoAdLike {
 }
 
 model VideoAdDislike {
-  id        String   @id @default(uuid())
-  videoAdId String
+  id         String   @id @default(uuid())
+  videoAdId  String
   dislikerId String
-  createdAt DateTime @default(now())
+  createdAt  DateTime @default(now())
 
   videoAd VideoAd @relation(fields: [videoAdId], references: [id], onDelete: Cascade)
 
@@ -847,7 +887,7 @@ model VideoAdComment {
   text      String   @db.Text
   createdAt DateTime @default(now())
 
-  videoAd VideoAd @relation(fields: [videoAdId], references: [id], onDelete: Cascade)
+  videoAd VideoAd          @relation(fields: [videoAdId], references: [id], onDelete: Cascade)
   parent  VideoAdComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies VideoAdComment[] @relation("CommentReplies")
 
@@ -982,8 +1022,8 @@ model ShippingCompany {
 }
 
 enum ShippingType {
-  LAND   // بري
-  SEA    // بحري
+  LAND // بري
+  SEA // بحري
 }
 
 enum ShippingStatus {
@@ -1078,7 +1118,7 @@ model TraderUpdateRequest {
 // ============================================
 
 model OfferUpdateRequest {
-  id       String                  @id @default(uuid())
+  id      String                   @id @default(uuid())
   offerId String
   status  OfferUpdateRequestStatus @default(PENDING)
 
@@ -1110,25 +1150,25 @@ model OfferUpdateRequest {
 // ============================================
 
 model OfferSupportTicket {
-  id          String                      @id @default(uuid())
-  offerId     String
-  traderId    String // Trader who created the ticket
-  employeeId  String? // Employee assigned to handle the ticket
-  subject     String
-  status      OfferSupportTicketStatus    @default(OPEN)
-  priority    OfferSupportTicketPriority  @default(MEDIUM)
-  
+  id         String                     @id @default(uuid())
+  offerId    String
+  traderId   String // Trader who created the ticket
+  employeeId String? // Employee assigned to handle the ticket
+  subject    String
+  status     OfferSupportTicketStatus   @default(OPEN)
+  priority   OfferSupportTicketPriority @default(MEDIUM)
+
   // Timestamps
-  createdAt   DateTime                    @default(now())
-  updatedAt   DateTime                    @updatedAt
-  resolvedAt  DateTime?
-  closedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+  closedAt   DateTime?
 
   // Relations
-  offer       Offer                       @relation(fields: [offerId], references: [id], onDelete: Cascade)
-  trader      Trader                      @relation("OfferSupportTicketTrader", fields: [traderId], references: [id], onDelete: Cascade)
-  employee    Employee?                   @relation("OfferSupportTicketEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
-  messages    OfferSupportTicketMessage[]
+  offer    Offer                       @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  trader   Trader                      @relation("OfferSupportTicketTrader", fields: [traderId], references: [id], onDelete: Cascade)
+  employee Employee?                   @relation("OfferSupportTicketEmployee", fields: [employeeId], references: [id], onDelete: SetNull)
+  messages OfferSupportTicketMessage[]
 
   @@index([offerId])
   @@index([traderId])
@@ -1139,20 +1179,20 @@ model OfferSupportTicket {
 }
 
 model OfferSupportTicketMessage {
-  id          String                @id @default(uuid())
+  id          String   @id @default(uuid())
   ticketId    String
   senderId    String // ID of sender (trader or employee)
   senderType  UserType // TRADER or EMPLOYEE
-  message     String                @db.Text
-  attachments String?               @db.Text // JSON array of file URLs
-  
+  message     String   @db.Text
+  attachments String?  @db.Text // JSON array of file URLs
+
   // Timestamps
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  readAt      DateTime? // When the message was read by the recipient
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  readAt    DateTime? // When the message was read by the recipient
 
   // Relations
-  ticket      OfferSupportTicket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticket OfferSupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
   @@index([senderId])
@@ -1167,7 +1207,7 @@ model OfferSupportTicketMessage {
 model PlatformSettings {
   id                     String   @id @default(uuid())
   platformCommissionRate Decimal? @db.Decimal(5, 2)
-  shippingCommissionRate Decimal? @db.Decimal(5, 2) @default(5.00) // Shipping commission rate (default 5%)
+  shippingCommissionRate Decimal? @default(5.00) @db.Decimal(5, 2) // Shipping commission rate (default 5%)
   cbmRate                Decimal? @db.Decimal(10, 2)
   taxRate                Decimal? @db.Decimal(5, 2)
   currency               String?  @default("SAR")
