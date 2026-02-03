@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ROUTES, getCompanyProfileUrl } from "../routes";
 import { offerService } from "../services/offerService";
 import { dealService } from "../services/dealService";
+import { notificationService } from "../services/notificationService";
 import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "../components/Layout";
 import { Clock, CheckCircle, XCircle, MessageSquare, Building2 } from "lucide-react";
@@ -47,12 +48,40 @@ export default function NegotiationsPage() {
   const [negotiations, setNegotiations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState("all");
+  const [priceQuoteNotifications, setPriceQuoteNotifications] = useState([]);
+  const [loadingQuotes, setLoadingQuotes] = useState(false);
+  const [priceQuoteCount, setPriceQuoteCount] = useState(0);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchNegotiations();
     }
   }, [isAuthenticated]);
+
+  // Fetch price quote count for tab badge (when authenticated)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setPriceQuoteCount(0);
+      return;
+    }
+    const fetchCount = async () => {
+      try {
+        const res = await notificationService.getNotifications({ type: "PRICE_QUOTE", limit: 99 });
+        const data = res.data?.data ?? res.data;
+        const list = Array.isArray(data) ? data : [];
+        setPriceQuoteCount(list.length);
+      } catch {
+        setPriceQuoteCount(0);
+      }
+    };
+    fetchCount();
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeStatus === "priceQuote") {
+      fetchPriceQuoteNotifications();
+    }
+  }, [isAuthenticated, activeStatus]);
 
   const fetchNegotiations = async () => {
     try {
@@ -89,16 +118,36 @@ export default function NegotiationsPage() {
     }
   };
 
+  const fetchPriceQuoteNotifications = async () => {
+    try {
+      setLoadingQuotes(true);
+      const response = await notificationService.getNotifications({ type: "PRICE_QUOTE", limit: 50 });
+      const data = response.data?.data ?? response.data;
+      const list = Array.isArray(data) ? data : [];
+      setPriceQuoteNotifications(list);
+      setPriceQuoteCount(list.length);
+    } catch (error) {
+      console.error("Error fetching price quote notifications:", error);
+      setPriceQuoteNotifications([]);
+    } finally {
+      setLoadingQuotes(false);
+    }
+  };
+
   const TABS = [
     { key: "all", label: t("negotiations.tabs.all") || "الكل" },
+    { key: "priceQuote", label: t("negotiations.tabs.priceQuote") || "عرض السعر" },
     { key: "PENDING", label: t("negotiations.tabs.pending") || "قيد الانتظار" },
     { key: "ACCEPTED", label: t("negotiations.tabs.accepted") || "مقبول" },
     { key: "REJECTED", label: t("negotiations.tabs.rejected") || "مرفوض" },
   ];
 
-  const filteredNegotiations = activeStatus === "all"
-    ? negotiations
-    : negotiations.filter(n => n.status === activeStatus);
+  const filteredNegotiations =
+    activeStatus === "priceQuote"
+      ? []
+      : activeStatus === "all"
+        ? negotiations
+        : negotiations.filter((n) => n.status === activeStatus);
 
   if (!isAuthenticated) {
     return (
@@ -125,23 +174,76 @@ export default function NegotiationsPage() {
           <div className={`flex items-center justify-start gap-3 mb-6 ${currentDir === 'rtl' ? 'flex-row-reverse' : 'flex-row'}`}>
             {TABS.map((tab) => {
               const active = activeStatus === tab.key;
+              const showBadge = tab.key === "priceQuote" && priceQuoteCount > 0;
               return (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveStatus(tab.key)}
-                  className={`rounded-md px-4 py-2 text-sm font-semibold transition ${active
+                  className={`relative rounded-md px-4 py-2 text-sm font-semibold transition ${active
                     ? "bg-blue-100 text-blue-900"
                     : "bg-transparent text-slate-600 hover:bg-slate-100"
                     }`}
                 >
                   {tab.label}
+                  {showBadge && (
+                    <span className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                      {priceQuoteCount > 99 ? "99+" : priceQuoteCount}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
 
-          {loading ? (
+          {activeStatus === "priceQuote" ? (
+            loadingQuotes ? (
+              <div className="mt-6 text-center py-12">
+                <div className="text-slate-500">{t("common.loading") || "جاري التحميل..."}</div>
+              </div>
+            ) : priceQuoteNotifications.length === 0 ? (
+              <div className="mt-6 text-center py-12">
+                <div className="text-slate-500">
+                  {t("negotiations.noPriceQuotes") || "لا توجد عروض سعر مرسلة إليك"}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4">
+                {priceQuoteNotifications.map((notif) => {
+                  const dealId = notif.relatedEntityId;
+                  if (!dealId) return null;
+                  return (
+                    <div
+                      key={notif.id}
+                      className="rounded-lg bg-white shadow-sm ring-1 ring-slate-200 px-5 py-5 hover:ring-blue-300 transition-shadow"
+                    >
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-sm text-slate-600 mb-1">
+                            {t("negotiations.priceQuoteSentByEmployee") || "عرض السعر كما أرسله موظف ستوكشيب"}
+                          </p>
+                          <p className="text-slate-700 font-medium">
+                            {notif.title || notif.message || t("negotiations.priceQuote") || "عرض السعر"}
+                          </p>
+                          {notif.createdAt && (
+                            <p className="text-xs text-slate-500 mt-2">
+                              {new Date(notif.createdAt).toLocaleDateString(i18n.language === "ar" ? "ar-SA" : "en-US", { dateStyle: "medium" })}
+                            </p>
+                          )}
+                        </div>
+                        <Link
+                          to={`${ROUTES.CLIENT_QUOTE}/${dealId}`}
+                          className="inline-flex items-center gap-2 rounded-md bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-800"
+                        >
+                          {t("negotiations.viewPriceQuote") || "عرض عرض السعر"}
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : loading ? (
             <div className="mt-6 text-center py-12">
               <div className="text-slate-500">{t("common.loading") || "جاري التحميل..."}</div>
             </div>

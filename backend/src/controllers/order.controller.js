@@ -3,12 +3,22 @@ const asyncHandler = require('../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../utils/response');
 const { v4: uuidv4 } = require('uuid');
 
-// @desc    Get user's orders
+// @desc    Get user's orders (USER = e-commerce orders; CLIENT = empty, mediation orders are via deals API)
 // @route   GET /api/orders
-// @access  Private (User)
+// @access  Private (User | Client)
 const getMyOrders = asyncHandler(async (req, res) => {
   const { status, page = 1, limit = 20 } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  // CLIENT has no e-commerce orders (Order model uses userId); return empty list
+  if (req.userType === 'CLIENT') {
+    return paginatedResponse(res, [], {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total: 0,
+      pages: 0
+    }, 'Orders retrieved successfully');
+  }
 
   const where = { userId: req.user.id };
   if (status) where.status = status;
@@ -116,9 +126,14 @@ const getAllOrders = asyncHandler(async (req, res) => {
 
 // @desc    Get order by ID
 // @route   GET /api/orders/:id
-// @access  Private (User/Vendor/Admin)
+// @access  Private (User/Vendor/Admin/Client)
 const getOrderById = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  // CLIENT has no e-commerce orders; do not expose any order by id
+  if (req.userType === 'CLIENT') {
+    return errorResponse(res, 'Order not found', 404);
+  }
 
   const where = { id: parseInt(id) };
 
@@ -543,6 +558,11 @@ const cancelOrder = asyncHandler(async (req, res) => {
 // @access  Private (User/Vendor/Admin)
 const getOrderTracking = asyncHandler(async (req, res) => {
   const { id } = req.params;
+
+  // CLIENT has no e-commerce orders
+  if (req.userType === 'CLIENT') {
+    return errorResponse(res, 'Order not found', 404);
+  }
 
   const order = await prisma.order.findUnique({
     where: { id: parseInt(id) },

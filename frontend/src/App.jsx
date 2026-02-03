@@ -1,7 +1,9 @@
 import { useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
+import { Toaster } from "sonner";
 import './App.css'
 import { ROUTES } from './routes'
+import NotificationPoll from "./components/NotificationPoll";
 
 import Home from './pages/Home'
 import ProductDetails from './pages/ProductDetails'
@@ -32,6 +34,8 @@ import TraderViewOffer from "./pages/trader/TraderViewOffer";
 import TraderViewDeal from "./pages/trader/TraderViewDeal";
 import NegotiationsPage from "./pages/NegotiationsPage";
 import NegotiationDetailPage from "./pages/NegotiationDetailPage";
+import ClientPriceQuotePage from "./pages/ClientPriceQuotePage";
+import DealCartPage from "./pages/DealCartPage";
 
 function AppContent() {
   const location = useLocation();
@@ -59,6 +63,7 @@ function AppContent() {
       <Route path={ROUTES.ORDERS} element={<OrdersPage />} />
       <Route path={ROUTES.PRODUCTS_LIST} element={<ProductsListPage />} />
       <Route path={ROUTES.ORDER_CHECKOUT_TWO} element={<OrderCheckoutPageTwo />} />
+      <Route path={ROUTES.PAYMENT_ONE_DEAL} element={<PaymentPageOne />} />
       <Route path={ROUTES.PAYMENT_ONE} element={<PaymentPageOne />} />
       <Route path={`${ROUTES.ORDER_TRACKING}/:id`} element={<OrderTrackingCardPage />} />
       <Route path={ROUTES.SIGNUP_BANK_INFO} element={<SignupBankInfoFormPage />} />
@@ -75,6 +80,8 @@ function AppContent() {
       <Route path={ROUTES.REQUEST_SENT} element={<RequestSent />} />
       <Route path={ROUTES.NEGOTIATIONS} element={<NegotiationsPage />} />
       <Route path={`${ROUTES.NEGOTIATION_DETAIL}/:dealId`} element={<NegotiationDetailPage />} />
+      <Route path={`${ROUTES.CLIENT_QUOTE}/:dealId`} element={<ClientPriceQuotePage />} />
+      <Route path={ROUTES.DEAL_CART} element={<DealCartPage />} />
       <Route path={ROUTES.NOT_FOUND} element={<NotFound />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
@@ -82,7 +89,13 @@ function AppContent() {
 }
 
 function App() {
-  return <AppContent />;
+  return (
+    <>
+      <AppContent />
+      <Toaster richColors position="top-center" />
+      <NotificationPoll />
+    </>
+  );
 }
 
 export default App

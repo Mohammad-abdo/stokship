@@ -95,7 +95,15 @@
       "waiting": "في انتظار رد الشركة",
       "shipping": "قيد التوصيل",
       "done": "منتهية"
-    }
+    },
+    "dealStatus": {
+      "negotiation": "تفاوض",
+      "approved": "معتمد",
+      "paid": "تم الدفع",
+      "settled": "تم التسوية",
+      "disputed": "نزاع"
+    },
+    "trader": "تاجر"
   },
   "checkout": {
     "title": "إتمام الشراء",
@@ -137,6 +145,7 @@
   },
   "payment": {
     "title": "الدفع",
+    "pageTitle": "صفحة الدفع",
     "cardNumber": "رقم البطاقة",
     "expiry": "تاريخ الانتهاء",
     "cvc": "CVC",
@@ -158,8 +167,8 @@
     "note1": "في حالة الإلغاء بعد الدفع يتم استرداد المبلغ بدون مبلغ الضريبة و الغرامات التجارية + عمولة استخدام الفيزا.",
     "note2": "المبلغ يبقى معلق في حساب ستوك شيب إلى حين وصول البوليصة الشحن ثم يتحول للمشتري.",
     "note3": "المبلغ يظل معلق في حساب ستوك شيب إلى حين التأكد من جودة الشحنة عبر البوليصة.",
-    "sitePercentage": "نسبة الموقع من الصفقة تكون 2.5%",
-    "creditDiscount": "نسبة الخصم من الكريديت في حالة استخدام الكريديت تكون 2.5%",
+    "platformRateLabel": "نسبة ستوك شيب (المنصة)",
+    "shippingRateLabel": "نسبة الشحن",
     "bank": "البنك",
     "accountNumber": "رقم الحساب (IBAN)",
     "beneficiary": "المستفيد",
@@ -167,7 +176,11 @@
     "dragOrClick": "اسحب الصورة هنا أو انقر للتحديد",
     "maxSize": "حتى 10MB",
     "uploadReceiptAlert": "يرجى رفع صورة الإيصال",
-    "paymentComplete": "تم الدفع"
+    "paymentComplete": "تم الدفع",
+    "dealContents": "محتويات الصفقة",
+    "dealNumber": "رقم الصفقة",
+    "paymentSuccess": "تم إرسال طلب الدفع بنجاح",
+    "paymentError": "حدث خطأ أثناء إرسال الدفع"
   },
   "categories": {
     "furniture": "مفروشات",
@@ -468,10 +481,34 @@
     "proceedToCheckout": "المتابعة للدفع",
     "tabs": {
       "all": "الكل",
+      "priceQuote": "عرض السعر",
       "pending": "قيد الانتظار",
       "accepted": "مقبول",
       "rejected": "مرفوض"
     },
+    "noPriceQuotes": "لا توجد عروض سعر مرسلة إليك",
+    "priceQuoteSentByEmployee": "عرض السعر كما أرسله موظف ستوكشيب",
+    "priceQuote": "عرض السعر",
+    "viewPriceQuote": "عرض عرض السعر",
+    "printOrPdf": "طباعة / حفظ PDF",
+    "negotiatedAmount": "قيمة الصفقة",
+    "platformCommission": "عمولة المنصة",
+    "shippingToClient": "التوصيل للعميل",
+    "employeeCommission": "عمولة الموظف",
+    "grandTotal": "الإجمالي",
+    "acceptQuote": "موافقة",
+    "acceptPriceQuote": "قبول عرض السعر",
+    "rejectQuote": "رفض",
+    "cancelDeal": "إلغاء الصفقة",
+    "cancelled72h": "تم إلغاء الصفقة لمرور 72 ساعة ولم يتم الدفع",
+    "dealAccepted": "تمت الموافقة على الصفقة",
+    "proceedToPayment": "المتابعة للدفع",
+    "dealCart": "سلة الصفقة",
+    "dealCartDescription": "الصفقة المعتمدة جاهزة للدفع",
+    "quoteAcceptedGoToCart": "تمت الموافقة على عرض السعر",
+    "goToDealCart": "الذهاب إلى سلة الصفقة",
+    "paymentCompleted": "تم الدفع",
+    "paymentCompletedDesc": "تم إتمام دفع هذه الصفقة ولا تظهر في السلة.",
     "status": {
       "pending": "قيد الانتظار",
       "accepted": "مقبول",
@@ -501,7 +538,37 @@
     "negotiationClosed": "تم إغلاق التفاوض على هذه الصفقة",
     "dealNotFound": "لم يتم العثور على الصفقة",
     "latestPrice": "آخر سعر",
-    "latestQuantity": "آخر كمية"
+    "latestQuantity": "آخر كمية",
+    "products": "منتجات",
+    "product": "منتج",
+    "noProducts": "لا توجد منتجات",
+    "soldOut": "نفذت الكمية",
+    "quantity": "الكمية",
+    "piecesInCarton": "قطع/كرتون",
+    "pricePerPiece": "سعر القطعة",
+    "cbm": "المتر المكعب",
+    "negotiationPrice": "السعر المتفاوض عليه",
+    "negotiationQuantity": "الكمية المتفاوض عليها",
+    "totalQuantity": "الكمية الإجمالية",
+    "piece": "قطعة",
+    "totalCbm": "إجمالي CBM",
+    "totalPrice": "السعر الإجمالي",
+    "orderSummary": "ملخص الطلب",
+    "serial": "م",
+    "itemNumber": "رقم الصنف",
+    "price": "السعر",
+    "total": "المجموع",
+    "siteFee": "سيتم احتساب رسوم الموقع",
+    "addMessage": "رسالة التفاوض",
+    "enterMessage": "أدخل رسالتك للتفاوض...",
+    "sendMessage": "إرسال رسالة التفاوض",
+    "history": "سجل التفاوض",
+    "client": "العميل",
+    "employee": "الموظف",
+    "negotiationDetails": "تفاصيل التفاوض",
+    "pleaseEnterData": "يرجى إدخال رسالة أو تحديث الأسعار/الكميات",
+    "messageSentSuccess": "تم إرسال رسالة التفاوض بنجاح",
+    "counterOffer": "عرض مضاد"
   },
   "seller": {
     "title": "كن بائعاً",
@@ -537,7 +604,8 @@
   "notifications": {
     "requestAccepted": "تم قبول طلبك يمكنك الانتقال للدفع",
     "clickHere": "اضغط هنا",
-    "notificationText": "لوريم إيبسوم دولار سيت أميت، كونسيكتيتور أديبيسينج إليت. سِد دو إيوسمد..."
+    "notificationText": "لوريم إيبسوم دولار سيت أميت، كونسيكتيتور أديبيسينج إليت. سِد دو إيوسمد...",
+    "newNotifications": "لديك إشعارات جديدة"
   },
   "productsList": {
     "resultsCount": "{{count}} نتيجة",

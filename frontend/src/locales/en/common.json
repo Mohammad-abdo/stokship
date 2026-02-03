@@ -94,7 +94,15 @@
       "waiting": "Waiting for Company Response",
       "shipping": "In Delivery",
       "done": "Completed"
-    }
+    },
+    "dealStatus": {
+      "negotiation": "Negotiation",
+      "approved": "Approved",
+      "paid": "Paid",
+      "settled": "Settled",
+      "disputed": "Disputed"
+    },
+    "trader": "Trader"
   },
   "seller": {
     "title": "Become a Seller",
@@ -184,6 +192,7 @@
   },
   "payment": {
     "title": "Payment",
+    "pageTitle": "Payment page",
     "cardNumber": "Card Number",
     "expiry": "Expiry Date",
     "cvc": "CVC",
@@ -205,8 +214,8 @@
     "note1": "In case of cancellation after payment, the amount will be refunded without the tax amount, commercial fines + Visa usage fee.",
     "note2": "The amount remains pending in the Stock Ship account until the shipping policy arrives, then it is transferred to the buyer.",
     "note3": "The amount remains pending in the Stock Ship account until the quality of the shipment is confirmed via the policy.",
-    "sitePercentage": "The site's percentage of the deal is 2.5%",
-    "creditDiscount": "The discount percentage from credit in case of credit usage is 2.5%",
+    "platformRateLabel": "Stockship (platform) percentage",
+    "shippingRateLabel": "Shipping percentage",
     "bank": "Bank",
     "accountNumber": "Account Number (IBAN)",
     "beneficiary": "Beneficiary",
@@ -214,7 +223,11 @@
     "dragOrClick": "Drag image here or click to select",
     "maxSize": "Up to 10MB",
     "uploadReceiptAlert": "Please upload receipt image",
-    "paymentComplete": "Payment Complete"
+    "paymentComplete": "Payment Complete",
+    "dealContents": "Deal contents",
+    "dealNumber": "Deal number",
+    "paymentSuccess": "Payment request sent successfully",
+    "paymentError": "Error sending payment"
   },
   "categories": {
     "furniture": "Furniture",
@@ -471,10 +484,34 @@
     "proceedToCheckout": "Proceed to Checkout",
     "tabs": {
       "all": "All",
+      "priceQuote": "Price Quote",
       "pending": "Pending",
       "accepted": "Accepted",
       "rejected": "Rejected"
     },
+    "noPriceQuotes": "No price quotes sent to you",
+    "priceQuoteSentByEmployee": "Price quote as sent by Stockship employee",
+    "priceQuote": "Price Quote",
+    "viewPriceQuote": "View price quote",
+    "printOrPdf": "Print / Save PDF",
+    "negotiatedAmount": "Negotiated amount",
+    "platformCommission": "Platform commission",
+    "shippingToClient": "Shipping to client",
+    "employeeCommission": "Employee commission",
+    "grandTotal": "Grand total",
+    "acceptQuote": "Accept",
+    "acceptPriceQuote": "Accept price quote",
+    "rejectQuote": "Reject",
+    "cancelDeal": "Cancel deal",
+    "cancelled72h": "The deal was cancelled because 72 hours passed without payment",
+    "dealAccepted": "Deal accepted",
+    "proceedToPayment": "Proceed to payment",
+    "dealCart": "Deal cart",
+    "dealCartDescription": "Your approved deal is ready for payment",
+    "quoteAcceptedGoToCart": "Price quote accepted",
+    "goToDealCart": "Go to deal cart",
+    "paymentCompleted": "Payment completed",
+    "paymentCompletedDesc": "This deal has been paid and is no longer in the cart.",
     "status": {
       "pending": "Pending",
       "accepted": "Accepted",
@@ -504,7 +541,37 @@
     "negotiationClosed": "Negotiation is closed for this deal",
     "dealNotFound": "Deal not found",
     "latestPrice": "Latest Price",
-    "latestQuantity": "Latest Quantity"
+    "latestQuantity": "Latest Quantity",
+    "products": "Products",
+    "product": "Product",
+    "noProducts": "No products",
+    "soldOut": "Sold out",
+    "quantity": "Quantity",
+    "piecesInCarton": "pcs/carton",
+    "pricePerPiece": "Price per piece",
+    "cbm": "CBM",
+    "negotiationPrice": "Negotiation price",
+    "negotiationQuantity": "Negotiation quantity",
+    "totalQuantity": "Total quantity",
+    "piece": "piece",
+    "totalCbm": "Total CBM",
+    "totalPrice": "Total price",
+    "orderSummary": "Order summary",
+    "serial": "#",
+    "itemNumber": "Item number",
+    "price": "Price",
+    "total": "Total",
+    "siteFee": "Site fee will be calculated",
+    "addMessage": "Negotiation message",
+    "enterMessage": "Enter your message for negotiation...",
+    "sendMessage": "Send negotiation message",
+    "history": "Negotiation history",
+    "client": "Client",
+    "employee": "Employee",
+    "negotiationDetails": "Negotiation details",
+    "pleaseEnterData": "Please enter a message or update prices/quantities",
+    "messageSentSuccess": "Negotiation message sent successfully",
+    "counterOffer": "Counter offer"
   },
   "seller": {
     "title": "Become a Seller",
@@ -540,7 +607,8 @@
   "notifications": {
     "requestAccepted": "Your request has been accepted. You can proceed to payment",
     "clickHere": "Click here",
-    "notificationText": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod..."
+    "notificationText": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod...",
+    "newNotifications": "You have new notifications"
   },
   "productsList": {
     "resultsCount": "{{count}} results",

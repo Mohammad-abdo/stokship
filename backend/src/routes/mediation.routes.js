@@ -221,6 +221,12 @@ router.post('/deals/:id/items', protect, authorize('CLIENT', 'TRADER'), dealCont
 // Deal action routes (must come before /deals/:id)
 router.put('/deals/:id/settle', protect, authorize('ADMIN', 'EMPLOYEE'), checkEmployeeDealRelation, dealController.settleDeal);
 router.put('/deals/:id/assign-shipping', protect, authorize('ADMIN', 'EMPLOYEE'), checkEmployeeDealRelation, dealController.assignShippingCompany);
+router.post('/deals/:id/send-quote-to-client', protect, authorize('ADMIN', 'EMPLOYEE'), checkEmployeeDealRelation, dealController.sendQuoteToClient);
+
+// Client price-quote actions (must come before /deals/:id)
+router.put('/deals/:id/client-accept', protect, authorize('CLIENT'), dealController.clientAcceptDeal);
+router.put('/deals/:id/client-reject', protect, authorize('CLIENT'), dealController.clientRejectDeal);
+router.put('/deals/:id/client-cancel', protect, authorize('CLIENT'), dealController.clientCancelDeal);
 
 // Trader routes
 router.put('/traders/deals/:id/approve', protect, authorize('TRADER'), dealController.approveDeal);
@@ -233,7 +239,8 @@ router.get('/deals/:id', protect, authorize('ADMIN', 'EMPLOYEE', 'TRADER', 'CLIE
 // ============================================
 
 // Employee routes
-router.put('/employees/payments/:id/verify', protect, authorize('EMPLOYEE'), checkEmployeeDealRelation, financialController.verifyPayment);
+// id = payment id (UUID); verifyPayment loads payment and checks deal.employeeId internally
+router.put('/employees/payments/:id/verify', protect, authorize('EMPLOYEE'), financialController.verifyPayment);
 
 // Admin/Employee routes
 router.get('/financial/transactions', protect, authorize('ADMIN', 'EMPLOYEE'), financialController.getFinancialTransactions);

@@ -49,7 +49,7 @@ const createOffer = asyncHandler(async (req, res) => {
   let categoryId = null;
   if (metadata.categoryId) {
     const category = await prisma.category.findUnique({
-      where: { id: parseInt(metadata.categoryId) },
+      where: { id: metadata.categoryId },
       select: { id: true, isActive: true }
     });
 
@@ -570,11 +570,11 @@ const updateOffer = asyncHandler(async (req, res) => {
   if (country) updateData.country = country;
   if (city) updateData.city = city;
   if (categoryId) {
-    const category = await prisma.category.findUnique({ where: { id: parseInt(categoryId) } });
+    const category = await prisma.category.findUnique({ where: { id: categoryId } });
     if (!category) {
       return errorResponse(res, 'Category not found', 404);
     }
-    updateData.categoryId = parseInt(categoryId);
+    updateData.categoryId = categoryId;
   }
   if (acceptsNegotiation !== undefined) {
     updateData.acceptsNegotiation = acceptsNegotiation === true || acceptsNegotiation === 'true';
@@ -1213,7 +1213,7 @@ const getEmployeeOffers = asyncHandler(async (req, res) => {
     ];
   }
   if (status) where.status = status;
-  if (categoryId) where.categoryId = parseInt(categoryId);
+  if (categoryId) where.categoryId = categoryId;
 
   const [offers, total] = await Promise.all([
     prisma.offer.findMany({
@@ -1389,8 +1389,12 @@ const getOffersByCategory = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
+  if (!categoryId) {
+    return errorResponse(res, 'Category ID is required', 400);
+  }
+
   const category = await prisma.category.findUnique({
-    where: { id: parseInt(categoryId) }
+    where: { id: categoryId }
   });
 
   if (!category) {
@@ -1398,7 +1402,7 @@ const getOffersByCategory = asyncHandler(async (req, res) => {
   }
 
   const where = {
-    categoryId: parseInt(categoryId),
+    categoryId,
     status: 'ACTIVE'
   };
 

@@ -28,9 +28,12 @@ export const ROUTES = {
   ORDER_TRACKING: "/OrderTrackingCardPage",
   NEGOTIATIONS: "/NegotiationsPage",
   NEGOTIATION_DETAIL: "/NegotiationDetail",
+  CLIENT_QUOTE: "/ClientQuote",
+  DEAL_CART: "/DealCart",
   
-  // Payment pages
+  // Payment pages (URL with dealId: /PaymentPageOne/:dealId)
   PAYMENT_ONE: "/PaymentPageOne",
+  PAYMENT_ONE_DEAL: "/PaymentPageOne/:dealId",
   REQUEST_SENT: "/RequestSent",
   
   // Other pages

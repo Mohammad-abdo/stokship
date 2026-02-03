@@ -1,7 +1,7 @@
 const prisma = require('../../config/database');
 const asyncHandler = require('../../utils/asyncHandler');
 const { successResponse, errorResponse, paginatedResponse } = require('../../utils/response');
-const { notifyDealCreated, notifyDealStatusChanged } = require('../../utils/notificationHelper');
+const { notifyDealCreated, notifyDealStatusChanged, createNotification } = require('../../utils/notificationHelper');
 const { generateDealQRCode } = require('../../services/qrcode.service');
 
 /**
@@ -135,7 +135,9 @@ const requestNegotiation = asyncHandler(async (req, res) => {
  */
 const approveDeal = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { negotiatedAmount, notes } = req.body;
+  const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const query = req.query || {};
+  const notes = body.notes;
 
   const deal = await prisma.deal.findFirst({
     where: {
@@ -144,7 +146,9 @@ const approveDeal = asyncHandler(async (req, res) => {
       status: 'NEGOTIATION'
     },
     include: {
-      items: true
+      items: {
+        include: { offerItem: true }
+      }
     }
   });
 
@@ -152,21 +156,47 @@ const approveDeal = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Deal not found or cannot be approved', 404);
   }
 
-  if (!negotiatedAmount) {
-    return errorResponse(res, 'Please provide negotiated amount', 400);
+  const parseAmount = (val) => {
+    if (val == null || val === '') return null;
+    const parsed = parseFloat(String(val).replace(/,/g, '').trim());
+    return !Number.isNaN(parsed) && parsed > 0 ? parsed : null;
+  };
+
+  let amountToUse = null;
+  if (deal.items && deal.items.length > 0) {
+    const calculated = deal.items.reduce((total, item) => {
+      const quantity = Number(item.quantity) || 0;
+      let unitPrice = item.negotiatedPrice != null ? parseFloat(item.negotiatedPrice) : 0;
+      if (unitPrice <= 0 && item.offerItem && item.offerItem.unitPrice != null) {
+        unitPrice = parseFloat(item.offerItem.unitPrice);
+      }
+      return total + (quantity * unitPrice);
+    }, 0);
+    if (calculated > 0) amountToUse = calculated;
+  }
+  if (amountToUse == null || amountToUse <= 0) {
+    amountToUse = parseAmount(body.negotiatedAmount)
+      ?? parseAmount(query.negotiatedAmount)
+      ?? parseAmount(req.get && req.get('X-Negotiated-Amount'));
+  }
+  if (amountToUse == null || amountToUse <= 0) {
+    return errorResponse(res, 'Provide negotiatedAmount in body, query (?negotiatedAmount=5000), or header. Received: query=' + JSON.stringify(query) + ' bodyKeys=' + Object.keys(body || {}).join(',') + ' header=' + (req.get && req.get('X-Negotiated-Amount') || 'none'), 400);
   }
 
-  // Calculate totals from items
+  // Calculate totals from items (safe: handle undefined/null/Decimal)
   let totalCartons = 0;
   let totalCBM = 0;
-  deal.items.forEach(item => {
-    totalCartons += item.cartons;
-    totalCBM += item.cbm;
-  });
+  if (deal.items && deal.items.length > 0) {
+    deal.items.forEach((item) => {
+      totalCartons += Number(item.cartons) || 0;
+      totalCBM += Number(item.cbm) || 0;
+    });
+  }
 
-  // Generate invoice number
-  const invoiceCount = await prisma.invoice.count();
-  const invoiceNumber = `INV-${new Date().getFullYear()}-${String(invoiceCount + 1).padStart(6, '0')}`;
+  // Generate unique invoice number (Deal.invoiceNumber has @unique constraint)
+  const year = new Date().getFullYear();
+  const dealSuffix = deal.id.replace(/-/g, '').substring(0, 12).toUpperCase();
+  const invoiceNumber = `INV-${year}-${dealSuffix}`;
 
   // Generate barcode and QR code
   const barcode = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
@@ -191,7 +221,7 @@ const approveDeal = asyncHandler(async (req, res) => {
     where: { id: deal.id },
     data: {
       status: 'APPROVED',
-      negotiatedAmount: parseFloat(negotiatedAmount),
+      negotiatedAmount: amountToUse,
       totalCartons,
       totalCBM,
       invoiceNumber,
@@ -232,7 +262,7 @@ const approveDeal = asyncHandler(async (req, res) => {
     dealId: deal.id,
     description: `Trader approved deal: ${deal.dealNumber}`,
     metadata: JSON.stringify({
-      negotiatedAmount,
+      negotiatedAmount: amountToUse,
       totalCartons,
       totalCBM
     }),
@@ -278,7 +308,8 @@ const getDealById = asyncHandler(async (req, res) => {
         select: {
           id: true,
           name: true,
-          employeeCode: true
+          employeeCode: true,
+          commissionRate: true
         }
       },
       shippingCompany: {
@@ -338,6 +369,30 @@ const getDealById = asyncHandler(async (req, res) => {
     }
   }
 
+  // Auto-cancel deal if 72 hours passed since quote was sent and client did not approve
+  let dealToReturn = deal;
+  if (deal.status === 'NEGOTIATION' && deal.quoteSentAt) {
+    const sentAt = new Date(deal.quoteSentAt).getTime();
+    const seventyTwoHoursMs = 72 * 60 * 60 * 1000;
+    if (Date.now() - sentAt > seventyTwoHoursMs) {
+      const reason = 'Deal cancelled: 72 hours passed without client approval.';
+      await prisma.deal.update({
+        where: { id: deal.id },
+        data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: reason }
+      });
+      await prisma.dealStatusHistory.create({
+        data: {
+          dealId: deal.id,
+          status: 'CANCELLED',
+          description: reason,
+          changedBy: null,
+          changedByType: 'SYSTEM'
+        }
+      });
+      dealToReturn = { ...deal, status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: reason };
+    }
+  }
+
   // Fetch platform settings for commission display (wrap in try-catch to prevent errors)
   let platformSettings = null;
   try {
@@ -349,7 +404,7 @@ const getDealById = asyncHandler(async (req, res) => {
     console.error('Failed to fetch platform settings:', settingsError);
   }
 
-  successResponse(res, { deal, platformSettings }, 'Deal retrieved successfully');
+  successResponse(res, { deal: dealToReturn, platformSettings }, 'Deal retrieved successfully');
 });
 
 /**
@@ -1057,6 +1112,203 @@ const requestNegotiationPublic = asyncHandler(async (req, res) => {
   }, 'Negotiation request created successfully', 201);
 });
 
+const SEVENTY_TWO_HOURS_MS = 72 * 60 * 60 * 1000;
+const QUOTE_EXPIRED_REASON = 'Deal cancelled: 72 hours passed without client approval.';
+
+/**
+ * @desc    Client accepts price quote (deal → APPROVED, then client can pay)
+ * @route   PUT /api/deals/:id/client-accept
+ * @access  Private (Client)
+ */
+const clientAcceptDeal = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const deal = await prisma.deal.findFirst({
+    where: { id, clientId: req.user.id, status: 'NEGOTIATION' },
+    include: { items: { include: { offerItem: true } } }
+  });
+
+  if (!deal) {
+    return errorResponse(res, 'Deal not found or you cannot accept this deal', 404);
+  }
+
+  if (deal.quoteSentAt) {
+    const sentAt = new Date(deal.quoteSentAt).getTime();
+    if (Date.now() - sentAt > SEVENTY_TWO_HOURS_MS) {
+      await prisma.deal.update({
+        where: { id },
+        data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason: QUOTE_EXPIRED_REASON }
+      });
+      return errorResponse(res, 'This quote has expired (72 hours passed). The deal has been cancelled.', 400);
+    }
+  }
+
+  const amountFromItems = deal.items && deal.items.length
+    ? deal.items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.negotiatedPrice) || 0), 0)
+    : 0;
+  const negotiatedAmount = deal.negotiatedAmount && parseFloat(deal.negotiatedAmount) > 0
+    ? parseFloat(deal.negotiatedAmount)
+    : amountFromItems;
+
+  if (!negotiatedAmount || negotiatedAmount <= 0) {
+    return errorResponse(res, 'Deal has no negotiated amount', 400);
+  }
+
+  const updatedDeal = await prisma.deal.update({
+    where: { id },
+    data: {
+      status: 'APPROVED',
+      approvedAt: new Date(),
+      negotiatedAmount
+    },
+    include: {
+      trader: { select: { id: true, name: true, companyName: true } },
+      client: { select: { id: true, name: true, email: true } },
+      employee: { select: { id: true, name: true } },
+      offer: { select: { id: true, title: true } },
+      items: { include: { offerItem: true } }
+    }
+  });
+
+  await prisma.dealStatusHistory.create({
+    data: {
+      dealId: id,
+      status: 'APPROVED',
+      description: 'Client accepted the price quote.',
+      changedBy: req.user.id,
+      changedByType: 'CLIENT'
+    }
+  });
+
+  await notifyDealStatusChanged(updatedDeal, 'APPROVED', 'CLIENT');
+
+  successResponse(res, updatedDeal, 'Deal accepted. You can proceed to payment.');
+});
+
+/**
+ * @desc    Client rejects price quote
+ * @route   PUT /api/deals/:id/client-reject
+ * @access  Private (Client)
+ */
+const clientRejectDeal = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body || {};
+
+  const deal = await prisma.deal.findFirst({
+    where: { id, clientId: req.user.id, status: 'NEGOTIATION' }
+  });
+
+  if (!deal) {
+    return errorResponse(res, 'Deal not found or you cannot reject this deal', 404);
+  }
+
+  const cancellationReason = (reason && String(reason).trim()) || 'Client rejected the price quote.';
+
+  await prisma.deal.update({
+    where: { id },
+    data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason }
+  });
+
+  await prisma.dealStatusHistory.create({
+    data: {
+      dealId: id,
+      status: 'CANCELLED',
+      description: cancellationReason,
+      changedBy: req.user.id,
+      changedByType: 'CLIENT'
+    }
+  });
+
+  await notifyDealStatusChanged({ ...deal, status: 'CANCELLED', cancelledAt: new Date(), cancellationReason }, 'CANCELLED', 'CLIENT');
+
+  successResponse(res, null, 'Deal rejected.');
+});
+
+/**
+ * @desc    Client cancels the deal
+ * @route   PUT /api/deals/:id/client-cancel
+ * @access  Private (Client)
+ */
+const clientCancelDeal = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body || {};
+
+  const deal = await prisma.deal.findFirst({
+    where: { id, clientId: req.user.id, status: 'NEGOTIATION' }
+  });
+
+  if (!deal) {
+    return errorResponse(res, 'Deal not found or you cannot cancel this deal', 404);
+  }
+
+  const cancellationReason = (reason && String(reason).trim()) || 'Client cancelled the deal.';
+
+  await prisma.deal.update({
+    where: { id },
+    data: { status: 'CANCELLED', cancelledAt: new Date(), cancellationReason }
+  });
+
+  await prisma.dealStatusHistory.create({
+    data: {
+      dealId: id,
+      status: 'CANCELLED',
+      description: cancellationReason,
+      changedBy: req.user.id,
+      changedByType: 'CLIENT'
+    }
+  });
+
+  await notifyDealStatusChanged({ ...deal, status: 'CANCELLED', cancelledAt: new Date(), cancellationReason }, 'CANCELLED', 'CLIENT');
+
+  successResponse(res, null, 'Deal cancelled.');
+});
+
+/**
+ * @desc    Send price quote to client (notify client to view quote)
+ * @route   POST /api/deals/:id/send-quote-to-client
+ * @access  Private (Employee/Admin)
+ */
+const sendQuoteToClient = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const deal = await prisma.deal.findUnique({
+    where: { id },
+    include: {
+      client: { select: { id: true, name: true } },
+      trader: { select: { name: true, companyName: true } }
+    }
+  });
+
+  if (!deal) {
+    return errorResponse(res, 'Deal not found', 404);
+  }
+
+  if (req.userType === 'EMPLOYEE' && deal.employeeId !== req.user.id) {
+    return errorResponse(res, 'Not authorized to send quote for this deal', 403);
+  }
+
+  if (!deal.clientId) {
+    return errorResponse(res, 'Deal has no client', 400);
+  }
+
+  await prisma.deal.update({
+    where: { id },
+    data: { quoteSentAt: new Date() }
+  });
+
+  await createNotification({
+    userIds: deal.clientId,
+    userType: 'CLIENT',
+    type: 'PRICE_QUOTE',
+    title: 'عرض السعر جاهز',
+    message: `تم إعداد عرض السعر لصفقتك ${deal.dealNumber}. اضغط لعرض التفاصيل.`,
+    relatedEntityType: 'DEAL',
+    relatedEntityId: deal.id
+  });
+
+  successResponse(res, { sent: true }, 'Price quote sent to client');
+});
+
 module.exports = {
   requestNegotiation,
   requestNegotiationPublic,
@@ -1065,6 +1317,10 @@ module.exports = {
   getDeals,
   addDealItems,
   settleDeal,
-  assignShippingCompany
+  assignShippingCompany,
+  sendQuoteToClient,
+  clientAcceptDeal,
+  clientRejectDeal,
+  clientCancelDeal
 };
 

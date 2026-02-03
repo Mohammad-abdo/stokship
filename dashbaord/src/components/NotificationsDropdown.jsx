@@ -85,17 +85,33 @@ export default function NotificationsDropdown() {
       }
       
       // Map notification fields to match expected structure
-      notificationsList = notificationsList.map(notif => ({
-        id: notif.id,
-        title: notif.title,
-        description: notif.message || notif.description,
-        type: notif.type?.toLowerCase() || 'default',
-        is_read: notif.isRead !== undefined ? notif.isRead : notif.is_read,
-        created_at: notif.createdAt || notif.created_at,
-        action_url: notif.relatedEntityType && notif.relatedEntityId 
-          ? `/${notif.relatedEntityType.toLowerCase()}s/${notif.relatedEntityId}`
-          : null
-      }));
+      const activeRole = (localStorage.getItem('active_role') || '').toLowerCase();
+      notificationsList = notificationsList.map(notif => {
+        let action_url = null;
+        if (notif.relatedEntityType && notif.relatedEntityId) {
+          const type = (notif.type || '').toLowerCase();
+          if (type === 'price_quote' && notif.relatedEntityType === 'DEAL') {
+            action_url = `/stockship/client/deals/${notif.relatedEntityId}/quote`;
+          } else if (activeRole === 'client' && notif.relatedEntityType === 'DEAL') {
+            action_url = `/stockship/client/deals/${notif.relatedEntityId}`;
+          } else if (activeRole === 'employee' && notif.relatedEntityType === 'DEAL') {
+            action_url = `/stockship/employee/deals/${notif.relatedEntityId}`;
+          } else if (activeRole === 'trader' && notif.relatedEntityType === 'DEAL') {
+            action_url = `/stockship/trader/deals/${notif.relatedEntityId}`;
+          } else {
+            action_url = `/${notif.relatedEntityType.toLowerCase()}s/${notif.relatedEntityId}`;
+          }
+        }
+        return {
+          id: notif.id,
+          title: notif.title,
+          description: notif.message || notif.description,
+          type: notif.type?.toLowerCase() || 'default',
+          is_read: notif.isRead !== undefined ? notif.isRead : notif.is_read,
+          created_at: notif.createdAt || notif.created_at,
+          action_url
+        };
+      });
       
       setNotifications(notificationsList);
       lastFetchRef.current = Date.now();

@@ -457,14 +457,25 @@ export const dealApi = {
     return api.post(`${BASE_URL}/deals/${id}/items`, data);
   },
 
-  // Approve deal (Trader)
+  // Approve deal (Trader) — send negotiatedAmount in body, query and header so backend always receives it
   approveDeal: (id, data) => {
-    return api.put(`${BASE_URL}/traders/deals/${id}/approve`, data);
+    const body = data && typeof data === 'object' ? { ...data } : {};
+    const amount = body.negotiatedAmount != null ? Number(body.negotiatedAmount) : null;
+    if (amount != null && !Number.isNaN(amount)) body.negotiatedAmount = amount;
+    const url = `${BASE_URL}/traders/deals/${id}/approve${amount != null && !Number.isNaN(amount) ? `?negotiatedAmount=${encodeURIComponent(String(amount))}` : ''}`;
+    const headers = { 'Content-Type': 'application/json' };
+    if (amount != null && !Number.isNaN(amount)) headers['X-Negotiated-Amount'] = String(amount);
+    return api.put(url, body, { headers });
   },
 
   // Settle deal (Employee/Admin)
   settleDeal: (id) => {
     return api.put(`${BASE_URL}/deals/${id}/settle`);
+  },
+
+  // Send price quote to client (Employee/Admin) — notifies client to view quote
+  sendQuoteToClient: (id) => {
+    return api.post(`${BASE_URL}/deals/${id}/send-quote-to-client`);
   }
 };
 

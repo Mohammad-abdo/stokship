@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { ROUTES } from "../routes";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { categoryService } from "../services/categoryService";
+import { notificationService } from "../services/notificationService";
+import { useAuth } from "../contexts/AuthContext";
 import hugeicons from "../assets/imgs/hugeicons_notification-01.png";
 import lucide_box from "../assets/imgs/lucide_box.png";
 import translate from "../assets/imgs/translate.png";
@@ -78,12 +80,31 @@ function DesktopDropdownPortal({ open, rect, items, onClose, dropdownRef, isLang
 export default function NavbarBottom() {
   const { t, i18n } = useTranslation(); // Used in menuItems useMemo
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const rootRef = useRef(null);
   const dropdownRef = useRef(null);
+
+  // Fetch unread notification count when authenticated (refetch on route change so count updates after visiting notifications page)
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnreadCount(0);
+      return;
+    }
+    const fetchUnread = async () => {
+      try {
+        const res = await notificationService.getUnreadCount();
+        if (res?.data?.success) setUnreadCount(res.data.data?.count ?? 0);
+      } catch {
+        setUnreadCount(0);
+      }
+    };
+    fetchUnread();
+  }, [isAuthenticated, location.pathname]);
 
   const menuItems = useMemo(
     () => [
@@ -341,12 +362,18 @@ export default function NavbarBottom() {
                       <span className="font-['Tajawal'] font-bold text-[12px] sm:text-[12px] md:text-[12px] lg:text-[14px] xl:text-[16px] whitespace-nowrap hidden xl:inline">
                         {item.label}
                       </span>
-                      <img 
-                        src={item.icon} 
-                        alt={item.label} 
-                        className={`w-5 h-5 object-contain ${isActive ? "brightness-0 invert" : ""}`}
-                      />
-                      
+                      <span className="relative inline-block">
+                        <img 
+                          src={item.icon} 
+                          alt={item.label} 
+                          className={`w-5 h-5 object-contain ${isActive ? "brightness-0 invert" : ""}`}
+                        />
+                        {item.key === "noti" && unreadCount > 0 && (
+                          <span className="absolute -top-1.5 -end-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </span>
                     </Link>
                   )}
                   </div>
@@ -422,11 +449,18 @@ export default function NavbarBottom() {
                           : "bg-transparent text-(--bottom-text) hover:bg-blue-50"
                       }`}
                     >
-                      <img 
-                        src={item.icon} 
-                        alt={item.label} 
-                        className={`w-4 h-4 object-contain ${isActive ? "brightness-0 invert" : ""}`}
-                      />
+                      <span className="relative inline-block">
+                        <img 
+                          src={item.icon} 
+                          alt={item.label} 
+                          className={`w-4 h-4 object-contain ${isActive ? "brightness-0 invert" : ""}`}
+                        />
+                        {item.key === "noti" && unreadCount > 0 && (
+                          <span className="absolute -top-1 -end-1 min-w-[14px] h-[14px] px-0.5 flex items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold leading-none">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </span>
                       <span className="font-['Tajawal'] font-bold text-[10px] sm:text-[11px] whitespace-nowrap hidden sm:inline">
                         {item.label}
                       </span>

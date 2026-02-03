@@ -120,6 +120,7 @@ import ViewOfferSupportTicketEmployee from "./pages/stockship/employee/ViewOffer
 import CreateTrader from "./pages/stockship/employee/CreateTrader";
 import EmployeeViewTrader from "./pages/stockship/employee/ViewTrader";
 import EmployeeViewDeal from "./pages/stockship/employee/ViewDeal";
+import DealPriceQuotePage from "./pages/stockship/employee/DealPriceQuotePage";
 import EmployeeOffers from "./pages/stockship/employee/EmployeeOffers";
 import EmployeeViewOffer from "./pages/stockship/employee/EmployeeViewOffer";
 import EmployeeShippingTracking from "./pages/stockship/employee/EmployeeShippingTracking";
@@ -152,6 +153,7 @@ import StockshipClientLayout from "./components/StockshipClientLayout";
 import ClientDashboard from "./pages/stockship/client/ClientDashboard";
 import ClientViewOffer from "./pages/stockship/client/ClientViewOffer";
 import ClientViewDeal from "./pages/stockship/client/ClientViewDeal";
+import ClientDealQuotePage from "./pages/stockship/client/ClientDealQuotePage";
 import ClientDeals from "./pages/stockship/client/ClientDeals";
 import ClientSettings from "./pages/stockship/client/ClientSettings";
 import LandingPage from "./pages/LandingPage";
@@ -1038,6 +1040,16 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/stockship/employee/deals/:id/quote"
+        element={
+          <MultiProtectedRoute requireEmployee>
+            <StockshipEmployeeLayout>
+              <DealPriceQuotePage />
+            </StockshipEmployeeLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
         path="/stockship/employee/deals/:id"
         element={
           <MultiProtectedRoute requireEmployee>
@@ -1145,6 +1157,16 @@ function AppRoutes() {
           <MultiProtectedRoute requireClient>
             <StockshipClientLayout>
               <ClientViewOffer />
+            </StockshipClientLayout>
+          </MultiProtectedRoute>
+        }
+      />
+      <Route
+        path="/stockship/client/deals/:id/quote"
+        element={
+          <MultiProtectedRoute requireClient>
+            <StockshipClientLayout>
+              <ClientDealQuotePage />
             </StockshipClientLayout>
           </MultiProtectedRoute>
         }

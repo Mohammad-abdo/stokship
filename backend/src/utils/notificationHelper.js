@@ -164,28 +164,28 @@ async function notifyPaymentVerified(payment, deal) {
       userIds: deal.traderId,
       userType: 'TRADER',
       type: 'PAYMENT',
-      title: 'Payment Verified',
-      message: `Payment for deal ${deal.dealNumber} has been verified`,
+      title: 'تم تحقق الدفع',
+      message: `تم دفع الصفقة ${deal.dealNumber} والتحقق منها`,
       relatedEntityType: 'PAYMENT',
       relatedEntityId: payment.id
     }),
-    // Notify client
+    // Notify client (اشعار مرئي انه تم دفع الصفقة)
     createNotification({
       userIds: deal.clientId,
       userType: 'CLIENT',
       type: 'PAYMENT',
-      title: 'Payment Verified',
-      message: `Your payment for deal ${deal.dealNumber} has been verified`,
+      title: 'تم دفع الصفقة',
+      message: `تم التحقق من دفعتك للصفقة ${deal.dealNumber}`,
       relatedEntityType: 'PAYMENT',
       relatedEntityId: payment.id
     }),
-    // Notify employee
+    // Notify employee (يظهر في داشبورد الموظف)
     createNotification({
       userIds: deal.employeeId,
       userType: 'EMPLOYEE',
       type: 'PAYMENT',
-      title: 'Payment Verified',
-      message: `Payment for deal ${deal.dealNumber} has been verified`,
+      title: 'تم دفع الصفقة',
+      message: `تم التحقق من دفع الصفقة ${deal.dealNumber}`,
       relatedEntityType: 'PAYMENT',
       relatedEntityId: payment.id
     })

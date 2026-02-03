@@ -99,5 +99,29 @@ export const dealService = {
       console.error('Error rejecting deal:', error);
       throw error;
     }
+  },
+
+  // Client accepts price quote (deal → APPROVED, then proceed to payment)
+  clientAcceptDeal: async (dealId) => {
+    const response = await api.put(`/deals/${dealId}/client-accept`);
+    return response;
+  },
+
+  // Client rejects price quote
+  clientRejectDeal: async (dealId, reason) => {
+    const response = await api.put(`/deals/${dealId}/client-reject`, reason ? { reason } : {});
+    return response;
+  },
+
+  // Client cancels the deal
+  clientCancelDeal: async (dealId, reason) => {
+    const response = await api.put(`/deals/${dealId}/client-cancel`, reason ? { reason } : {});
+    return response;
+  },
+
+  // Process payment for a deal (client)
+  processDealPayment: async (dealId, data) => {
+    const response = await api.post(`/deals/${dealId}/payments`, data);
+    return response;
   }
 };

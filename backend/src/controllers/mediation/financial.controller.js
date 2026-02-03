@@ -21,7 +21,7 @@ const processPayment = asyncHandler(async (req, res) => {
 
   const deal = await prisma.deal.findFirst({
     where: {
-      id: parseInt(dealId),
+      id: dealId,
       clientId: req.user.id,
       status: { in: ['APPROVED', 'PAID'] }
     },
@@ -49,21 +49,33 @@ const processPayment = asyncHandler(async (req, res) => {
     return errorResponse(res, 'Deal amount not negotiated yet', 400);
   }
 
+  // Parse amounts safely (Prisma Decimal may be object or string)
+  const toNum = (v) => {
+    if (v == null) return NaN;
+    if (typeof v === 'number' && !Number.isNaN(v)) return v;
+    const n = parseFloat(String(v));
+    return Number.isNaN(n) ? NaN : n;
+  };
+
   // Calculate total amount including commissions
   const platformSettings = await prisma.platformSettings.findFirst({
     orderBy: { updatedAt: 'desc' }
   });
-  const platformCommissionRate = platformSettings?.platformCommissionRate || 2.5;
-  const shippingCommissionRate = platformSettings?.shippingCommissionRate || 5.0;
-  const employeeCommissionRate = deal.employee.commissionRate || 1.0;
-  
-  const dealAmount = parseFloat(deal.negotiatedAmount);
+  const platformCommissionRate = toNum(platformSettings?.platformCommissionRate) || 2.5;
+  const shippingCommissionRate = toNum(platformSettings?.shippingCommissionRate) || 5.0;
+  const employeeCommissionRate = toNum(deal.employee?.commissionRate) || 1.0;
+
+  const dealAmount = toNum(deal.negotiatedAmount);
+  if (Number.isNaN(dealAmount) || dealAmount <= 0) {
+    return errorResponse(res, 'Deal amount not negotiated yet', 400);
+  }
   const platformCommission = (dealAmount * platformCommissionRate) / 100;
   const shippingCommission = (dealAmount * shippingCommissionRate) / 100;
   const employeeCommission = (dealAmount * employeeCommissionRate) / 100;
-  const totalAmount = dealAmount + platformCommission + shippingCommission + employeeCommission;
+  const totalAmount = Math.round((dealAmount + platformCommission + shippingCommission + employeeCommission) * 100) / 100;
+  const amountNum = Math.round(toNum(amount) * 100) / 100;
 
-  if (Math.abs(parseFloat(amount) - totalAmount) > 0.01) {
+  if (Number.isNaN(amountNum) || Math.abs(amountNum - totalAmount) > 0.02) {
     return errorResponse(res, `Payment amount must be ${totalAmount.toFixed(2)} (includes commissions)`, 400);
   }
 
@@ -72,7 +84,7 @@ const processPayment = asyncHandler(async (req, res) => {
     data: {
       dealId: deal.id,
       clientId: req.user.id,
-      amount: parseFloat(amount),
+      amount: amountNum,
       method,
       status: 'PENDING',
       transactionId: transactionId || null,
@@ -83,13 +95,14 @@ const processPayment = asyncHandler(async (req, res) => {
   // Log activity
   await prisma.activityLog.create({
     data: {
-      userId: req.user.id,
+      clientId: req.user.id,
       userType: 'CLIENT',
       action: 'PAYMENT_RECEIVED',
       entityType: 'PAYMENT',
-      entityId: payment.id,
+      dealId: deal.id,
       description: `Client initiated payment for deal ${deal.dealNumber}`,
       metadata: JSON.stringify({
+        paymentId: payment.id,
         amount,
         method,
         transactionId
@@ -99,14 +112,27 @@ const processPayment = asyncHandler(async (req, res) => {
     }
   });
 
-  // Notify employee
+  // Notify employee (payment initiated - visible in employee dashboard)
   await prisma.notification.create({
     data: {
       userId: deal.employeeId,
       userType: 'EMPLOYEE',
       type: 'PAYMENT',
-      title: 'Payment Received',
-      message: `Client paid ${amount} for deal ${deal.dealNumber}`,
+      title: 'تم استلام طلب الدفع',
+      message: `العميل أرسل طلب دفع للمبلغ ${amount} لصفقة ${deal.dealNumber} - بانتظار التحقق`,
+      relatedEntityType: 'PAYMENT',
+      relatedEntityId: payment.id
+    }
+  });
+
+  // Notify client (payment submitted - visible for client)
+  await prisma.notification.create({
+    data: {
+      userId: deal.clientId,
+      userType: 'CLIENT',
+      type: 'PAYMENT',
+      title: 'تم إرسال طلب الدفع',
+      message: `تم إرسال طلب الدفع بنجاح لصفقة ${deal.dealNumber} - بانتظار تحقق الموظف`,
       relatedEntityType: 'PAYMENT',
       relatedEntityId: payment.id
     }
@@ -125,7 +151,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   const { verified, notes } = req.body;
 
   const payment = await prisma.payment.findUnique({
-    where: { id: parseInt(id) },
+    where: { id },
     include: {
       deal: {
         include: {
@@ -156,7 +182,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   }
 
   if (payment.status !== 'PENDING') {
-    return errorResponse(res, 'Payment already processed', 400);
+    return errorResponse(res, `Payment already ${payment.status === 'COMPLETED' ? 'verified' : 'processed'}. Cannot verify again.`, 400);
   }
 
   // Update payment status
@@ -197,12 +223,13 @@ const verifyPayment = asyncHandler(async (req, res) => {
     // Log activity
     await prisma.activityLog.create({
       data: {
-        userId: req.user.id,
+        employeeId: req.user.id,
         userType: 'EMPLOYEE',
         action: 'PAYMENT_VERIFIED',
         entityType: 'PAYMENT',
-        entityId: payment.id,
+        dealId: payment.dealId,
         description: `Employee verified payment for deal ${payment.deal.dealNumber}`,
+        metadata: JSON.stringify({ paymentId: payment.id }),
         ipAddress: req.ip,
         userAgent: req.get('user-agent')
       }
@@ -236,7 +263,7 @@ async function calculateAndDistributeCommissions(deal, payment) {
     ? parseFloat(platformSettings.cbmRate) 
     : null; // No CBM rate by default
   const commissionMethod = platformSettings?.commissionMethod || 'PERCENTAGE'; // PERCENTAGE, CBM, BOTH
-  const employeeCommissionRate = deal.employee.commissionRate || 1.0; // Employee's rate
+  const employeeCommissionRate = deal.employee?.commissionRate != null ? parseFloat(deal.employee.commissionRate) : 1.0; // Employee's rate
 
   // The deal amount (negotiated amount) - this is what the buyer pays for the products
   const dealAmount = parseFloat(deal.negotiatedAmount) || parseFloat(payment.amount);
@@ -278,25 +305,21 @@ async function calculateAndDistributeCommissions(deal, payment) {
   // Trader receives only the deal amount (all commissions are deducted)
   const traderAmount = dealAmount;
 
-  // Create financial transaction
+  // Create financial transaction (schema: no totalCBM, cbmBasedCommission, cbmRate, commissionMethod)
   const transaction = await prisma.financialTransaction.create({
     data: {
       dealId: deal.id,
       paymentId: payment.id,
       type: 'DEPOSIT',
-      amount: totalAmount, // Total amount paid by buyer (including all commissions)
+      amount: totalAmount,
       status: 'COMPLETED',
       description: `Payment for deal ${deal.dealNumber} (includes commissions)`,
       platformCommission,
       employeeCommission,
       traderAmount,
-      totalCBM: totalCBM > 0 ? totalCBM : null,
-      cbmBasedCommission: cbmBasedCommission || null,
-      cbmRate: cbmRate || null,
-      commissionMethod: usedMethod,
       employeeId: deal.employeeId,
       traderId: deal.traderId,
-      processedBy: deal.employeeId, // Employee who verified
+      processedBy: deal.employeeId,
       processedAt: new Date()
     }
   });

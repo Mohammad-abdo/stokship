@@ -4,10 +4,12 @@ import { Link } from "react-router-dom";
 import { ROUTES, getOrderTrackingUrl } from "../routes";
 import { useStatusFilter } from "../hooks/useStatusFilter";
 import { orderService } from "../services/orderService";
+import { dealService } from "../services/dealService";
 import { useAuth } from "../contexts/AuthContext";
 
 const getStatusBadge = (status, t) => {
   const statusMap = {
+    // E-commerce order statuses
     'ORDER_RECEIVED': { label: t("orders.statusBadges.waiting"), className: "bg-amber-100 text-amber-900" },
     'PAYMENT_CONFIRMED': { label: t("orders.statusBadges.waiting"), className: "bg-amber-100 text-amber-900" },
     'IN_PREPARATION': { label: t("orders.statusBadges.waiting"), className: "bg-amber-100 text-amber-900" },
@@ -15,53 +17,82 @@ const getStatusBadge = (status, t) => {
     'READY_FOR_PICKUP': { label: t("orders.statusBadges.shipping"), className: "bg-blue-100 text-blue-900" },
     'COMPLETED': { label: t("orders.statusBadges.done"), className: "bg-emerald-100 text-emerald-900" },
     'CANCELLED': { label: t("orders.status.cancelled"), className: "bg-red-100 text-red-900" },
+    // Deal (mediation) statuses for CLIENT
+    'NEGOTIATION': { label: t("orders.dealStatus.negotiation") || "تفاوض", className: "bg-amber-100 text-amber-900" },
+    'APPROVED': { label: t("orders.dealStatus.approved") || "معتمد", className: "bg-blue-100 text-blue-900" },
+    'PAID': { label: t("orders.dealStatus.paid") || "تم الدفع", className: "bg-emerald-100 text-emerald-900" },
+    'SETTLED': { label: t("orders.dealStatus.settled") || "تم التسوية", className: "bg-emerald-100 text-emerald-900" },
+    'DISPUTED': { label: t("orders.dealStatus.disputed") || "نزاع", className: "bg-red-100 text-red-900" },
   };
-  
-  // Map backend status to frontend status
-  const frontendStatus = status === 'IN_SHIPPING' || status === 'READY_FOR_PICKUP' ? 'shipping' :
-                         status === 'COMPLETED' ? 'done' : 'waiting';
-  
-  return statusMap[status] || { label: status, className: "bg-slate-100 text-slate-900" };
+  return statusMap[status] || { label: status || "—", className: "bg-slate-100 text-slate-900" };
 };
 
 const mapBackendStatusToFrontend = (status) => {
   if (status === 'IN_SHIPPING' || status === 'READY_FOR_PICKUP') return 'shipping';
-  if (status === 'COMPLETED') return 'done';
+  if (status === 'COMPLETED' || status === 'PAID' || status === 'SETTLED') return 'done';
+  if (status === 'CANCELLED' || status === 'DISPUTED') return 'cancelled';
+  return 'waiting';
+};
+
+const mapDealStatusToFrontend = (status) => {
+  if (status === 'PAID' || status === 'SETTLED') return 'done';
+  if (status === 'CANCELLED' || status === 'DISPUTED') return 'cancelled';
   return 'waiting';
 };
 
 export default function Orders() {
   const { t, i18n } = useTranslation();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userType } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const isClient = userType === 'CLIENT';
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchOrders();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isClient]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await orderService.getMyOrders();
-      
-      if (response.data.success) {
-        // Transform backend orders to frontend format
-        const transformedOrders = (response.data.data || []).map(order => ({
-          id: order.orderNumber || order.id,
-          companyName: order.vendor?.companyName || order.vendor?.name || "تاجر",
-          total: parseFloat(order.totalAmount || 0),
-          currency: "SAR",
-          itemsCount: order.items?.length || 0,
-          status: mapBackendStatusToFrontend(order.status),
-          backendStatus: order.status,
+      if (isClient) {
+        // CLIENT: show mediation deals as "orders"
+        const response = await dealService.getDeals({ page: 1, limit: 100 });
+        const raw = response.data?.data ?? response.data;
+        const list = Array.isArray(raw) ? raw : (raw?.deals ?? raw?.list ?? []);
+        const transformedOrders = list.map((deal) => ({
+          id: deal.id,
+          orderNumber: deal.dealNumber,
+          companyName: deal.trader?.companyName || deal.trader?.name || t("orders.trader") || "تاجر",
+          total: parseFloat(deal.negotiatedAmount) || 0,
+          currency: "USD",
+          itemsCount: deal._count?.items ?? deal.items?.length ?? 0,
+          status: mapDealStatusToFrontend(deal.status),
+          backendStatus: deal.status,
           logo: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
-          order: order // Keep full order data
+          detailUrl: `${ROUTES.CLIENT_QUOTE}/${deal.id}`,
+          order: deal
         }));
         setOrders(transformedOrders);
+      } else {
+        const response = await orderService.getMyOrders();
+        if (response.data.success) {
+          const transformedOrders = (response.data.data || []).map((order) => ({
+            id: order.orderNumber || order.id,
+            orderNumber: order.orderNumber || order.id,
+            companyName: order.vendor?.companyName || order.vendor?.name || "تاجر",
+            total: parseFloat(order.totalAmount || 0),
+            currency: "SAR",
+            itemsCount: order.items?.length || 0,
+            status: mapBackendStatusToFrontend(order.status),
+            backendStatus: order.status,
+            logo: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg",
+            order
+          }));
+          setOrders(transformedOrders);
+        }
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -140,7 +171,7 @@ export default function Orders() {
                         {badge.label}
                       </span>
                       <Link
-                        to={getOrderTrackingUrl(o.id)}
+                        to={o.detailUrl || getOrderTrackingUrl(o.id)}
                         className="inline-block rounded-md bg-blue-900 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-800"
                       >
                         {t("orders.orderDetails")}
@@ -156,7 +187,7 @@ export default function Orders() {
                   <div className="flex items-center gap-6">
                     <div className={currentDir === 'rtl' ? 'text-right' : 'text-left'}>
                       <div className="text-sm font-semibold text-slate-900">
-                        #{o.id}
+                        #{o.orderNumber || o.id}
                       </div>
                       <div className="mt-1 text-sm text-slate-600">
                         {o.companyName}

@@ -4,8 +4,16 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { adminApi } from '@/lib/stockshipApi';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Video, Eye, Calendar, ExternalLink, Settings, FileText, Layout } from 'lucide-react';
+import { ArrowLeft, Video, Eye, Calendar, ExternalLink, Settings, FileText, Layout, Heart, MousePointer, MessageCircle, TrendingUp } from 'lucide-react';
 import showToast from '@/lib/toast';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const getMediaUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return url.startsWith('/') ? `${API_BASE}${url}` : `${API_BASE}/${url}`;
+};
 
 const AdminVideoAdDetails = () => {
   const { id } = useParams();
@@ -21,7 +29,7 @@ const AdminVideoAdDetails = () => {
   const fetchVideoAd = async () => {
     try {
       setLoading(true);
-      const response = await adminApi.getVideoAd(id);
+      const response = await adminApi.getVideoAd(id, { incrementView: 'false' });
       const data = response.data.data || response.data;
       setVideoAd(data);
     } catch (error) {
@@ -79,8 +87,8 @@ const AdminVideoAdDetails = () => {
             <CardContent>
               <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-inner">
                 <video
-                  src={videoAd.videoUrl}
-                  poster={videoAd.thumbnailUrl}
+                  src={getMediaUrl(videoAd.videoUrl)}
+                  poster={getMediaUrl(videoAd.thumbnailUrl)}
                   controls
                   className="w-full h-full"
                 />
@@ -170,6 +178,56 @@ const AdminVideoAdDetails = () => {
                 <span className="text-xl font-bold text-blue-700">{videoAd.views || 0}</span>
               </div>
 
+              <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg text-red-600">
+                    <Heart className="w-5 h-5" />
+                  </div>
+                  <span className="font-medium">{t('videoAds.likes') || 'Likes'}</span>
+                </div>
+                <span className="text-xl font-bold text-red-700">{videoAd.likes ?? 0}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-3 bg-amber-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                    <MousePointer className="w-5 h-5" />
+                  </div>
+                  <span className="font-medium">{t('videoAds.linkClicks') || 'Link Clicks'}</span>
+                </div>
+                <span className="text-xl font-bold text-amber-700">{videoAd.linkClicks ?? 0}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-3 bg-teal-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-teal-100 rounded-lg text-teal-600">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <span className="font-medium">{t('videoAds.comments') || 'Comments'}</span>
+                </div>
+                <span className="text-xl font-bold text-teal-700">{videoAd.commentsCount ?? 0}</span>
+              </div>
+
+              <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                    <TrendingUp className="w-5 h-5" />
+                  </div>
+                  <span className="font-medium">{t('videoAds.reachLevel') || 'Reach Level'}</span>
+                </div>
+                <span className="text-xl font-bold text-indigo-700">
+                  {(() => {
+                    const v = videoAd.views || 0;
+                    const l = videoAd.likes ?? 0;
+                    const c = videoAd.commentsCount ?? 0;
+                    const score = v + l * 2 + c * 3;
+                    if (score >= 1000) return 'High';
+                    if (score >= 100) return 'Medium';
+                    return 'Low';
+                  })()}
+                </span>
+              </div>
+
               <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
@@ -229,7 +287,7 @@ const AdminVideoAdDetails = () => {
               </CardHeader>
               <CardContent>
                 <div className="aspect-video rounded-lg overflow-hidden border">
-                  <img src={videoAd.thumbnailUrl} className="w-full h-full object-cover" alt="Thumbnail" />
+                  <img src={getMediaUrl(videoAd.thumbnailUrl)} className="w-full h-full object-cover" alt="Thumbnail" />
                 </div>
               </CardContent>
             </Card>

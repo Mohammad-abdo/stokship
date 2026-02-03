@@ -4,10 +4,20 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { dealApi, employeeApi, negotiationApi } from '@/lib/mediationApi';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ShoppingCart, Building2, User, Calendar, DollarSign, Package, CheckCircle, MessageSquare, CreditCard, Truck, Edit2, X, MapPin, Clock, CheckCircle2, AlertCircle, Eye, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Building2, User, Calendar, DollarSign, Package, CheckCircle, MessageSquare, CreditCard, Truck, Edit2, X, MapPin, Clock, CheckCircle2, AlertCircle, Eye, Send, Loader2, FileText } from 'lucide-react';
 import showToast from '@/lib/toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const getImageUrl = (img) => {
+  if (!img) return '';
+  const url = typeof img === 'string' ? img : (img?.url || img?.src || img);
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${API_BASE}${url.startsWith('/') ? url : '/' + url}`;
+};
 
 const ViewDeal = () => {
   const { id } = useParams();
@@ -25,7 +35,8 @@ const ViewDeal = () => {
   const [proposedPrice, setProposedPrice] = useState('');
   const [proposedQuantity, setProposedQuantity] = useState('');
   const [sending, setSending] = useState(false);
-  const [activeTab, setActiveTab] = useState('details'); // 'details' or 'negotiation'
+  const [activeTab, setActiveTab] = useState('details');
+  const [productState, setProductState] = useState([]);
 
   useEffect(() => {
     fetchDeal();
@@ -47,7 +58,40 @@ const ViewDeal = () => {
       setLoading(true);
       const response = await dealApi.getDealById(id);
       const data = response.data.data || response.data;
-      setDeal(data.deal || data);
+      const dealData = data.deal || data;
+      setDeal(dealData);
+
+      if (dealData.items && dealData.items.length > 0) {
+        const products = dealData.items.map((dealItem) => {
+          const { offerItem } = dealItem;
+          if (!offerItem) return null;
+          let images = [];
+          try {
+            const parsed = typeof offerItem.images === 'string' ? JSON.parse(offerItem.images || '[]') : (offerItem.images || []);
+            if (Array.isArray(parsed)) {
+              images = parsed.map(img => getImageUrl(typeof img === 'string' ? img : img?.url || img?.src)).filter(Boolean);
+            }
+          } catch (e) {}
+          const imageUrl = images[0] || 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=400&q=80';
+          return {
+            id: dealItem.id,
+            image: imageUrl,
+            thumbnails: images.slice(1, 4),
+            title: offerItem.productName || offerItem.description || t('mediation.deals.product') || 'منتج',
+            itemNumber: offerItem.itemNo || `#${offerItem.id?.substring(0, 8) || 'N/A'}`,
+            description: offerItem.description || offerItem.notes || '',
+            quantity: parseInt(offerItem.quantity) || 0,
+            piecesPerCarton: parseInt(offerItem.packageQuantity || offerItem.cartons || 1),
+            pricePerPiece: parseFloat(offerItem.unitPrice) || 0,
+            cbm: parseFloat(offerItem.totalCBM || offerItem.cbm || 0),
+            negotiationPrice: dealItem.negotiatedPrice ? parseFloat(dealItem.negotiatedPrice) : parseFloat(offerItem.unitPrice) || 0,
+            negotiationQuantity: parseInt(dealItem.quantity) || 0
+          };
+        }).filter(Boolean);
+        setProductState(products);
+      } else {
+        setProductState([]);
+      }
     } catch (error) {
       console.error('Error fetching deal:', error);
       showToast.error(
@@ -246,7 +290,18 @@ const ViewDeal = () => {
             <p className="text-muted-foreground mt-2">{deal.dealNumber || 'N/A'}</p>
           </div>
         </div>
-        {getStatusBadge(deal.status)}
+        <div className="flex items-center gap-3">
+          {productState.length > 0 && (
+            <Button
+              onClick={() => navigate(`/stockship/employee/deals/${id}/quote`)}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <FileText className="w-4 h-4" />
+              {t('mediation.deals.sendPriceQuote') || 'عرض السعر للعميل'}
+            </Button>
+          )}
+          {getStatusBadge(deal.status)}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -792,6 +847,7 @@ const ViewDeal = () => {
           </motion.div>
         </div>
       )}
+
     </motion.div>
   );
 };

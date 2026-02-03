@@ -408,6 +408,7 @@ model Deal {
   barcode            String?    @unique
   qrCodeUrl          String? // QR code for deal
   notes              String?    @db.Text
+  quoteSentAt        DateTime?  // When price quote was sent to client (for 72h expiry)
   approvedAt         DateTime?
   paidAt             DateTime?
   settledAt          DateTime?
@@ -796,11 +797,61 @@ model VideoAd {
   displayOrder  Int      @default(0)
   isActive      Boolean  @default(true)
   views         Int      @default(0)
+  likes         Int      @default(0)
+  dislikes      Int      @default(0)
+  linkClicks    Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  videoAdLikes     VideoAdLike[]
+  videoAdDislikes  VideoAdDislike[]
+  videoAdComments  VideoAdComment[]
+
   @@index([isActive])
   @@index([displayOrder])
+}
+
+model VideoAdLike {
+  id        String   @id @default(uuid())
+  videoAdId String
+  likerId   String
+  createdAt DateTime @default(now())
+
+  videoAd VideoAd @relation(fields: [videoAdId], references: [id], onDelete: Cascade)
+
+  @@unique([videoAdId, likerId])
+  @@index([videoAdId])
+  @@map("videoadlike")
+}
+
+model VideoAdDislike {
+  id        String   @id @default(uuid())
+  videoAdId String
+  dislikerId String
+  createdAt DateTime @default(now())
+
+  videoAd VideoAd @relation(fields: [videoAdId], references: [id], onDelete: Cascade)
+
+  @@unique([videoAdId, dislikerId])
+  @@index([videoAdId])
+  @@map("videoaddislike")
+}
+
+model VideoAdComment {
+  id        String   @id @default(uuid())
+  videoAdId String
+  parentId  String?
+  userId    String?
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  videoAd VideoAd @relation(fields: [videoAdId], references: [id], onDelete: Cascade)
+  parent  VideoAdComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies VideoAdComment[] @relation("CommentReplies")
+
+  @@index([videoAdId])
+  @@index([parentId])
+  @@map("videoadcomment")
 }
 
 // ============================================

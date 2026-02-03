@@ -221,7 +221,7 @@ export const adminApi = {
   
   // Video Ads
   getVideoAds: (params) => stockshipApi.get("/video-ads", { params }),
-  getVideoAd: (id) => stockshipApi.get(`/video-ads/${id}`),
+  getVideoAd: (id, params) => stockshipApi.get(`/video-ads/${id}`, { params }),
   createVideoAd: (data) => stockshipApi.post("/video-ads", data),
   updateVideoAd: (id, data) => stockshipApi.put(`/video-ads/${id}`, data),
   deleteVideoAd: (id) => stockshipApi.delete(`/video-ads/${id}`),

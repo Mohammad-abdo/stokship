@@ -1,29 +1,44 @@
 import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes";
+import { dealService } from "../services/dealService";
 
-export default function PaymentCardForm() {
+export default function PaymentCardForm({ deal = null, dealId = null, fromQuote = false, platformSettings = null }) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const currentDir = i18n.language === 'ar' ? 'rtl' : 'ltr';
-  const summary = useMemo(
-    () => ({
+  const [submitting, setSubmitting] = useState(false);
+
+  const summary = useMemo(() => {
+    if (deal && fromQuote) {
+      const dealAmount = Number(deal.negotiatedAmount) || 0;
+      const platformRate = platformSettings?.platformCommissionRate != null ? parseFloat(platformSettings.platformCommissionRate) : 2.5;
+      const shippingRate = platformSettings?.shippingCommissionRate != null ? parseFloat(platformSettings.shippingCommissionRate) : 5;
+      const employeeRate = deal.employee?.commissionRate != null ? parseFloat(deal.employee.commissionRate) : 1;
+      const platformComm = (dealAmount * platformRate) / 100;
+      const shippingComm = (dealAmount * shippingRate) / 100;
+      const employeeComm = (dealAmount * employeeRate) / 100;
+      const total = dealAmount + platformComm + shippingComm + employeeComm;
+      const currency = i18n.language === 'ar' ? 'دولار' : 'USD';
+      return {
+        amount: dealAmount,
+        tax: platformComm + shippingComm + employeeComm,
+        total,
+        currency,
+        platformRate,
+        shippingRate,
+      };
+    }
+    return {
       amount: 10000,
       tax: 10000,
       total: 20000,
       currency: i18n.language === 'ar' ? 'جنيه مصري' : 'EGP',
-    }),
-    [i18n.language]
-  );
-
-  const notes = useMemo(
-    () => [
-      t("payment.note1"),
-      t("payment.note2"),
-      t("payment.note3"),
-    ],
-    [t]
-  );
+      platformRate: 2.5,
+      shippingRate: 5,
+    };
+  }, [deal, fromQuote, i18n.language, platformSettings]);
 
   const [method, setMethod] = useState("card"); // card | transfer
   const [cardNumber, setCardNumber] = useState("");
@@ -34,9 +49,76 @@ export default function PaymentCardForm() {
   const [postal, setPostal] = useState("90210");
   const [receipt, setReceipt] = useState(null);
 
+  const handleSubmitPayment = async () => {
+    if (!dealId || !fromQuote) {
+      navigate(ROUTES.REQUEST_SENT);
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const amountToSend = Number(Number(summary.total).toFixed(2));
+      await dealService.processDealPayment(dealId, {
+        amount: amountToSend,
+        method: method === "card" ? "BANK_CARD" : "BANK_TRANSFER",
+        transactionId: method === "transfer" ? (receipt?.name || `transfer-${Date.now()}`) : (cardNumber || `card-${Date.now()}`),
+        receiptUrl: null
+      });
+      alert(t("payment.paymentSuccess") || "تم إرسال طلب الدفع بنجاح");
+      navigate(ROUTES.REQUEST_SENT);
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || t("payment.paymentError");
+      alert(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const dealItems = useMemo(() => {
+    if (!deal?.items?.length) return [];
+    return deal.items.map((di) => {
+      const offerItem = di.offerItem || {};
+      const qty = Number(di.quantity) || 0;
+      const price = Number(di.negotiatedPrice) || Number(offerItem.unitPrice) || 0;
+      return {
+        title: offerItem.productName || offerItem.description || t("negotiations.product"),
+        quantity: qty,
+        price,
+        total: qty * price
+      };
+    });
+  }, [deal, t]);
+
   return (
     <div dir={currentDir} className="min-h-screen bg-white pt-20 sm:pt-32 md:pt-40">
       <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 md:px-8 py-6 sm:py-8 md:py-10">
+        <h1 className={`text-2xl font-bold text-slate-900 mb-6 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+          {t("payment.pageTitle") || (i18n.language === 'ar' ? 'صفحة الدفع' : 'Payment page')}
+        </h1>
+
+        {deal && fromQuote && (
+          <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-6" dir={currentDir}>
+            <h2 className={`text-lg font-bold text-slate-900 mb-3 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+              {t("payment.dealContents") || "محتويات الصفقة"}
+            </h2>
+            <p className={`text-sm text-slate-600 mb-4 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+              {t("payment.dealNumber") || "رقم الصفقة"}: <strong>{deal.dealNumber}</strong>
+            </p>
+            <ul className="space-y-2">
+              {dealItems.map((item, i) => (
+                <li key={i} className={`flex justify-between text-sm ${currentDir === 'rtl' ? 'flex-row-reverse' : ''}`}>
+                  <span>{item.title} × {item.quantity}</span>
+                  <span className="font-semibold">${item.total.toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className={`mt-4 pt-4 border-t border-slate-200 space-y-1 text-sm ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+              <p>{t("negotiations.negotiatedAmount") || "قيمة الصفقة"}: <strong>${(summary.amount || 0).toFixed(2)}</strong></p>
+              <p>{t("payment.tax") || "العمولات"}: <strong>${(summary.tax || 0).toFixed(2)}</strong></p>
+              <p className="font-bold text-green-700">{t("payment.totalPayment") || "إجمالي الدفع"}: ${(summary.total || 0).toFixed(2)}</p>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 lg:gap-10">
             {/* Right: summary */}
           <div className="w-full lg:w-auto space-y-4 sm:space-y-5" dir={currentDir}>
@@ -63,39 +145,16 @@ export default function PaymentCardForm() {
               </div>
             </div>
 
-            <div className="space-y-2 sm:space-y-3">
-              {notes.map((note, i) => (
-                <label
-                  key={i}
-                  className={`flex items-start gap-2 sm:gap-3 rounded-md bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-xs text-slate-700 ${currentDir === 'rtl' ? 'flex-row-reverse justify-between' : 'justify-between'}`}
-                >
-                  <span className="leading-5 sm:leading-6 flex-1">{note}</span>
-                  <input
-                    type="checkbox"
-                    defaultChecked
-                    className="mt-1 h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-slate-300 shrink-0"
-                  />
-                </label>
-              ))}
-
-              <label className={`flex items-center gap-2 sm:gap-3 rounded-md bg-rose-100/70 px-3 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-xs font-semibold text-slate-800 ${currentDir === 'rtl' ? 'flex-row-reverse justify-between' : 'justify-between'}`}>
-                <span className="flex-1">{t("payment.sitePercentage")}</span>
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-slate-300 shrink-0"
-                />
-              </label>
-
-              <label className={`flex items-center gap-2 sm:gap-3 rounded-md bg-rose-100/70 px-3 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-xs font-semibold text-slate-800 ${currentDir === 'rtl' ? 'flex-row-reverse justify-between' : 'justify-between'}`}>
-                <span className="flex-1">{t("payment.creditDiscount")}</span>
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-slate-300 shrink-0"
-                />
-              </label>
-            </div>
+            {(fromQuote || deal) && (
+              <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 px-3 sm:px-4 py-3 text-sm">
+                <p className={`font-semibold text-slate-800 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                  {t("payment.platformRateLabel") || "نسبة ستوك شيب (المنصة)"}: <strong>{summary.platformRate}%</strong>
+                </p>
+                <p className={`font-semibold text-slate-800 ${currentDir === 'rtl' ? 'text-right' : 'text-left'}`}>
+                  {t("payment.shippingRateLabel") || "نسبة الشحن"}: <strong>{summary.shippingRate}%</strong>
+                </p>
+              </div>
+            )}
           </div>
           {/* Left: form */}
           <div className="w-full lg:w-auto rounded-xl border border-slate-100 bg-white shadow-sm p-4 sm:p-6 md:p-8" dir={currentDir}>
@@ -227,10 +286,14 @@ export default function PaymentCardForm() {
               </div>
                 <button
                   type="button"
-                  onClick={() => setMethod("transfer")}
-                  className="mt-4 w-full rounded-md bg-amber-500 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-blue-900 hover:bg-amber-600 transition-colors"
+                  disabled={submitting}
+                  onClick={() => {
+                    if (fromQuote && dealId) handleSubmitPayment();
+                    else navigate(ROUTES.REQUEST_SENT);
+                  }}
+                  className="mt-4 w-full rounded-md bg-amber-500 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-blue-900 hover:bg-amber-600 transition-colors disabled:opacity-50"
                 >
-                  {t("payment.pay")}
+                  {submitting ? (i18n.language === 'ar' ? 'جاري الإرسال...' : 'Sending...') : t("payment.pay")}
                 </button>
               </div>
             )}
@@ -311,21 +374,24 @@ export default function PaymentCardForm() {
                   </label>
                 </div>
 
-                <Link to={ROUTES.REQUEST_SENT}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => {
+                    if (fromQuote && dealId) {
                       if (!receipt) {
-                        e.preventDefault();
                         alert(t("payment.uploadReceiptAlert"));
                         return;
                       }
-                    }}
-                    className="mt-4 w-full rounded-md bg-amber-500 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-blue-900 hover:bg-amber-600 transition-colors"
-                  >
-                    {t("payment.paymentComplete")}
-                  </button>
-                </Link>
+                      handleSubmitPayment();
+                    } else {
+                      navigate(ROUTES.REQUEST_SENT);
+                    }
+                  }}
+                  className="mt-4 w-full rounded-md bg-amber-500 px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-blue-900 hover:bg-amber-600 transition-colors disabled:opacity-50"
+                >
+                  {submitting ? (i18n.language === 'ar' ? 'جاري الإرسال...' : 'Sending...') : t("payment.paymentComplete")}
+                </button>
               </div>
             )}
           </div>

@@ -11,11 +11,11 @@ const {
   getOrderTracking
 } = require('../controllers/order.controller');
 
-// User routes
-router.get('/', protect, isUser, getMyOrders);
-router.get('/my-orders', protect, isUser, getMyOrders);
-router.get('/my-orders/:id', protect, isUser, getOrderById);
-router.get('/my-orders/:id/tracking', protect, isUser, getOrderTracking);
+// User / Client routes (CLIENT gets empty list for e-commerce orders; mediation deals are elsewhere)
+router.get('/', protect, authorize('USER', 'CLIENT'), getMyOrders);
+router.get('/my-orders', protect, authorize('USER', 'CLIENT'), getMyOrders);
+router.get('/my-orders/:id', protect, authorize('USER', 'CLIENT'), getOrderById);
+router.get('/my-orders/:id/tracking', protect, authorize('USER', 'CLIENT'), getOrderTracking);
 router.post('/', protect, isUser, createOrder);
 router.post('/:id/cancel', protect, authorize('USER', 'ADMIN'), cancelOrder);
 
